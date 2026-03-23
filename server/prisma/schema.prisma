@@ -308,11 +308,11 @@ model Project {
 
 model Site {
   id                String  @id @default("default")
-  name              String  @default("OmniCore Agency Suite")
-  logo              String?
-  contactEmail      String? @map("contact_email")
-  contactPhone      String? @map("contact_phone")
-  address           String?
+  name              String  @default("TaskGo Agency")
+  logo              String? @default("/logo.png")
+  contactEmail      String? @default("mails.kunalbhatia@gmail.com") @map("contact_email")
+  contactPhone      String? @default("+91 82848-34841") @map("contact_phone")
+  address           String? @default("Chandigarh, India")
   isMaintenanceMode Boolean @default(false) @map("is_maintenance_mode")
   isDemoMode        Boolean @default(false) @map("is_demo_mode")
   createdAt         DateTime @default(now()) @map("created_at")

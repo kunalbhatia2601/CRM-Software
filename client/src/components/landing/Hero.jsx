@@ -1,138 +1,158 @@
 "use client";
 
-import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
 
 export default function Hero() {
-  // Animation Variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 },
-    },
-  };
+  const sectionRef = useRef(null);
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 40 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { type: "spring", stiffness: 90, damping: 20 },
-    },
-  };
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ delay: 0.3 });
+
+      tl.from(".hero-title", {
+        y: 40,
+        opacity: 0,
+        duration: 0.8,
+        ease: "power2.out",
+      })
+        .from(
+          ".hero-subtext",
+          { y: 25, opacity: 0, duration: 0.6 },
+          "-=0.4"
+        )
+        .from(
+          ".hero-buttons",
+          { y: 25, opacity: 0, duration: 0.6 },
+          "-=0.3"
+        )
+        .from(
+          ".hero-dashboard",
+          { y: 30, opacity: 0, duration: 0.8, ease: "power2.out" },
+          "-=0.3"
+        )
+        .from(
+          ".hero-bubble",
+          {
+            scale: 0,
+            opacity: 0,
+            duration: 0.5,
+            stagger: 0.15,
+            ease: "back.out(1.7)",
+          },
+          "-=0.3"
+        );
+    }, el);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section className="relative pt-[180px] pb-24 md:pt-[220px] md:pb-32 overflow-hidden flex flex-col items-center justify-center text-center">
-      
-      {/* Cloud Decorative Images mimicking the template */}
-      <img src="https://cdn.prod.website-files.com/695c7d712c7a871e68ae40b0/695ca66e9532a5b11136ac59_%E2%80%94Pngtree%E2%80%94white%20cloud%20hd%20transparent%20png_3595697%205-p-1080.webp" 
-           alt="Cloud" className="absolute top-[15%] left-[-5%] w-[40vw] max-w-[600px] opacity-60 pointer-events-none -z-10 mix-blend-overlay scale-125" />
-      <img src="https://cdn.prod.website-files.com/695c7d712c7a871e68ae40b0/695ca6903e32e45e6ded5d94_%E2%80%94Pngtree%E2%80%94white%20cloud%20hd%20transparent%20png_3595697%206-p-1080.webp" 
-           alt="Cloud" className="absolute top-[30%] right-[-10%] w-[50vw] max-w-[700px] opacity-60 pointer-events-none -z-10 mix-blend-overlay scale-125" />
+    <section className="pt-0 overflow-hidden" ref={sectionRef}>
+      <div
+        className="rounded-[20px] bg-cover bg-center bg-no-repeat min-h-[700px] lg:min-h-[1027px] overflow-hidden relative"
+        style={{ backgroundImage: "url('/images/group-2087329803.svg')" }}
+      >
+        {/* Cloud decorations */}
+        <Image
+          src="/images/cloud-2.webp"
+          alt=""
+          width={1644}
+          height={400}
+          className="absolute top-0 left-0 w-full pointer-events-none opacity-60"
+          style={{ height: "auto" }}
+          priority
+        />
+        <Image
+          src="/images/cloud-3.svg"
+          alt=""
+          width={400}
+          height={200}
+          className="absolute top-[10%] right-0 pointer-events-none opacity-40"
+          style={{ height: "auto" }}
+        />
 
-      <div className="container mx-auto px-6 relative z-10">
-        <motion.div
-          className="max-w-[1000px] mx-auto text-center relative"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* Main Headline */}
-          <motion.h1
-            variants={itemVariants}
-            className="text-[3.5rem] md:text-[6.5rem] font-black tracking-[-0.04em] text-[#050529] leading-[1.05] mb-8 mx-auto max-w-[900px]"
-          >
-            Simplify Task Management <br className="hidden md:block" />
-            Boost Productivity
-          </motion.h1>
+        <div className="max-w-[1350px] mx-auto px-4 pt-[140px] lg:pt-[188px] relative z-10">
+          <div className="text-center">
+            {/* Hero Title */}
+            <h1 className="hero-title text-[40px] md:text-[56px] lg:text-[72px] font-semibold leading-[110%] tracking-[-1.44px] text-dark max-w-[855px] mx-auto">
+              Simplify Task Management Boost Productivity
+            </h1>
 
-          {/* Subheadline */}
-          <motion.p
-            variants={itemVariants}
-            className="text-lg md:text-2xl text-[#050529]/70 mb-12 max-w-2xl mx-auto font-medium"
-          >
-            Easily Manage Tasks And Enhance Productivity From Start To Finish.
-          </motion.p>
+            {/* Subtitle */}
+            <p className="hero-subtext text-gray text-[18px] lg:text-[20px] leading-[150%] mt-4 max-w-[500px] mx-auto">
+              Easily manage tasks and enhance productivity from start to finish.
+            </p>
 
-          {/* CTAs */}
-          <motion.div
-            variants={itemVariants}
-            className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-24 relative z-20"
-          >
-            <Link
-              href="/signup"
-              className="w-full sm:w-auto px-8 py-4 bg-[#5B55F9] hover:bg-[#4338CA] text-white font-semibold rounded-full transition-all text-lg shadow-[0_10px_40px_rgba(91,85,249,0.3)] hover:-translate-y-1"
-            >
-              Get Started Free
-            </Link>
-            <Link
-              href="#demo"
-              className="w-full sm:w-auto px-8 py-4 bg-transparent hover:bg-black/5 text-[#050529] font-semibold rounded-full border border-[#050529] transition-all text-lg"
-            >
-              Book A Demo
-            </Link>
-          </motion.div>
+            {/* Buttons */}
+            <div className="hero-buttons flex flex-wrap justify-center gap-5 mt-9">
+              <Link
+                href="#CTA"
+                className="btn-glow relative inline-flex items-center justify-center px-8 py-4 bg-dark text-white text-[18px] rounded-full transition-all duration-300 hover:bg-primary"
+              >
+                <span className="relative z-10">Get Started Free</span>
+              </Link>
+              <Link
+                href="#CTA"
+                className="btn-glow relative inline-flex items-center justify-center px-8 py-4 border border-border-1 text-dark text-[18px] rounded-full transition-all duration-300 hover:bg-light-gray bg-white/50 backdrop-blur-sm"
+              >
+                <span className="relative z-10">Book a Demo</span>
+              </Link>
+            </div>
 
-          {/* Floating Avatar 1 -> Analysist */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0, y: [0, -15, 0] }}
-            transition={{ y: { repeat: Infinity, duration: 4, ease: "easeInOut" }, opacity: { delay: 0.8 }, x: { type: "spring" } }}
-            className="hidden lg:flex absolute top-[60%] left-[8%] bg-white/80 backdrop-blur-md px-6 py-3 rounded-full shadow-lg items-center gap-3 z-30 border border-white"
-          >
-            <div className="w-4 h-4 rounded-full bg-[#5B55F9]" />
-            <span className="text-base font-semibold text-[#050529]">Analysist</span>
-          </motion.div>
+            {/* Hero Dashboard Image */}
+            <div className="hero-dashboard mt-[63px] relative max-w-[1100px] mx-auto">
+              <Image
+                src="/images/group-2087329893.svg"
+                alt="TaskGo Dashboard"
+                width={1100}
+                height={700}
+                className="w-full relative z-[1]"
+                style={{ height: "auto" }}
+                priority
+              />
 
-          {/* Floating Avatar 2 -> Programmer */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0, y: [0, 15, 0] }}
-            transition={{ y: { repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }, opacity: { delay: 1 }, x: { type: "spring" } }}
-            className="hidden lg:flex absolute top-[60%] right-[8%] bg-white/80 backdrop-blur-md px-6 py-3 rounded-full shadow-lg items-center gap-3 z-30 border border-white"
-          >
-            <div className="w-4 h-4 rounded-full bg-[#3B82F6]" />
-            <span className="text-base font-semibold text-[#050529]">Programmer</span>
-          </motion.div>
-        </motion.div>
-
-        {/* Dashboard Mockup Video/Image */}
-        <motion.div
-          initial={{ opacity: 0, y: 150 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.3, type: "spring", stiffness: 40 }}
-          className="relative max-w-6xl mx-auto z-10 mt-[-20px] md:mt-[-40px]"
-        >
-          {/* Floating Avatar 3 -> Web Developer */}
-          <motion.div
-            animate={{ y: [0, -20, 0] }}
-            transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", delay: 0.5 }}
-            className="hidden lg:flex absolute top-[30%] -left-16 bg-white px-6 py-3 rounded-full shadow-xl items-center gap-3 z-40 border border-[#050529]/5"
-          >
-            <div className="w-5 h-5 rounded-full bg-orange-400" />
-            <span className="text-base font-semibold text-[#050529]">Web Developer</span>
-          </motion.div>
-
-          {/* Floating Avatar 4 -> HR */}
-          <motion.div
-            animate={{ y: [0, 20, 0] }}
-            transition={{ repeat: Infinity, duration: 5.5, ease: "easeInOut", delay: 1.5 }}
-            className="hidden lg:flex absolute bottom-[30%] -right-16 bg-white px-6 py-3 rounded-full shadow-xl items-center gap-3 z-40 border border-[#050529]/5"
-          >
-            <div className="w-5 h-5 rounded-full bg-emerald-400" />
-            <span className="text-base font-semibold text-[#050529]">Human Resources</span>
-          </motion.div>
-
-          {/* Master Layer of Mockup ensuring 0 overflow and tight rounded corners */}
-          <div className="relative rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden transform-gpu shadow-[0_30px_100px_rgba(5,5,41,0.15)] bg-white border border-white">
-            <img
-              src="https://cdn.prod.website-files.com/695c7d712c7a871e68ae40b0/69634907504f28272af29af7_Mask%20group%20(4).png"
-              alt="Dashboard App Mockup"
-              className="w-full h-auto object-cover transform hover:scale-[1.01] transition-transform duration-1000"
-            />
+              {/* Floating bubble icons */}
+              <Image
+                src="/images/frame-36.svg"
+                alt=""
+                width={60}
+                height={60}
+                className="hero-bubble absolute top-[10%] left-[5%] hidden lg:block animate-[bounce_3s_ease-in-out_infinite]"
+                style={{ width: "auto", height: "auto" }}
+              />
+              <Image
+                src="/images/frame-38.svg"
+                alt=""
+                width={60}
+                height={60}
+                className="hero-bubble absolute top-[20%] right-[8%] hidden lg:block animate-[bounce_4s_ease-in-out_infinite_0.5s]"
+                style={{ width: "auto", height: "auto" }}
+              />
+              <Image
+                src="/images/frame-37.svg"
+                alt=""
+                width={60}
+                height={60}
+                className="hero-bubble absolute bottom-[30%] left-[2%] hidden lg:block animate-[bounce_3.5s_ease-in-out_infinite_1s]"
+                style={{ width: "auto", height: "auto" }}
+              />
+              <Image
+                src="/images/frame-35.svg"
+                alt=""
+                width={60}
+                height={60}
+                className="hero-bubble absolute bottom-[20%] right-[3%] hidden lg:block animate-[bounce_4.5s_ease-in-out_infinite_1.5s]"
+                style={{ width: "auto", height: "auto" }}
+              />
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

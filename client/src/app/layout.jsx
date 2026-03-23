@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "OmniCore Agency Suite",
-  description: "OmniCore Agency Suite",
+  title: "TaskGo Agency",
+  description: "TaskGo Agency",
 };
 
 export default function RootLayout({ children }) {

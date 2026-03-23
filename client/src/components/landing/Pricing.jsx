@@ -1,131 +1,179 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
+const features = [
+  "Access to core features",
+  "Faster turnaround time",
+  "Standard design support",
+  "Everything in Starter",
+  "Standard design support",
+  "Automation & workflow",
+  "Email support",
+  "Premium integrations",
+];
+
+const plans = {
+  monthly: [
+    { name: "Starter Plan", price: "$49", popular: false },
+    { name: "Professional Plan", price: "$99", popular: true },
+  ],
+  yearly: [
+    { name: "Starter Plan", price: "$29", popular: false },
+    { name: "Professional Plan", price: "$89", popular: true },
+  ],
+};
 
 export default function Pricing() {
-  const [isYearly, setIsYearly] = useState(false);
+  const [billing, setBilling] = useState("monthly");
+  const ref = useRef(null);
 
-  const tiers = [
-    {
-      name: "Starter",
-      desc: "Perfect for small teams and startups getting off the ground.",
-      price: isYearly ? 12 : 15,
-      features: [
-        "Up to 5 team members",
-        "Basic task management",
-        "1GB storage per user",
-        "Community support",
-      ],
-      highlighted: false,
-    },
-    {
-      name: "Professional",
-      desc: "For growing businesses needing advanced capabilities.",
-      price: isYearly ? 29 : 39,
-      features: [
-        "Unlimited team members",
-        "Advanced automated workflows",
-        "100GB storage per user",
-        "Priority 24/7 support",
-        "Custom integrations",
-      ],
-      highlighted: true,
-    },
-  ];
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.from(".pricing-heading", {
+        y: 30, opacity: 0, duration: 0.8,
+        scrollTrigger: { trigger: ".pricing-heading", start: "top 85%" },
+      });
+      gsap.from(".pricing-subtext", {
+        y: 25, opacity: 0, duration: 0.6, delay: 0.2,
+        scrollTrigger: { trigger: ".pricing-subtext", start: "top 85%" },
+      });
+      gsap.from(".pricing-toggle", {
+        y: 25, opacity: 0, duration: 0.5,
+        scrollTrigger: { trigger: ".pricing-toggle", start: "top 85%" },
+      });
+      gsap.from(".pricing-card", {
+        y: 40, opacity: 0, duration: 0.7, stagger: 0.2,
+        scrollTrigger: { trigger: ".pricing-grid", start: "top 80%" },
+      });
+    }, el);
+    return () => ctx.revert();
+  }, []);
+
+  const currentPlans = plans[billing];
 
   return (
-    <section id="pricing" className="py-24 bg-[#F8FAFC]">
-      <div className="container mx-auto px-6 max-w-5xl">
-        
-        <div className="text-center mb-16">
-          <span className="text-indigo-600 font-semibold tracking-wide uppercase text-sm">Pricing</span>
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mt-4 mb-6 tracking-tight">
-            Simple, transparent pricing.
+    <section id="Pricing" className="py-[70px] overflow-hidden" ref={ref}>
+      <div className="max-w-[1350px] mx-auto px-4">
+        {/* Heading */}
+        <div className="text-center mb-12">
+          <h2 className="pricing-heading text-[36px] md:text-[44px] lg:text-[54px] font-semibold leading-[120%] tracking-[-1.08px] text-dark">
+            Flexible Pricing For Every Team
           </h2>
-          <p className="text-slate-600 text-lg leading-relaxed max-w-2xl mx-auto">
-            Choose the plan that fits your team's needs. No hidden fees, cancel anytime.
+          <p className="pricing-subtext text-gray text-[18px] lg:text-[20px] leading-[150%] mt-4 max-w-[660px] mx-auto">
+            Choose a plan that fits your needs—whether you&apos;re just getting started or managing complex projects at scale.
           </p>
         </div>
 
-        {/* Toggle Switch */}
-        <div className="flex justify-center mb-16">
-          <div className="relative flex items-center p-1 bg-white border border-slate-200 rounded-full shadow-sm">
-            
-            {/* Animated Slider Background */}
-            <motion.div
-              className="absolute top-1 bottom-1 w-1/2 bg-indigo-500 rounded-full shadow-md"
-              initial={false}
-              animate={{ left: isYearly ? "50%" : "4px", width: "calc(50% - 4px)" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            />
-
+        {/* Toggle */}
+        <div className="pricing-toggle flex justify-center mb-10">
+          <div className="inline-flex bg-light-gray rounded-full p-1 border border-border-1">
             <button
-              onClick={() => setIsYearly(false)}
-              className={`relative z-10 w-32 py-2.5 text-sm font-semibold rounded-full transition-colors ${!isYearly ? "text-white" : "text-slate-600 hover:text-slate-900"}`}
+              onClick={() => setBilling("monthly")}
+              className={`px-6 py-2.5 rounded-full text-[16px] font-medium transition-all duration-300 ${
+                billing === "monthly"
+                  ? "bg-dark text-white shadow-md"
+                  : "text-gray hover:text-dark"
+              }`}
             >
               Monthly
             </button>
             <button
-              onClick={() => setIsYearly(true)}
-              className={`relative z-10 w-32 py-2.5 text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1 ${isYearly ? "text-white" : "text-slate-600 hover:text-slate-900"}`}
+              onClick={() => setBilling("yearly")}
+              className={`px-6 py-2.5 rounded-full text-[16px] font-medium transition-all duration-300 ${
+                billing === "yearly"
+                  ? "bg-dark text-white shadow-md"
+                  : "text-gray hover:text-dark"
+              }`}
             >
               Yearly
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${isYearly ? 'bg-indigo-400 text-white' : 'bg-green-100 text-green-700'}`}>-20%</span>
             </button>
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {tiers.map((tier, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.2 }}
-              className={`relative rounded-3xl p-8 border ${
-                tier.highlighted 
-                  ? "bg-slate-900 border-slate-800 shadow-2xl text-white transform md:-translate-y-4" 
-                  : "bg-white border-slate-200 shadow-sm text-slate-900"
-              }`}
+        {/* Cards */}
+        <div className="pricing-grid grid grid-cols-1 md:grid-cols-2 gap-[30px] max-w-[900px] mx-auto">
+          {currentPlans.map((plan, idx) => (
+            <div
+              key={`${billing}-${idx}`}
+              className="pricing-card bg-light-gray border border-border-1 rounded-[20px] p-[30px] relative overflow-hidden flex flex-col"
             >
-              {tier.highlighted && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider py-1 px-4 rounded-full">
-                  Most Popular
-                </div>
-              )}
-              
-              <h3 className={`text-2xl font-bold mb-2 ${tier.highlighted ? "text-white" : "text-slate-900"}`}>{tier.name}</h3>
-              <p className={`text-sm mb-8 ${tier.highlighted ? "text-slate-400" : "text-slate-500"}`}>{tier.desc}</p>
-              
-              <div className="mb-8">
-                <span className="text-5xl font-extrabold tracking-tighter">${tier.price}</span>
-                <span className={`text-sm ${tier.highlighted ? "text-slate-400" : "text-slate-500"}`}>/mo per user</span>
-              </div>
-
-              <button className={`w-full py-4 rounded-xl font-semibold mb-8 transition-colors ${
-                tier.highlighted
-                  ? "bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/25"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-900"
-              }`}>
-                Get Started
-              </button>
-
-              <div className="space-y-4">
-                {tier.features.map((feature, fIdx) => (
-                  <div key={fIdx} className="flex items-start gap-3">
-                    <Check className={`w-5 h-5 shrink-0 ${tier.highlighted ? "text-indigo-400" : "text-indigo-500"}`} />
-                    <span className={`text-sm ${tier.highlighted ? "text-slate-300" : "text-slate-600"}`}>{feature}</span>
+              {/* Plan Title */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-[24px] font-semibold text-dark">{plan.name}</h3>
+                    {plan.popular && (
+                      <span className="bg-primary text-white text-[16px] px-3 py-1 rounded-full">
+                        Most Popular
+                      </span>
+                    )}
                   </div>
-                ))}
+                  <p className="text-gray text-[16px] leading-[150%] mt-1">
+                    Perfect for individuals and small teams.
+                  </p>
+                </div>
               </div>
-            </motion.div>
+
+              {/* Price */}
+              <h3 className="text-[40px] font-semibold text-dark mb-6">
+                {plan.price}{" "}
+                <span className="text-[16px] font-normal leading-[150%] tracking-normal">
+                  / Per Hour
+                </span>
+              </h3>
+
+              {/* Features */}
+              <div className="bg-white rounded-[20px] p-5 flex-1">
+                <h4 className="text-[20px] font-semibold text-dark mb-5">Features Included</h4>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-[90px] gap-y-4">
+                  {features.map((feature, fIdx) => (
+                    <li key={fIdx} className="flex items-center gap-2">
+                      <Image
+                        src="/images/yayv7awsfftw.svg"
+                        alt="check"
+                        width={20}
+                        height={20}
+                        className="w-5 h-5 flex-shrink-0"
+                      />
+                      <span className="text-gray text-[16px]">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Button */}
+              <div className="mt-6">
+                <Link
+                  href="#CTA"
+                  className="btn-glow relative w-full inline-flex items-center justify-center px-8 py-4 bg-dark text-white text-[18px] rounded-full transition-all duration-300 hover:bg-primary"
+                >
+                  <span className="relative z-10">Get Started Free</span>
+                </Link>
+              </div>
+
+              {/* Corner overlay for popular plan */}
+              {plan.popular && (
+                <Image
+                  src="/images/mask-group-1-2.svg"
+                  alt=""
+                  width={400}
+                  height={400}
+                  className="absolute bottom-0 right-0 pointer-events-none opacity-30"
+                  style={{ height: "auto" }}
+                />
+              )}
+            </div>
           ))}
         </div>
-
       </div>
     </section>
   );

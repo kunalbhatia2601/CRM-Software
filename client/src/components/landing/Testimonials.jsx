@@ -1,73 +1,308 @@
 "use client";
 
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
+const testimonials = [
+  {
+    text: "The team delivered exceptional design quality with a clear understanding of our business goals. The final product exceeded expectations and improved user engagement significantly.",
+    name: "Milla Ass",
+    role: "Marketer",
+    rating: "4.9 out of 5.0",
+    large: true,
+  },
+  {
+    text: "From concept to execution, everything was handled with precision. Our conversion rate noticeably after launch.",
+    name: "Robert Fox",
+    role: "Marketer",
+    rating: null,
+    large: false,
+  },
+  {
+    text: "They transformed our ideas into a clean, modern digital experience. Communication was smooth.",
+    name: "Esther Howard",
+    role: "Marketer",
+    rating: null,
+    large: false,
+  },
+  {
+    text: "A reliable partner who truly understands design strategy. Their attention to detail and structured workflow made a real difference. Outstanding UI/UX work.",
+    name: "Josh Biler",
+    role: "Marketer",
+    rating: "4.9 out of 5.0",
+    large: true,
+  },
+];
+
+const sliderTestimonials = [
+  [
+    {
+      text: "The team delivered exceptional design quality with a clear understanding of our business goals.",
+      name: "Milla Ass",
+      role: "Marketer",
+      rating: "4.9 out of 5.0",
+    },
+    {
+      text: "From concept to execution, everything was handled with precision.",
+      name: "Robert Fox",
+      role: "Marketer",
+      rating: null,
+    },
+  ],
+  [
+    {
+      text: "Reliable, detail-driven partner delivering intuitive, scalable UI/UX aligned with user needs.",
+      name: "Assh Onr",
+      role: "Marketer",
+      rating: "4.9 out of 5.0",
+    },
+    {
+      text: "Handled every stage with precision, from concept to execution.",
+      name: "Raj Dip",
+      role: "Marketer",
+      rating: null,
+    },
+  ],
+  [
+    {
+      text: "They transformed our ideas into a clean, modern digital experience. Communication was smooth.",
+      name: "Luner Fox",
+      role: "Marketer",
+      rating: "4.9 out of 5.0",
+    },
+    {
+      text: "High-quality design that exceeded expectations and boosted user engagement.",
+      name: "Feth Mil",
+      role: "Marketer",
+      rating: null,
+    },
+  ],
+];
+
+function Stars() {
+  return (
+    <div className="flex gap-1">
+      {[...Array(5)].map((_, i) => (
+        <Image key={i} src="/images/sgwkas6pcbqw.svg" alt="star" width={17} height={17} />
+      ))}
+    </div>
+  );
+}
 
 export default function Testimonials() {
-  const reviews = [
-    {
-      text: "TaskGo has completely transformed how our team operates. It’s intuitive, fast, and exactly what we needed to scale our agency.",
-      author: "Sarah Jenkins",
-      role: "Operations Director",
-    },
-    {
-      text: "The automated workflows save me at least 10 hours a week. It’s incredible how much mental bandwidth this tool frees up.",
-      author: "David Chen",
-      role: "Lead Engineer",
-    },
-    {
-      text: "Switching from Jira was the best decision we made this year. The onboarding took less than a day, and everyone loves it.",
-      author: "Emily Ross",
-      role: "Product Manager",
-    },
-  ];
+  const [activeSlide, setActiveSlide] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const ctx = gsap.context(() => {
+      gsap.from(".testimonial-heading", {
+        y: 30, opacity: 0, duration: 0.8,
+        scrollTrigger: { trigger: ".testimonial-heading", start: "top 85%" },
+      });
+      gsap.from(".testimonial-subtext", {
+        y: 25, opacity: 0, duration: 0.6, delay: 0.2,
+        scrollTrigger: { trigger: ".testimonial-subtext", start: "top 85%" },
+      });
+      gsap.from(".testimonial-card", {
+        y: 40, opacity: 0, duration: 0.7, stagger: 0.12,
+        scrollTrigger: { trigger: ".testimonial-grid", start: "top 80%" },
+      });
+    }, el);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section className="py-24 bg-white">
-      <div className="container mx-auto px-6">
-        
-        <div className="text-center mb-16">
-          <span className="text-indigo-600 font-semibold tracking-wide uppercase text-sm">Success Stories</span>
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mt-4 tracking-tight">
-            Loved by ambitious teams.
+    <section id="Testimonial" className="py-[70px] overflow-hidden" ref={ref}>
+      <div className="max-w-[1350px] mx-auto px-4">
+        {/* Heading */}
+        <div className="text-center mb-12">
+          <h2 className="testimonial-heading text-[36px] md:text-[44px] lg:text-[54px] font-semibold leading-[120%] tracking-[-1.08px] text-dark">
+            Real Results, Real Impact.
+            <br />
+            Our Success Stories
           </h2>
+          <p className="testimonial-subtext text-gray text-[18px] lg:text-[20px] leading-[150%] mt-4 max-w-[542px] mx-auto">
+            Real-world success stories showcasing growth, performance, and productivity improvements.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {reviews.map((review, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.15 }}
-              className="bg-slate-50 p-8 rounded-2xl border border-slate-100 flex flex-col justify-between hover:bg-indigo-50/50 transition-colors"
-            >
-              <div>
-                <div className="flex text-yellow-400 mb-6 gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-slate-700 font-medium mb-8 leading-relaxed">
-                  "{review.text}"
+        {/* Desktop Layout - bento grid */}
+        <div className="testimonial-grid hidden lg:block">
+          <div className="grid grid-cols-3 gap-[30px]">
+            {/* Column 1: large card + small card */}
+            <div className="flex flex-col gap-[30px]">
+              {/* Large testimonial */}
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-[30px] relative overflow-hidden flex-1">
+                <p className="text-gray text-[16px] leading-[150%] mb-6">
+                  {testimonials[0].text}
                 </p>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600">
-                  {review.author.charAt(0)}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[20px] font-semibold text-dark">{testimonials[0].name}</h3>
+                    <span className="text-gray text-[14px]">{testimonials[0].role}</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Stars />
+                    <span className="text-gray text-[14px]">{testimonials[0].rating}</span>
+                  </div>
                 </div>
+              </div>
+              {/* Small card */}
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-[30px] relative overflow-hidden">
+                <p className="text-gray text-[16px] leading-[150%] mb-4">
+                  {testimonials[1].text}
+                </p>
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{review.author}</h4>
-                  <p className="text-slate-500 text-xs">{review.role}</p>
+                  <h4 className="text-[18px] font-semibold text-dark">{testimonials[1].name}</h4>
+                  <span className="text-gray text-[14px]">{testimonials[1].role}</span>
+                </div>
+                <Image
+                  src="/images/mask-group-1.png"
+                  alt=""
+                  width={1257}
+                  height={300}
+                  className="absolute bottom-0 left-0 w-full pointer-events-none opacity-20"
+                />
+              </div>
+            </div>
+
+            {/* Column 2: client image + small card */}
+            <div className="flex flex-col gap-[30px]">
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-8 flex items-center justify-center flex-1">
+                <Image
+                  src="/images/mask-group.svg"
+                  alt="Client"
+                  width={300}
+                  height={300}
+                  className="w-full max-w-[250px]"
+                />
+              </div>
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-[30px] relative overflow-hidden">
+                <p className="text-gray text-[16px] leading-[150%] mb-4">
+                  {testimonials[2].text}
+                </p>
+                <div>
+                  <h5 className="text-[18px] font-semibold text-dark">{testimonials[2].name}</h5>
+                  <span className="text-gray text-[14px]">{testimonials[2].role}</span>
+                </div>
+                <Image
+                  src="/images/mask-group-1.png"
+                  alt=""
+                  width={1257}
+                  height={300}
+                  className="absolute bottom-0 left-0 w-full pointer-events-none opacity-20"
+                />
+              </div>
+            </div>
+
+            {/* Column 3: client image + big review */}
+            <div className="flex flex-col gap-[30px]">
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-8 flex items-center justify-center">
+                <Image
+                  src="/images/mask-group-1.svg"
+                  alt="Client"
+                  width={300}
+                  height={300}
+                  className="w-full max-w-[250px]"
+                />
+              </div>
+              <div className="testimonial-card bg-light-gray border border-border-1 rounded-[20px] p-[30px] relative overflow-hidden flex-1">
+                <p className="text-gray text-[16px] leading-[150%] mb-6">
+                  {testimonials[3].text}
+                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h5 className="text-[18px] font-semibold text-dark">{testimonials[3].name}</h5>
+                    <span className="text-gray text-[14px]">{testimonials[3].role}</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Stars />
+                    <span className="text-gray text-[14px]">{testimonials[3].rating}</span>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          ))}
+            </div>
+          </div>
         </div>
 
+        {/* Mobile/Tablet Slider */}
+        <div className="lg:hidden">
+          <div className="relative overflow-hidden">
+            <div
+              className="flex transition-transform duration-500"
+              style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+            >
+              {sliderTestimonials.map((slide, slideIdx) => (
+                <div key={slideIdx} className="min-w-full px-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {slide.map((t, tIdx) => (
+                      <div
+                        key={tIdx}
+                        className="bg-light-gray border border-border-1 rounded-[20px] p-6 relative overflow-hidden"
+                      >
+                        <p className="text-gray text-[16px] leading-[150%] mb-4">{t.text}</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h5 className="text-[18px] font-semibold text-dark">{t.name}</h5>
+                            <span className="text-gray text-[14px]">{t.role}</span>
+                          </div>
+                          {t.rating && (
+                            <div className="flex flex-col items-end gap-1">
+                              <Stars />
+                              <span className="text-gray text-[14px]">{t.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                        <Image
+                          src="/images/mask-group-1.png"
+                          alt=""
+                          width={1257}
+                          height={300}
+                          className="absolute bottom-0 left-0 w-full pointer-events-none opacity-20"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Slider controls */}
+          <div className="flex justify-center gap-4 mt-6">
+            <button
+              onClick={() => setActiveSlide((p) => (p > 0 ? p - 1 : sliderTestimonials.length - 1))}
+              className="w-10 h-10 rounded-full border border-border-1 flex items-center justify-center hover:bg-light-gray transition-colors"
+            >
+              ←
+            </button>
+            <div className="flex items-center gap-2">
+              {sliderTestimonials.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveSlide(i)}
+                  className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                    activeSlide === i ? "bg-primary" : "bg-border-1"
+                  }`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => setActiveSlide((p) => (p < sliderTestimonials.length - 1 ? p + 1 : 0))}
+              className="w-10 h-10 rounded-full border border-border-1 flex items-center justify-center hover:bg-light-gray transition-colors"
+            >
+              →
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );

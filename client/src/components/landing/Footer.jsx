@@ -1,86 +1,184 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Twitter, Linkedin, Github } from "lucide-react";
 
-export default function Footer({ siteData }) {
+const menuLinks = [
+  { href: "/", label: "Home" },
+  { href: "#Features", label: "Features" },
+  { href: "#Choose", label: "Why Choose" },
+  { href: "#Pricing", label: "Pricing" },
+  { href: "#Testimonial", label: "Testimonial" },
+];
+
+const templateLinks = [
+  { href: "#", label: "Style Guide" },
+  { href: "#", label: "License" },
+  { href: "#", label: "Changelog" },
+  { href: "#", label: "404" },
+  { href: "#", label: "Password" },
+];
+
+const socialLinks = [
+  { href: "https://facebook.com", icon: "/images/zj1kns4lgbms.svg", hoverIcon: "/images/group-2.webp", label: "Facebook" },
+  { href: "https://instagram.com", icon: "/images/group-68.svg", hoverIcon: "/images/group-68.webp", label: "Instagram" },
+  { href: "https://x.com", icon: "/images/s0-1.svg", hoverIcon: "/images/s0-1.webp", label: "X" },
+  { href: "https://linkedin.com", icon: "/images/vector-2.svg", hoverIcon: "/images/spath-0-1.webp", label: "LinkedIn" },
+];
+
+export default function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 border-t border-slate-800">
-      <div className="container mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 mb-16">
-          
-          <div className="col-span-2 lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-6">
-              {siteData.logo ? (
-                <img src={siteData.logo} alt={siteData.name} className="h-8 brightness-0 invert" />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-bold text-xl">
-                    {siteData.name.charAt(0)}
-                  </div>
-                  <span className="font-bold text-xl text-white tracking-tight">
-                    {siteData.name}
-                  </span>
-                </div>
-              )}
-            </Link>
-            <p className="text-sm leading-relaxed mb-6 max-w-xs">
-              Simplifying task management and boosting productivity for modern teams globally. Build the future with absolute clarity.
-            </p>
-            <div className="flex gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-colors">
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-colors">
-                <Linkedin className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-colors">
-                <Github className="w-4 h-4" />
-              </a>
+    <footer className="overflow-hidden">
+      <div className="bg-dark-bg">
+        <div className="max-w-[1350px] mx-auto px-4 pt-16">
+          {/* Top section */}
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
+            {/* Logo & tagline */}
+            <div className="lg:max-w-[300px]">
+              <Link href="/">
+                <Image
+                  src="/images/frame-55.svg"
+                  alt="TaskGo"
+                  width={168}
+                  height={40}
+                  className="w-[168px] brightness-0 invert"
+                  style={{ height: "auto" }}
+                />
+              </Link>
+              <p className="text-gray text-[18px] leading-[150%] mt-6">
+                We design experiences that connect, convert, and scale with your business.
+              </p>
             </div>
-            
-            {(siteData.contactEmail || siteData.contactPhone) && (
-              <div className="mt-8 pt-6 border-t border-slate-800">
-                <p className="text-sm font-semibold text-slate-300 mb-2">Contact Us</p>
-                {siteData.contactEmail && <p className="text-sm mb-1">{siteData.contactEmail}</p>}
-                {siteData.contactPhone && <p className="text-sm">{siteData.contactPhone}</p>}
+
+            {/* Links Grid */}
+            <div className="flex flex-1 flex-wrap gap-12 lg:gap-20 lg:justify-end">
+              {/* Menus */}
+              <div>
+                <h4 className="text-white text-[24px] font-semibold mb-8">Menus</h4>
+                <div className="flex flex-col gap-5">
+                  {menuLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className="group relative h-[29px] overflow-hidden text-[18px] leading-[150%] text-gray hover:text-white transition-colors duration-300 flex flex-col"
+                    >
+                      <span className="block transition-transform duration-300 group-hover:-translate-y-full">
+                        {link.label}
+                      </span>
+                      <span className="block text-primary transition-transform duration-300 group-hover:-translate-y-full">
+                        {link.label}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            )}
+
+              {/* Templates */}
+              <div>
+                <h4 className="text-white text-[24px] font-semibold mb-8">Templates</h4>
+                <div className="flex flex-col gap-5">
+                  {templateLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className="group relative h-[29px] overflow-hidden text-[18px] leading-[150%] text-gray hover:text-white transition-colors duration-300 flex flex-col"
+                    >
+                      <span className="block transition-transform duration-300 group-hover:-translate-y-full">
+                        {link.label}
+                      </span>
+                      <span className="block text-primary transition-transform duration-300 group-hover:-translate-y-full">
+                        {link.label}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div>
+                <h4 className="text-white text-[24px] font-semibold mb-8">Contact</h4>
+                <div className="flex flex-col gap-5 max-w-[253px]">
+                  <a
+                    href="mailto:contact@taskgo.com"
+                    className="text-gray text-[18px] leading-[150%] hover:text-primary transition-colors duration-300"
+                  >
+                    contact@taskgo.com
+                  </a>
+                  <a
+                    href="tel:+18001234567"
+                    className="text-gray text-[18px] leading-[150%] hover:text-primary transition-colors duration-300"
+                  >
+                    +1 (800) 123-4567
+                  </a>
+                  <a
+                    href="https://maps.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray text-[18px] leading-[150%] hover:text-primary transition-colors duration-300"
+                  >
+                    4140 Parker Rd. Allentown, New Mexico 31134
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <h4 className="text-white font-bold mb-6">Product</h4>
-            <ul className="space-y-4 text-sm">
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Features</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Integrations</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Pricing</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Changelog</Link></li>
-            </ul>
+          {/* Divider */}
+          <div className="h-px bg-gray/20 mt-12" />
+
+          {/* Bottom: Social + Footer image + Copyright */}
+          <div className="py-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              {/* Social Links */}
+              <div className="flex gap-3">
+                {socialLinks.map((social) => (
+                  <a
+                    key={social.label}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group w-10 h-10 rounded-full bg-light-gray/10 border border-gray/20 flex items-center justify-center hover:bg-primary/20 transition-colors duration-300"
+                  >
+                    <Image
+                      src={social.icon}
+                      alt={social.label}
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 brightness-0 invert group-hover:hidden"
+                    />
+                    <Image
+                      src={social.hoverIcon}
+                      alt={social.label}
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 hidden group-hover:block"
+                    />
+                  </a>
+                ))}
+              </div>
+
+              {/* Footer large text/image */}
+              <div className="max-w-[766px] overflow-hidden">
+                <Image
+                  src="/images/podr0aq2t2h4.svg"
+                  alt="TaskGo"
+                  width={766}
+                  height={100}
+                  className="w-full opacity-20"
+                  style={{ height: "auto" }}
+                />
+              </div>
+            </div>
+
+            {/* Copyright */}
+            <div className="flex justify-center mt-8 mb-4">
+              <p className="text-gray text-[16px] leading-[150%]">
+                © Template by{" "}
+                <span className="hover:text-primary transition-colors">Olynex</span> - Powered by{" "}
+                <span className="hover:text-primary transition-colors">Webflow</span>
+              </p>
+            </div>
           </div>
-
-          <div>
-            <h4 className="text-white font-bold mb-6">Company</h4>
-            <ul className="space-y-4 text-sm">
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">About Us</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Careers</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Blog</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Contact</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-white font-bold mb-6">Legal</h4>
-            <ul className="space-y-4 text-sm">
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Privacy Policy</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Terms of Service</Link></li>
-              <li><Link href="#" className="hover:text-indigo-400 transition-colors">Cookie Policy</Link></li>
-            </ul>
-          </div>
-
-        </div>
-
-        <div className="text-center pt-8 border-t border-slate-800 text-sm">
-          &copy; {new Date().getFullYear()} {siteData.name}. All rights reserved.
         </div>
       </div>
     </footer>

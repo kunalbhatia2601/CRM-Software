@@ -1,7 +1,7 @@
 {
-  "name": "omnicore-agency-suite",
+  "name": "taskgo-agency",
   "version": "1.0.0",
-  "description": "OmniCore Agency Suite - Backend API",
+  "description": "TaskGo Agency - Backend API",
   "main": "server.js",
   "scripts": {
     "dev": "bun x prisma db push && bun x prisma generate && nodemon server.js",

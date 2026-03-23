@@ -39,7 +39,7 @@ app.get("/", (_req, res) => {
   if (config.env === "development") {
     res.json({
       success: true,
-      message: "OmniCore Agency Suite API is running",
+      message: "TaskGo Agency API is running",
       environment: config.env,
       timestamp: new Date().toISOString(),
     });
@@ -54,7 +54,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
     status: "HEALTHY",
-    message: "OmniCore Agency Suite API",
+    message: "TaskGo Agency API",
     timestamp: new Date().toISOString(),
   });
 });
