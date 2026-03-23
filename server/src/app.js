@@ -50,7 +50,8 @@ app.get("/", (_req, res) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
-    message: "OmniCore Agency Suite API is running",
+    status: "HEALTHY",
+    message: "OmniCore Agency Suite API",
     timestamp: new Date().toISOString(),
   });
 });
