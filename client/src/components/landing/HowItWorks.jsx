@@ -45,10 +45,10 @@ export default function HowItWorks() {
             initial={{ opacity: 0, x: -40 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="bg-[#5B55F9] rounded-[2.5rem] p-10 pb-0 overflow-hidden relative shadow-2xl h-[500px]"
+            className="bg-[#5B55F9] rounded-[2.5rem] p-10 pb-0 overflow-hidden transform-gpu relative shadow-2xl h-[500px]"
           >
             {/* The Mac Window Representation */}
-            <div className="bg-[#FAFBFD] rounded-t-2xl shadow-xl border border-white/20 w-full h-[600px] mt-8 overflow-hidden transform group-hover:-translate-y-2 transition-transform duration-700">
+            <div className="bg-[#FAFBFD] rounded-t-2xl shadow-xl border border-white/20 w-full h-[600px] mt-8 overflow-hidden transform-gpu group-hover:-translate-y-2 transition-transform duration-700">
               <img 
                 src="https://cdn.prod.website-files.com/695c7d712c7a871e68ae40b0/69634907504f28272af29af7_Mask%20group%20(4).png"
                 alt="Task Boards App UI" 

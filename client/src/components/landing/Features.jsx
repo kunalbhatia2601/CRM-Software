@@ -49,7 +49,7 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: feature.delay }}
-              className="bg-[#EAECEF] rounded-[2rem] p-10 flex flex-col items-start gap-4 hover:-translate-y-2 transition-transform duration-500 overflow-hidden relative shadow-sm border border-transparent hover:border-white/50"
+              className="bg-[#EAECEF] rounded-[2rem] p-10 flex flex-col items-start gap-4 hover:-translate-y-2 transition-transform duration-500 overflow-hidden transform-gpu relative shadow-sm border border-transparent hover:border-white/50"
             >
               <h3 className="text-2xl font-bold text-[#050529] leading-tight mt-4">{feature.title}</h3>
               <p className="text-[#050529]/70 text-[17px] font-medium leading-relaxed max-w-[90%] z-10">

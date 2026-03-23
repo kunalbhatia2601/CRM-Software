@@ -125,7 +125,7 @@ export default function Hero() {
           </motion.div>
 
           {/* Master Layer of Mockup ensuring 0 overflow and tight rounded corners */}
-          <div className="relative rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_30px_100px_rgba(5,5,41,0.15)] bg-white border border-white">
+          <div className="relative rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden transform-gpu shadow-[0_30px_100px_rgba(5,5,41,0.15)] bg-white border border-white">
             <img
               src="https://cdn.prod.website-files.com/695c7d712c7a871e68ae40b0/69634907504f28272af29af7_Mask%20group%20(4).png"
               alt="Dashboard App Mockup"

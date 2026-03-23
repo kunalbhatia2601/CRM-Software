@@ -50,7 +50,7 @@ export default function Impact() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: stat.delay }}
-              className="relative bg-gradient-to-br from-[#EEF2FC] to-white p-10 pt-16 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-end min-h-[300px] overflow-hidden group hover:shadow-xl transition-shadow duration-500"
+              className="relative bg-gradient-to-br from-[#EEF2FC] to-white p-10 pt-16 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-end min-h-[300px] overflow-hidden transform-gpu group hover:shadow-xl transition-shadow duration-500"
             >
               {/* Top Right Decoration */}
               <div className="absolute top-8 right-8 w-4 h-4 rounded-full bg-[#5B55F9] border-4 border-[#5B55F9]/20" />

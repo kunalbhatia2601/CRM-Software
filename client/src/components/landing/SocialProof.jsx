@@ -26,7 +26,7 @@ export default function SocialProof() {
       </div>
       
       {/* Logos Marquee */}
-      <div className="relative w-full flex overflow-hidden mask-image-marquee">
+      <div className="relative w-full flex overflow-hidden mask-image-edges">
         <motion.div
           animate={{ x: [0, -2000] }}
           transition={{
