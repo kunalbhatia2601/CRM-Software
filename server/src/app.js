@@ -82,8 +82,7 @@ app.get("/pullAndDeploy", (_req, res) => {
     git pull origin main &&
     cd server && bun install &&
     cd ../client && bun install && bun run build &&
-    pm2 reload crm-api &&
-    pm2 reload crm-client
+    pm2 reload all
     `,
     (error, stdout, stderr) => {
       if (error) {
