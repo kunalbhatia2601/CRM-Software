@@ -3,6 +3,9 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 import config from "./config/index.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 
@@ -65,7 +68,7 @@ app.use("/api/deals", dealRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/projects", projectRoutes);
 
-app.get("/pullAndDeploy", (_req, res) => {
+app.get("/pullAndDeploy", async (_req, res) => {
 
 
   if (config.env !== "production") {
@@ -78,31 +81,34 @@ app.get("/pullAndDeploy", (_req, res) => {
 
   try {
 
-    console.log("Deploying Client");
+    console.log("Deploying Client...");
 
-    exec(
-      `
-    cd ~/CRM-Software &&
-    git pull origin main &&
-    cd client && bun install && bun run build &&
-    pm2 reload crm-client`
+    const clientResult = await execAsync(
+      `cd ~/CRM-Software &&
+       git pull origin main &&
+       cd client && bun install && bun run build &&
+       pm2 reload crm-client`
     );
+    console.log("Client deploy stdout:", clientResult.stdout);
+    if (clientResult.stderr) console.error("Client deploy stderr:", clientResult.stderr);
 
-    console.log("Deploying Server");
+    console.log("Deploying Server...");
 
-    exec(
-      `
-    cd ~/CRM-Software &&
-    cd server && bun install &&
-    pm2 reload crm-api
-    `
+    const serverResult = await execAsync(
+      `cd ~/CRM-Software &&
+       cd server && bun install &&
+       pm2 reload crm-api`
     );
+    console.log("Server deploy stdout:", serverResult.stdout);
+    if (serverResult.stderr) console.error("Server deploy stderr:", serverResult.stderr);
 
     res.send("Deployment successful 🚀");
   }
   catch (error) {
-    console.error(error);
-    return res.status(500).send("Deployment failed");
+    console.error("Deployment failed:", error.message);
+    if (error.stdout) console.error("stdout:", error.stdout);
+    if (error.stderr) console.error("stderr:", error.stderr);
+    return res.status(500).send(`Deployment failed: ${error.message}`);
   }
 
 })
