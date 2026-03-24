@@ -20,7 +20,7 @@ export default function Hero() {
           width={1644}
           height={400}
           className="absolute top-0 left-0 w-full pointer-events-none opacity-60"
-          style={{ height: "auto" }}
+          style={{ width: "auto", height: "auto" }}
           priority
         />
         <Image
@@ -29,7 +29,7 @@ export default function Hero() {
           width={400}
           height={200}
           className="absolute top-[10%] right-0 pointer-events-none opacity-40"
-          style={{ height: "auto" }}
+          style={{ width: "auto", height: "auto" }}
         />
 
         <div className="max-w-[1350px] mx-auto px-4 pt-[140px] lg:pt-[188px] relative z-10">
@@ -74,14 +74,13 @@ export default function Hero() {
               className="hero-anim mt-[63px] relative max-w-[1100px] mx-auto"
               style={{ "--delay": "1s" }}
             >
-              <Image
+              <img
                 src="/images/group-2087329893.webp"
                 alt={`${site.name} Dashboard`}
                 width={1100}
                 height={700}
                 className="w-full relative z-[1]"
-                style={{ height: "auto" }}
-                priority
+                loading="eager"
               />
 
               {/* Floating bubble icons */}

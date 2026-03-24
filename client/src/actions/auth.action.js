@@ -7,7 +7,7 @@ import { loginAPI, refreshTokenAPI, getMeAPI, logoutAPI } from "@/lib/api";
 /* ───────── Role → Dashboard Path Map ───────── */
 
 const ROLE_DASHBOARD_MAP = {
-  OWNER: "/admin/dashboard",
+  OWNER: "/owner/dashboard",
   ADMIN: "/admin/dashboard",
   SALES_MANAGER: "/sales/dashboard",
   ACCOUNT_MANAGER: "/accounts/dashboard",

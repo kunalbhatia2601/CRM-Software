@@ -17,6 +17,8 @@ import leadRoutes from "./modules/lead/lead.routes.js";
 import dealRoutes from "./modules/deal/deal.routes.js";
 import clientRoutes from "./modules/client/client.routes.js";
 import projectRoutes from "./modules/project/project.routes.js";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
+import settingsRoutes from "./modules/settings/settings.routes.js";
 
 const app = express();
 
@@ -67,6 +69,8 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/deals", dealRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/settings", settingsRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 

@@ -16,7 +16,7 @@ export default function LoginBranding({ siteData }) {
         width={1644}
         height={400}
         className="absolute top-0 left-0 w-full pointer-events-none opacity-15"
-        style={{ height: "auto" }}
+        style={{ width: "auto", height: "auto" }}
       />
       <Image
         src="/images/cloud-3.svg"
@@ -24,7 +24,7 @@ export default function LoginBranding({ siteData }) {
         width={400}
         height={200}
         className="absolute bottom-0 right-0 pointer-events-none opacity-10"
-        style={{ height: "auto" }}
+        style={{ width: "auto", height: "auto" }}
       />
 
       {/* Decorative gradient orbs */}
@@ -45,7 +45,7 @@ export default function LoginBranding({ siteData }) {
               width={168}
               height={40}
               className="w-[148px] brightness-0 invert"
-              style={{ height: "auto" }}
+              style={{ width: "auto", height: "auto" }}
             />
           )}
         </Link>

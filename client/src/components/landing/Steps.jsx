@@ -36,6 +36,7 @@ export default function Steps() {
                 width={600}
                 height={586}
                 className="w-full h-[400px] lg:h-[586px] object-cover rounded-[20px]"
+                style={{ width: "auto", height: "auto" }}
               />
               <div className="absolute inset-0">
                 <Image

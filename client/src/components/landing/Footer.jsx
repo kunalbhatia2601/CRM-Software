@@ -48,7 +48,7 @@ export default function Footer() {
                     width={168}
                     height={40}
                     className="w-[168px] brightness-0 invert"
-                    style={{ height: "auto" }}
+                    style={{ width: "auto", height: "auto" }}
                   />
                 )}
               </Link>
@@ -152,6 +152,7 @@ export default function Footer() {
                       width={20}
                       height={20}
                       className="w-5 h-5 brightness-0 invert group-hover:hidden"
+                      style={{ width: "auto", height: "auto" }}
                     />
                     <Image
                       src={social.hoverIcon}
@@ -159,6 +160,7 @@ export default function Footer() {
                       width={20}
                       height={20}
                       className="w-5 h-5 hidden group-hover:block"
+                      style={{ width: "auto", height: "auto" }}
                     />
                   </a>
                 ))}
@@ -166,13 +168,10 @@ export default function Footer() {
 
               {/* Footer large text/image */}
               <div className="max-w-[766px] overflow-hidden">
-                <Image
+                <img
                   src="/images/podr0aq2t2h4.svg"
                   alt={site.name}
-                  width={766}
-                  height={100}
                   className="w-full opacity-20"
-                  style={{ height: "auto" }}
                 />
               </div>
             </div>

@@ -67,7 +67,7 @@ export default function Integrations() {
                 width={80}
                 height={80}
                 className="w-[50px] md:w-[70px] lg:w-[80px]"
-                style={{ height: "auto" }}
+                style={{ width: "auto", height: "auto" }}
               />
             </div>
 
@@ -76,7 +76,7 @@ export default function Integrations() {
               {innerIcons.map((icon, i) => (
                 <div key={i} className={`absolute ${icon.pos}`}>
                   <div className="counter-rotate bg-white rounded-full w-12 h-12 md:w-16 md:h-16 flex items-center justify-center shadow-lg border border-border-1">
-                    <Image src={icon.src} alt="" width={32} height={32} className="w-6 h-6 md:w-8 md:h-8" />
+                    <Image src={icon.src} alt="" width={32} height={32} className="w-6 h-6 md:w-8 md:h-8" style={{ width: "auto", height: "auto" }} />
                   </div>
                   <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl -z-10" />
                 </div>
@@ -88,7 +88,7 @@ export default function Integrations() {
               {outerIcons.map((icon, i) => (
                 <div key={i} className={`absolute ${icon.pos}`}>
                   <div className="counter-rotate-reverse bg-white rounded-full w-12 h-12 md:w-16 md:h-16 flex items-center justify-center shadow-lg border border-border-1">
-                    <Image src={icon.src} alt="" width={32} height={32} className="w-6 h-6 md:w-8 md:h-8" />
+                    <Image src={icon.src} alt="" width={32} height={32} className="w-6 h-6 md:w-8 md:h-8" style={{ width: "auto", height: "auto" }} />
                   </div>
                   <div className="absolute inset-0 bg-light-sky/20 rounded-full blur-xl -z-10" />
                 </div>

@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
  */
 
 const ROLE_DASHBOARD_MAP = {
-  OWNER: "/admin/dashboard",
+  OWNER: "/owner/dashboard",
   ADMIN: "/admin/dashboard",
   SALES_MANAGER: "/sales/dashboard",
   ACCOUNT_MANAGER: "/accounts/dashboard",
@@ -23,6 +23,7 @@ const ROLE_DASHBOARD_MAP = {
 
 // Which roles can access which route prefix
 const ROLE_ACCESS = {
+  "/owner": ["OWNER"],
   "/admin": ["OWNER", "ADMIN"],
   "/sales": ["OWNER", "ADMIN", "SALES_MANAGER"],
   "/accounts": ["OWNER", "ADMIN", "ACCOUNT_MANAGER"],
@@ -34,6 +35,19 @@ const ROLE_ACCESS = {
 
 // All protected route prefixes
 const PROTECTED_PREFIXES = Object.keys(ROLE_ACCESS);
+
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return true;
+    }
+  } catch (e) {
+    return true;
+  }
+  return false;
+}
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -47,7 +61,19 @@ export function middleware(request) {
     // malformed cookie
   }
 
-  const isAuthenticated = !!accessToken && !!user;
+  // Check token expiration before deciding if authenticated
+  const isExpired = isTokenExpired(accessToken);
+
+  // If token is explicitly expired, clear cookies and force re-login
+  if (accessToken && isExpired) {
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("accessToken");
+    response.cookies.delete("refreshToken");
+    response.cookies.delete("user");
+    return response;
+  }
+
+  const isAuthenticated = !!accessToken && !!user && !isExpired;
 
   // ── Login page: redirect authenticated users to their dashboard ──
   if (pathname === "/login") {
@@ -74,7 +100,7 @@ export function middleware(request) {
     const allowedRoles = ROLE_ACCESS[matchedPrefix];
     if (allowedRoles && !allowedRoles.includes(user.role)) {
       // Redirect to their correct dashboard
-      const correctPath = ROLE_DASHBOARD_MAP[user.role] || "/admin/dashboard";
+      const correctPath = ROLE_DASHBOARD_MAP[user.role] || "/owner/dashboard";
       return NextResponse.redirect(new URL(correctPath, request.url));
     }
 
@@ -87,6 +113,7 @@ export function middleware(request) {
 export const config = {
   matcher: [
     "/login",
+    "/owner/:path*",
     "/admin/:path*",
     "/sales/:path*",
     "/accounts/:path*",

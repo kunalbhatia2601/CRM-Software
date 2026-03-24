@@ -82,6 +82,40 @@ export async function getSiteAPI() {
   return request("/api/site", { method: "GET" });
 }
 
+export async function updateSiteAPI(data, accessToken) {
+  return request("/api/site", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+/* ───────── Settings Endpoints ───────── */
+
+export async function getSettingsAPI(accessToken) {
+  return request("/api/settings", {
+    method: "GET",
+    token: accessToken,
+  });
+}
+
+export async function updateSettingsAPI(data, accessToken) {
+  return request("/api/settings", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+/* ───────── Dashboard Endpoint ───────── */
+
+export async function getDashboardStatsAPI(accessToken) {
+  return request("/api/dashboard/stats", {
+    method: "GET",
+    token: accessToken,
+  });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

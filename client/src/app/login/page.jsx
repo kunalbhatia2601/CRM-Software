@@ -8,7 +8,7 @@ import LoginBranding from "@/components/auth/LoginBranding";
 
 // Role → dashboard path (duplicated for server-side redirect)
 const ROLE_DASHBOARD_MAP = {
-  OWNER: "/admin/dashboard",
+  OWNER: "/owner/dashboard",
   ADMIN: "/admin/dashboard",
   SALES_MANAGER: "/sales/dashboard",
   ACCOUNT_MANAGER: "/accounts/dashboard",

@@ -16,6 +16,25 @@ class SiteService {
     const { createdAt, updatedAt, ...publicData } = site;
     return publicData;
   }
+
+  /**
+   * Update site configuration (OWNER only)
+   */
+  async updateSiteInfo(data) {
+    let site = await prisma.site.findUnique({ where: { id: "default" } });
+
+    if (!site) {
+      site = await prisma.site.create({ data: { id: "default", ...data } });
+    } else {
+      site = await prisma.site.update({
+        where: { id: "default" },
+        data,
+      });
+    }
+
+    const { createdAt, updatedAt, ...publicData } = site;
+    return publicData;
+  }
 }
 
 export default new SiteService();

@@ -10,7 +10,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js",
+    "db:seed": "bun prisma/seed.js",
     "db:dlt": "prisma db execute --stdin <<< 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && prisma db push && prisma generate"
   },
   "keywords": [],

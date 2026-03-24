@@ -87,6 +87,8 @@ export default function Features() {
                     alt="Progress Tracking"
                     width={300}
                     height={300}
+                    className="w-full"
+                    style={{ width: "auto", height: "auto" }}
                   />
                 </div>
               </div>

@@ -142,7 +142,7 @@ export default function Pricing() {
                   width={400}
                   height={400}
                   className="absolute bottom-0 right-0 pointer-events-none opacity-30"
-                  style={{ height: "auto" }}
+                  style={{ width: "auto", height: "auto" }}
                 />
               )}
             </div>

@@ -84,7 +84,7 @@ function Stars() {
   return (
     <div className="flex gap-1">
       {[...Array(5)].map((_, i) => (
-        <Image key={i} src="/images/sgwkas6pcbqw.svg" alt="star" width={17} height={17} />
+        <Image key={i} src="/images/sgwkas6pcbqw.svg" alt="star" width={17} height={17} style={{ width: "auto", height: "auto" }} />
       ))}
     </div>
   );

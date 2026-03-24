@@ -76,6 +76,12 @@ enum ProjectStatus {
   CANCELLED
 }
 
+enum Currency {
+  INR
+  USD
+  EUR
+}
+
 // ─── User Model ──────────────────────────────────────────
 
 model User {
@@ -307,14 +313,20 @@ model Project {
 // Single-row table — only one record (id = "default")
 
 model Site {
-  id                String  @id @default("default")
-  name              String  @default("TaskGo Agency")
-  logo              String? @default("/logo.svg")
-  contactEmail      String? @default("mails.kunalbhatia@gmail.com") @map("contact_email")
-  contactPhone      String? @default("+91 82848-34841") @map("contact_phone")
-  address           String? @default("Chandigarh, India")
-  isMaintenanceMode Boolean @default(false) @map("is_maintenance_mode")
-  isDemoMode        Boolean @default(false) @map("is_demo_mode")
+  id                String   @id @default("default")
+  name              String   @default("TaskGo Agency")
+  logo              String?  @default("/logo.svg")
+  contactEmail      String?  @default("mails.kunalbhatia@gmail.com") @map("contact_email")
+  contactPhone      String?  @default("+91 82848-34841") @map("contact_phone")
+  address           String?  @default("Chandigarh, India")
+
+  // Currency configuration
+  currency          Currency @default(INR)
+  usdToInr          Decimal  @default(92)  @map("usd_to_inr") @db.Decimal(10, 4)
+  eurToInr          Decimal  @default(105) @map("eur_to_inr") @db.Decimal(10, 4)
+
+  isMaintenanceMode Boolean  @default(false) @map("is_maintenance_mode")
+  isDemoMode        Boolean  @default(false) @map("is_demo_mode")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

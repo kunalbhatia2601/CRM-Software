@@ -32,7 +32,7 @@ export default function BrandLogos() {
                   key={`${setIdx}-${i}`}
                   className="border border-border-1 rounded-[90px] flex items-center justify-center min-w-[238px] px-[50px] py-[39px] mx-1"
                 >
-                  <Image src={logo.src} alt={logo.alt} width={120} height={30} className="object-contain" style={{ height: "auto" }} />
+                  <Image src={logo.src} alt={logo.alt} width={120} height={30} className="object-contain" style={{ width: "auto", height: "auto" }} />
                 </div>
               ))}
             </div>
