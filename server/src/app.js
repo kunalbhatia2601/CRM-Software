@@ -101,6 +101,7 @@ app.get("/pullAndDeploy", async (_req, res) => {
     const serverResult = await execAsync(
       `cd ~/CRM-Software &&
        cd server && bun install &&
+       bun x prisma db push && bun x prisma generate &&
        pm2 reload crm-api`
     );
     console.log("Server deploy stdout:", serverResult.stdout);
