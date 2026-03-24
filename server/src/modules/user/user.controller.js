@@ -44,6 +44,14 @@ class UserController {
   });
 
   /**
+   * GET /api/users/:id/report
+   */
+  getUserReport = catchAsync(async (req, res) => {
+    const report = await userService.getUserReport(req.params.id);
+    return ok(res, "User report retrieved", report);
+  });
+
+  /**
    * DELETE /api/users/:id
    */
   deleteUser = catchAsync(async (req, res) => {

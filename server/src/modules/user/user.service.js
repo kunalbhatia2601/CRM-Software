@@ -158,6 +158,108 @@ class UserService {
   }
 
   /**
+   * Get a full report for a user — all associated leads, deals, clients, projects
+   */
+  async getUserReport(id) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...USER_SELECT,
+        // Leads created by or assigned to this user
+        createdLeads: {
+          select: {
+            id: true, companyName: true, contactName: true, status: true,
+            priority: true, source: true, estimatedValue: true, createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        assignedLeads: {
+          select: {
+            id: true, companyName: true, contactName: true, status: true,
+            priority: true, source: true, estimatedValue: true, createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        // Deals
+        createdDeals: {
+          select: {
+            id: true, title: true, stage: true, value: true, createdAt: true,
+            lead: { select: { companyName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        assignedDeals: {
+          select: {
+            id: true, title: true, stage: true, value: true, createdAt: true,
+            lead: { select: { companyName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        // Clients managed
+        managedClients: {
+          select: {
+            id: true, companyName: true, contactName: true, status: true,
+            industry: true, createdAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        // Projects
+        managedProjects: {
+          select: {
+            id: true, name: true, status: true, budget: true,
+            startDate: true, endDate: true, createdAt: true,
+            client: { select: { companyName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        createdProjects: {
+          select: {
+            id: true, name: true, status: true, budget: true,
+            startDate: true, endDate: true, createdAt: true,
+            client: { select: { companyName: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!user) {
+      throw ApiError.notFound("User not found");
+    }
+
+    // Build summary stats
+    const allLeads = [...new Map([...user.createdLeads, ...user.assignedLeads].map(l => [l.id, l])).values()];
+    const allDeals = [...new Map([...user.createdDeals, ...user.assignedDeals].map(d => [d.id, d])).values()];
+    const allProjects = [...new Map([...user.managedProjects, ...user.createdProjects].map(p => [p.id, p])).values()];
+
+    const summary = {
+      totalLeads: allLeads.length,
+      totalDeals: allDeals.length,
+      totalClients: user.managedClients.length,
+      totalProjects: allProjects.length,
+      wonDeals: allDeals.filter(d => d.stage === "WON").length,
+      lostDeals: allDeals.filter(d => d.stage === "LOST").length,
+      activeClients: user.managedClients.filter(c => c.status === "ACTIVE").length,
+      totalDealValue: allDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0),
+      wonDealValue: allDeals.filter(d => d.stage === "WON").reduce((sum, d) => sum + (Number(d.value) || 0), 0),
+    };
+
+    return {
+      user: {
+        id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
+        phone: user.phone, avatar: user.avatar, role: user.role, status: user.status,
+        isEmailVerified: user.isEmailVerified, lastLoginAt: user.lastLoginAt,
+        createdAt: user.createdAt, updatedAt: user.updatedAt,
+      },
+      summary,
+      leads: allLeads,
+      deals: allDeals,
+      clients: user.managedClients,
+      projects: allProjects,
+    };
+  }
+
+  /**
    * Delete a user (soft → set status to INACTIVE, or hard delete)
    */
   async deleteUser(id, requesterId) {

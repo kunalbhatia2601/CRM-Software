@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSite } from "@/context/SiteContext";
+import { getDashboardStats } from "@/actions/dashboard.action";
 import {
   ChevronDown,
   Calendar,
@@ -11,11 +13,22 @@ import {
   Building2,
   FolderKanban,
   UsersRound,
-  TrendingUp,
-  TrendingDown,
+  Loader2,
+  Check,
 } from "lucide-react";
 
+/* ─── Period Options ─── */
+const PERIODS = [
+  { value: "month", label: "This Month", subtitle: "this month" },
+  { value: "year", label: "This Year", subtitle: "this year" },
+  { value: "today", label: "Today", subtitle: "today" },
+  { value: "all", label: "Till Date", subtitle: "total" },
+];
+
+/* ─── Change Tags ─── */
+
 function ChangeTag({ value }) {
+  if (value === null || value === undefined) return null;
   const isPositive = value >= 0;
   return (
     <span
@@ -31,6 +44,7 @@ function ChangeTag({ value }) {
 }
 
 function ChangeTagLight({ value }) {
+  if (value === null || value === undefined) return null;
   const isPositive = value >= 0;
   return (
     <span
@@ -45,7 +59,8 @@ function ChangeTagLight({ value }) {
   );
 }
 
-/* ─── Lead Pipeline Bar Colors ─── */
+/* ─── Color Maps ─── */
+
 const LEAD_STATUS_COLORS = {
   NEW: "#5542F6",
   CONTACTED: "#3B82F6",
@@ -64,7 +79,6 @@ const LEAD_STATUS_LABELS = {
   LOST: "Lost",
 };
 
-/* ─── Project Status Colors (for donut) ─── */
 const PROJECT_STATUS_COLORS = {
   NOT_STARTED: "#5542F6",
   IN_PROGRESS: "#3B82F6",
@@ -81,7 +95,6 @@ const PROJECT_STATUS_LABELS = {
   CANCELLED: "Cancelled",
 };
 
-/* ─── Deal Stage Colors ─── */
 const DEAL_STAGE_COLORS = {
   DISCOVERY: "#5542F6",
   PROPOSAL: "#3B82F6",
@@ -100,29 +113,70 @@ const DEAL_STAGE_LABELS = {
 
 /* ─── Main Component ─── */
 
-export default function DashboardContent({ stats }) {
+export default function DashboardContent({ stats: initialStats }) {
   const { user } = useAuth();
   const { format, formatCompact } = useSite();
   const userName = user?.firstName || "Owner";
 
-  // Fallback when stats fail to load
+  const [period, setPeriod] = useState("month");
+  const [stats, setStats] = useState(initialStats);
+  const [isPending, startTransition] = useTransition();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod);
+    setDropdownOpen(false);
+    startTransition(async () => {
+      const result = await getDashboardStats(newPeriod);
+      if (result) setStats(result);
+    });
+  };
+
+  const currentPeriod = PERIODS.find((p) => p.value === period) || PERIODS[0];
+
+  // Fallback
   const s = stats || {
+    period: "month",
+    hasComparison: true,
     users: { total: 0, active: 0 },
-    leads: { total: 0, thisMonth: 0, lastMonth: 0, change: 0, byStatus: {} },
+    leads: { total: 0, previous: 0, change: 0, byStatus: {} },
     deals: {
       total: 0,
-      thisMonth: 0,
-      lastMonth: 0,
+      previous: 0,
       change: 0,
       byStage: {},
       totalValue: 0,
       wonValue: 0,
+      wonValueChange: 0,
     },
-    clients: { total: 0, active: 0, thisMonth: 0, lastMonth: 0, change: 0 },
-    projects: { total: 0, thisMonth: 0, byStatus: {} },
+    clients: { total: 0, active: 0, previous: 0, change: 0 },
+    projects: { total: 0, previous: 0, change: null, byStatus: {} },
     recentLeads: [],
     recentDeals: [],
   };
+
+  const periodSubtitle = currentPeriod.subtitle;
+
+  // Subtitle text for the header
+  const headerSubtitle = period === "all"
+    ? "Here's your agency performance till date."
+    : period === "year"
+      ? `Here's your agency performance in ${new Date().getFullYear()}.`
+      : period === "today"
+        ? "Here's what happened across your agency today."
+        : "Here's what's happening across your agency this month.";
 
   /* ── Lead pipeline data for bar chart ── */
   const leadStatuses = ["NEW", "CONTACTED", "QUALIFIED", "UNQUALIFIED", "CONVERTED", "LOST"];
@@ -144,7 +198,6 @@ export default function DashboardContent({ stats }) {
     }))
     .filter((sl) => sl.count > 0);
 
-  // Build conic gradient
   let conicStops = [];
   let cumulative = 0;
   projectSlices.forEach((sl) => {
@@ -165,25 +218,51 @@ export default function DashboardContent({ stats }) {
   );
 
   return (
-    <div className="flex flex-col gap-8 w-full">
+    <div className={`flex flex-col gap-8 w-full transition-opacity duration-200 ${isPending ? "opacity-60" : ""}`}>
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             Hello, {userName}! <span className="text-2xl">👋</span>
           </h1>
-          <p className="text-slate-500 mt-1">
-            Here's what's happening across your agency this month.
-          </p>
+          <p className="text-slate-500 mt-1">{headerSubtitle}</p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 shadow-sm shadow-slate-200/50 hover:bg-slate-50 transition-colors">
-            This month <ChevronDown className="w-4 h-4 text-slate-400" />
-          </button>
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 shadow-sm shadow-slate-200/50 hover:bg-slate-50 transition-colors">
-            <Calendar className="w-4 h-4 text-slate-600" />
-          </button>
+          {/* Period Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 shadow-sm shadow-slate-200/50 hover:bg-slate-50 transition-colors min-w-[140px]"
+            >
+              {isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+              ) : (
+                <Calendar className="w-4 h-4 text-slate-400" />
+              )}
+              {currentPeriod.label}
+              <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50 py-2 z-50 overflow-hidden">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.value}
+                    onClick={() => handlePeriodChange(p.value)}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                      period === p.value
+                        ? "bg-indigo-50 text-indigo-700 font-semibold"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {p.label}
+                    {period === p.value && <Check className="w-4 h-4 text-indigo-500" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -204,7 +283,7 @@ export default function DashboardContent({ stats }) {
               <span className="text-3xl font-bold" suppressHydrationWarning>
                 {formatCompact(s.deals.wonValue)}
               </span>
-              <ChangeTagLight value={s.deals.change} />
+              <ChangeTagLight value={s.deals.wonValueChange} />
             </div>
             <p className="text-xs text-indigo-200" suppressHydrationWarning>
               Total pipeline: {formatCompact(s.deals.totalValue)}
@@ -212,10 +291,10 @@ export default function DashboardContent({ stats }) {
           </div>
         </div>
 
-        {/* Card 2: Active Leads */}
+        {/* Card 2: Leads */}
         <div className="col-span-1 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50 flex flex-col justify-between min-h-[180px]">
           <div className="flex justify-between items-start">
-            <span className="font-medium text-slate-600">Active Leads</span>
+            <span className="font-medium text-slate-600">Leads</span>
             <button className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-colors">
               <Target className="w-4 h-4" />
             </button>
@@ -228,15 +307,18 @@ export default function DashboardContent({ stats }) {
               <ChangeTag value={s.leads.change} />
             </div>
             <p className="text-xs text-slate-400">
-              {s.leads.thisMonth} new this month
+              {s.leads.total} {periodSubtitle}
+              {s.leads.previous !== null && s.leads.previous !== undefined && (
+                <span> · {s.leads.previous} prev</span>
+              )}
             </p>
           </div>
         </div>
 
-        {/* Card 3: Total Deals */}
+        {/* Card 3: Deals */}
         <div className="col-span-1 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50 flex flex-col justify-between min-h-[180px]">
           <div className="flex justify-between items-start">
-            <span className="font-medium text-slate-600">Total Deals</span>
+            <span className="font-medium text-slate-600">Deals</span>
             <button className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-colors">
               <Handshake className="w-4 h-4" />
             </button>
@@ -249,7 +331,10 @@ export default function DashboardContent({ stats }) {
               <ChangeTag value={s.deals.change} />
             </div>
             <p className="text-xs text-slate-400">
-              {s.deals.thisMonth} new this month
+              {s.deals.total} {periodSubtitle}
+              {s.deals.previous !== null && s.deals.previous !== undefined && (
+                <span> · {s.deals.previous} prev</span>
+              )}
             </p>
           </div>
         </div>
@@ -270,7 +355,7 @@ export default function DashboardContent({ stats }) {
               <ChangeTag value={s.clients.change} />
             </div>
             <p className="text-xs text-slate-400">
-              {s.clients.thisMonth} new this month
+              {s.clients.total} new {periodSubtitle}
             </p>
           </div>
         </div>
@@ -281,9 +366,7 @@ export default function DashboardContent({ stats }) {
         <div className="col-span-1 md:col-span-2 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50 flex flex-col">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-baseline gap-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Lead Pipeline
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900">Lead Pipeline</h3>
               <span className="text-xs text-slate-400">By status</span>
             </div>
             <button className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors">
@@ -291,9 +374,7 @@ export default function DashboardContent({ stats }) {
             </button>
           </div>
 
-          {/* Bar Chart */}
           <div className="flex-1 flex items-end justify-between gap-3 h-48 relative">
-            {/* Grid Lines */}
             <div className="absolute inset-0 flex flex-col justify-between border-b border-slate-100 z-0">
               {[...Array(5)].map((_, i) => (
                 <div
@@ -307,7 +388,6 @@ export default function DashboardContent({ stats }) {
               ))}
             </div>
 
-            {/* Bars */}
             <div className="relative z-10 w-full h-full flex items-end justify-around pt-2 pl-10 pb-8">
               {leadStatuses.map((status) => {
                 const count = s.leads.byStatus[status] || 0;
@@ -344,9 +424,7 @@ export default function DashboardContent({ stats }) {
         <div className="col-span-1 md:col-span-2 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50 flex flex-col">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-baseline gap-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Deal Pipeline
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900">Deal Pipeline</h3>
               <span className="text-xs text-slate-400">By stage</span>
             </div>
             <button className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors">
@@ -354,7 +432,6 @@ export default function DashboardContent({ stats }) {
             </button>
           </div>
 
-          {/* Bar Chart */}
           <div className="flex-1 flex items-end justify-between gap-3 h-48 relative">
             <div className="absolute inset-0 flex flex-col justify-between border-b border-slate-100 z-0">
               {[...Array(5)].map((_, i) => (
@@ -417,8 +494,7 @@ export default function DashboardContent({ stats }) {
             </div>
             <p className="text-sm text-slate-500">
               {s.users.active} users{" "}
-              <span className="text-emerald-500">are active</span> in the
-              system.
+              <span className="text-emerald-500">are active</span> in the system.
             </p>
           </div>
         </div>
@@ -437,13 +513,16 @@ export default function DashboardContent({ stats }) {
               <span className="text-4xl font-extrabold text-slate-900">
                 {s.projects.total}
               </span>
-              <span className="text-lg font-medium text-slate-700">
-                projects
-              </span>
+              <span className="text-lg font-medium text-slate-700">projects</span>
             </div>
             <p className="text-sm text-slate-500">
-              {s.projects.thisMonth} projects{" "}
-              <span className="text-indigo-500">added this month</span>.
+              {s.projects.total} projects{" "}
+              <span className="text-indigo-500">{periodSubtitle}</span>.
+              {s.projects.change !== null && s.projects.change !== undefined && (
+                <span className="ml-1">
+                  <ChangeTag value={s.projects.change} />
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -452,9 +531,7 @@ export default function DashboardContent({ stats }) {
         <div className="col-span-1 md:col-span-2 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50 flex flex-col h-[220px]">
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-baseline gap-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Projects by Status
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900">Projects by Status</h3>
               <span className="text-xs text-slate-400">Distribution</span>
             </div>
             <button className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors">
@@ -463,7 +540,6 @@ export default function DashboardContent({ stats }) {
           </div>
 
           <div className="flex flex-1 items-center gap-8 pl-4">
-            {/* CSS Donut Chart */}
             <div
               className="relative w-32 h-32 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ background: conicGradient }}
@@ -475,7 +551,6 @@ export default function DashboardContent({ stats }) {
               </div>
             </div>
 
-            {/* Legend */}
             <div className="flex-1 flex flex-col gap-2">
               {projectSlices.map((sl) => (
                 <div
@@ -554,7 +629,7 @@ export default function DashboardContent({ stats }) {
             </div>
           ) : (
             <p className="text-sm text-slate-400 py-4 text-center">
-              No leads yet. Start adding leads to see them here.
+              No leads {periodSubtitle}. Start adding leads to see them here.
             </p>
           )}
         </div>
@@ -604,7 +679,7 @@ export default function DashboardContent({ stats }) {
             </div>
           ) : (
             <p className="text-sm text-slate-400 py-4 text-center">
-              No deals yet. Convert qualified leads to see deals here.
+              No deals {periodSubtitle}. Convert qualified leads to see deals here.
             </p>
           )}
         </div>

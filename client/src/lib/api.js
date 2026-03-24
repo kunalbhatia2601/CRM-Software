@@ -109,9 +109,53 @@ export async function updateSettingsAPI(data, accessToken) {
 
 /* ───────── Dashboard Endpoint ───────── */
 
-export async function getDashboardStatsAPI(accessToken) {
-  return request("/api/dashboard/stats", {
+export async function getDashboardStatsAPI(accessToken, period = "month") {
+  const query = period ? `?period=${period}` : "";
+  return request(`/api/dashboard/stats${query}`, {
     method: "GET",
+    token: accessToken,
+  });
+}
+
+/* ───────── User Endpoints ───────── */
+
+export async function getUsersAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/users?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getUserAPI(id, accessToken) {
+  return request(`/api/users/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function getUserReportAPI(id, accessToken) {
+  return request(`/api/users/${id}/report`, { method: "GET", token: accessToken });
+}
+
+export async function createUserAPI(data, accessToken) {
+  return request("/api/users", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateUserAPI(id, data, accessToken) {
+  return request(`/api/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteUserAPI(id, accessToken) {
+  return request(`/api/users/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function resetPasswordAPI(id, newPassword, accessToken) {
+  return request(`/api/users/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ newPassword }),
     token: accessToken,
   });
 }

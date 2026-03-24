@@ -20,6 +20,7 @@ router.use(authorize("OWNER"));
 router.post("/", validate(createUserSchema), userController.createUser);
 router.get("/", validate(listUsersSchema), userController.listUsers);
 router.get("/:id", validate(getUserSchema), userController.getUserById);
+router.get("/:id/report", validate(getUserSchema), userController.getUserReport);
 router.patch("/:id", validate(updateUserSchema), userController.updateUser);
 router.post("/:id/reset-password", validate(resetPasswordSchema), userController.resetPassword);
 router.delete("/:id", validate(getUserSchema), userController.deleteUser);

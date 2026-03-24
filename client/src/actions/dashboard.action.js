@@ -5,9 +5,9 @@ import { getDashboardStatsAPI } from "@/lib/api";
 
 /**
  * Fetches dashboard statistics from the backend.
- * Called from Server Components — read-only (no cookie writes).
+ * @param {string} period – "all" | "year" | "today" | "month"
  */
-export async function getDashboardStats() {
+export async function getDashboardStats(period = "month") {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("accessToken")?.value;
 
@@ -16,7 +16,7 @@ export async function getDashboardStats() {
   }
 
   try {
-    const res = await getDashboardStatsAPI(accessToken);
+    const res = await getDashboardStatsAPI(accessToken, period);
     if (res.success) return res.data;
     return null;
   } catch {
