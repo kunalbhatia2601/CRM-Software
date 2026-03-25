@@ -1,9 +1,9 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { Search, Bell, Settings } from "lucide-react";
+import { Search, Bell, Settings, Menu } from "lucide-react";
 
-export default function Header() {
+export default function Header({ isMobile, onMenuClick }) {
   const { user } = useAuth();
 
   // Get current date string like "Today, Mon 22 Nov"
@@ -15,11 +15,22 @@ export default function Header() {
   };
 
   return (
-    <header className="h-24 px-8 flex items-center justify-between bg-[#F8FAFC]">
-      {/* Search */}
-      <div className="flex-1 max-w-md">
+    <header className="h-20 lg:h-24 px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-[#F8FAFC] gap-3">
+      {/* Left: Hamburger (mobile) + Search */}
+      <div className="flex items-center gap-3 flex-1 max-w-md">
+        {/* Hamburger — visible only on mobile / tablet */}
+        {isMobile && (
+          <button
+            onClick={onMenuClick}
+            className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm shadow-slate-200/50 shrink-0"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Search */}
         <div className="relative flex items-center w-full h-12 rounded-full bg-white border border-slate-200 px-4 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 shadow-sm transition-all shadow-slate-200/50">
-          <Search className="w-5 h-5 text-slate-400" />
+          <Search className="w-5 h-5 text-slate-400 shrink-0" />
           <input
             type="text"
             placeholder="Search"
@@ -28,7 +39,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Center Date (Hidden on mobile) */}
+      {/* Center Date (Hidden on mobile / tablet) */}
       <div className="hidden lg:flex flex-1 justify-center">
         <div className="text-sm font-medium text-indigo-600/80 bg-indigo-50 px-4 py-1.5 rounded-full">
           {getFormattedDate()}
@@ -36,7 +47,7 @@ export default function Header() {
       </div>
 
       {/* Right Actions */}
-      <div className="flex-1 flex justify-end items-center gap-4">
+      <div className="flex justify-end items-center gap-2 sm:gap-4">
         <button className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm shadow-slate-200/50">
           <Settings className="w-5 h-5" />
         </button>
@@ -46,7 +57,7 @@ export default function Header() {
         </button>
 
         {/* User Profile */}
-        <div className="flex items-center gap-3 pl-2">
+        <div className="hidden sm:flex items-center gap-3 pl-2">
           <button className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-slate-200">
             {user?.avatar ? (
               <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />

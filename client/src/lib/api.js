@@ -79,7 +79,7 @@ export async function changePasswordAPI(accessToken, currentPassword, newPasswor
 /* ───────── Site Endpoint ───────── */
 
 export async function getSiteAPI() {
-  return request("/api/site", { method: "GET" });
+  return request("/api/site", { method: "GET", cache: "no-store" });
 }
 
 export async function updateSiteAPI(data, accessToken) {
@@ -203,6 +203,45 @@ export async function updateLeadStatusAPI(id, data, accessToken) {
 
 export async function deleteLeadAPI(id, accessToken) {
   return request(`/api/leads/${id}`, { method: "DELETE", token: accessToken });
+}
+
+/* ───────── Deal Endpoints ───────── */
+
+export async function getDealsAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/deals?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getDealAPI(id, accessToken) {
+  return request(`/api/deals/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createDealAPI(data, accessToken) {
+  return request("/api/deals", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateDealAPI(id, data, accessToken) {
+  return request(`/api/deals/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateDealStageAPI(id, data, accessToken) {
+  return request(`/api/deals/${id}/stage`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteDealAPI(id, accessToken) {
+  return request(`/api/deals/${id}`, { method: "DELETE", token: accessToken });
 }
 
 /* ───────── Generic Authenticated Requests ───────── */

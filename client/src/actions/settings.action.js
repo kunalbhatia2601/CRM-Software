@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import {
   getSiteAPI,
   updateSiteAPI,
@@ -37,7 +38,11 @@ export async function updateSiteSettings(data) {
 
   try {
     const res = await updateSiteAPI(data, accessToken);
-    if (res.success) return { success: true, data: res.data };
+    if (res.success) {
+      // Invalidate cached site data across all pages (layout, landing, dashboards)
+      revalidatePath("/", "layout");
+      return { success: true, data: res.data };
+    }
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to update site settings" };

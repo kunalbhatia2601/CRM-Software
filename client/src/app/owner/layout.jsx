@@ -36,7 +36,7 @@ const navItems = [
     icon: "Handshake",
     children: [
       { name: "All Deals", href: "/owner/deals" },
-      { name: "Pipeline", href: "/owner/deals/pipeline" },
+      // { name: "Pipeline", href: "/owner/deals/pipeline" },
     ],
   },
   {

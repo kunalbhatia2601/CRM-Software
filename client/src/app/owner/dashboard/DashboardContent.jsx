@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSite } from "@/context/SiteContext";
 import { getDashboardStats } from "@/actions/dashboard.action";
@@ -117,6 +118,8 @@ export default function DashboardContent({ stats: initialStats }) {
   const { user } = useAuth();
   const { format, formatCompact } = useSite();
   const userName = user?.firstName || "Owner";
+
+  const router = useRouter();
 
   const [period, setPeriod] = useState("month");
   const [stats, setStats] = useState(initialStats);
@@ -369,7 +372,7 @@ export default function DashboardContent({ stats: initialStats }) {
               <h3 className="text-lg font-bold text-slate-900">Lead Pipeline</h3>
               <span className="text-xs text-slate-400">By status</span>
             </div>
-            <button className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors">
+            <button onClick={() => router.push("/owner/leads")} className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors cursor-pointer">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
@@ -427,7 +430,7 @@ export default function DashboardContent({ stats: initialStats }) {
               <h3 className="text-lg font-bold text-slate-900">Deal Pipeline</h3>
               <span className="text-xs text-slate-400">By stage</span>
             </div>
-            <button className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors">
+            <button onClick={() => router.push("/owner/deals")} className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-slate-900 transition-colors cursor-pointer">
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
@@ -582,7 +585,7 @@ export default function DashboardContent({ stats: initialStats }) {
         <div className="col-span-1 md:col-span-2 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-slate-900">Recent Leads</h3>
-            <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => router.push("/owner/leads")} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer">
               View All →
             </button>
           </div>
@@ -638,7 +641,7 @@ export default function DashboardContent({ stats: initialStats }) {
         <div className="col-span-1 md:col-span-2 bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-slate-900">Recent Deals</h3>
-            <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => router.push("/owner/deals")} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer">
               View All →
             </button>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Pencil,
@@ -21,19 +22,24 @@ import {
   XCircle,
   CheckCircle2,
   ChevronRight,
+  Handshake,
+  Rocket,
 } from "lucide-react";
 
-import { updateLeadStatus } from "@/actions/leads.action";
+import { updateLeadStatus, getAssignableUsers } from "@/actions/leads.action";
+import { createDeal } from "@/actions/deals.action";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
+import SettingsInput from "@/components/settings/SettingsInput";
+import SettingsSelect from "@/components/settings/SettingsSelect";
 
 /* ─── Status flow config ─── */
 const STATUS_TRANSITIONS = {
   NEW: ["CONTACTED", "QUALIFIED", "UNQUALIFIED", "LOST"],
   CONTACTED: ["QUALIFIED", "UNQUALIFIED", "LOST"],
-  QUALIFIED: ["CONVERTED", "LOST"],
+  QUALIFIED: ["LOST"], // CONVERTED removed — handled via Create Deal modal
   UNQUALIFIED: ["NEW", "CONTACTED", "LOST"],
   CONVERTED: [],
   LOST: ["NEW"],
@@ -66,12 +72,44 @@ function getStepIndex(status) {
 }
 
 export default function LeadDetailContent({ initialLead }) {
+  const router = useRouter();
   const { format, formatCompact } = useSite();
   const [lead, setLead] = useState(initialLead);
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
   const [lostReasonInput, setLostReasonInput] = useState("");
   const [showLostModal, setShowLostModal] = useState(false);
+
+  // Convert to Deal modal state
+  const [showDealModal, setShowDealModal] = useState(false);
+  const [assignees, setAssignees] = useState([]);
+  const [dealForm, setDealForm] = useState({
+    title: "",
+    value: "",
+    assigneeId: "",
+    expectedCloseAt: "",
+    notes: "",
+  });
+
+  // Load assignees when deal modal opens
+  useEffect(() => {
+    if (showDealModal && assignees.length === 0) {
+      getAssignableUsers().then(setAssignees);
+    }
+  }, [showDealModal]);
+
+  // Pre-fill deal form when modal opens
+  useEffect(() => {
+    if (showDealModal) {
+      setDealForm({
+        title: `${lead.companyName} — Deal`,
+        value: lead.estimatedValue || "",
+        assigneeId: lead.assigneeId || "",
+        expectedCloseAt: "",
+        notes: "",
+      });
+    }
+  }, [showDealModal]);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -114,6 +152,36 @@ export default function LeadDetailContent({ initialLead }) {
     });
   };
 
+  const handleCreateDeal = () => {
+    if (!dealForm.title.trim()) {
+      showToast("error", "Deal title is required");
+      return;
+    }
+
+    startTransition(async () => {
+      const payload = {
+        leadId: lead.id,
+        title: dealForm.title.trim(),
+      };
+      if (dealForm.value) payload.value = parseFloat(dealForm.value);
+      if (dealForm.assigneeId) payload.assigneeId = dealForm.assigneeId;
+      if (dealForm.expectedCloseAt) payload.expectedCloseAt = dealForm.expectedCloseAt;
+      if (dealForm.notes) payload.notes = dealForm.notes;
+
+      const result = await createDeal(payload);
+      if (result.success) {
+        setShowDealModal(false);
+        showToast("success", "Deal created! Redirecting...");
+        // Redirect to the new deal
+        setTimeout(() => {
+          router.push(`/owner/deals/${result.data.id}`);
+        }, 1000);
+      } else {
+        showToast("error", result.error || "Failed to create deal");
+      }
+    });
+  };
+
   const allowedTransitions = STATUS_TRANSITIONS[lead.status] || [];
   const StatusIcon = STATUS_ICONS[lead.status] || Target;
   const currentStepIdx = getStepIndex(lead.status);
@@ -148,13 +216,23 @@ export default function LeadDetailContent({ initialLead }) {
           { label: lead.companyName },
         ]}
         actions={
-          <Link
-            href={`/owner/leads/${lead.id}/edit`}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit Lead
-          </Link>
+          lead.status !== "CONVERTED" ? (
+            <Link
+              href={`/owner/leads/${lead.id}/edit`}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all"
+            >
+              <Pencil className="w-4 h-4" />
+              Edit Lead
+            </Link>
+          ) : (
+            <Link
+              href={`/owner/deals/${lead.deal?.id}`}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+            >
+              <Handshake className="w-4 h-4" />
+              View Deal
+            </Link>
+          )
         }
       />
 
@@ -167,12 +245,10 @@ export default function LeadDetailContent({ initialLead }) {
 
         <div className="px-8 pb-8 -mt-12 relative">
           <div className="flex flex-col md:flex-row gap-6 items-start">
-            {/* Icon */}
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center">
               <StatusIcon className="w-10 h-10 text-slate-600" />
             </div>
 
-            {/* Info */}
             <div className="flex-1 pt-4">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
                 <h2 className="text-2xl font-bold text-slate-900">{lead.companyName}</h2>
@@ -259,6 +335,62 @@ export default function LeadDetailContent({ initialLead }) {
         )}
       </div>
 
+      {/* ═══ Convert to Deal CTA (QUALIFIED only) ═══ */}
+      {lead.status === "QUALIFIED" && (
+        <div className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-[24px] p-6 lg:p-8 shadow-xl shadow-emerald-500/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tMTIgMHYtMkgxMnYyaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                <Rocket className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Ready to Convert!</h3>
+                <p className="text-sm text-emerald-100">
+                  This lead is qualified. Create a deal to move it into your sales pipeline.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowDealModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 text-sm font-bold rounded-xl shadow-lg hover:bg-emerald-50 transition-all active:scale-[0.98] shrink-0"
+            >
+              <Handshake className="w-5 h-5" />
+              Convert to Deal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Converted Banner ═══ */}
+      {lead.status === "CONVERTED" && (
+        <div className="bg-emerald-50 rounded-[24px] p-6 lg:p-8 border border-emerald-200">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-emerald-800">Lead Converted Successfully</h3>
+                <p className="text-sm text-emerald-600">
+                  Converted on {convertedDate}. This lead is now a deal in your pipeline.
+                </p>
+              </div>
+            </div>
+            {lead.deal && (
+              <Link
+                href={`/owner/deals/${lead.deal.id}`}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all shrink-0"
+              >
+                <Handshake className="w-4 h-4" />
+                View Deal
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ═══ Key Details Grid ═══ */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <DetailCard
@@ -295,7 +427,7 @@ export default function LeadDetailContent({ initialLead }) {
         />
       </div>
 
-      {/* ═══ Status Actions ═══ */}
+      {/* ═══ Status Actions (not for QUALIFIED since we have the CTA above) ═══ */}
       {allowedTransitions.length > 0 && (
         <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
           <h3 className="text-lg font-bold text-slate-900 mb-2">Update Status</h3>
@@ -305,18 +437,15 @@ export default function LeadDetailContent({ initialLead }) {
           <div className="flex flex-wrap gap-3">
             {allowedTransitions.map((nextStatus) => {
               const isLost = nextStatus === "LOST";
-              const isConverted = nextStatus === "CONVERTED";
               return (
                 <button
                   key={nextStatus}
                   onClick={() => handleStatusChange(nextStatus)}
                   disabled={isPending}
                   className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                    isConverted
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600"
-                      : isLost
-                        ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                        : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
+                    isLost
+                      ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                      : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   <ArrowRight className="w-4 h-4" />
@@ -328,9 +457,8 @@ export default function LeadDetailContent({ initialLead }) {
         </div>
       )}
 
-      {/* ═══ Notes & Lost Reason ═══ */}
+      {/* ═══ Notes & People ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Notes */}
         <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center">
@@ -345,7 +473,6 @@ export default function LeadDetailContent({ initialLead }) {
           )}
         </div>
 
-        {/* Created By / Assignment Info */}
         <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center">
@@ -384,7 +511,7 @@ export default function LeadDetailContent({ initialLead }) {
         </div>
       </div>
 
-      {/* ═══ Lost Reason (if lost) ═══ */}
+      {/* ═══ Lost Reason ═══ */}
       {lead.status === "LOST" && lead.lostReason && (
         <div className="bg-red-50 rounded-[24px] p-6 lg:p-8 border border-red-200">
           <div className="flex items-center gap-3 mb-3">
@@ -414,10 +541,7 @@ export default function LeadDetailContent({ initialLead }) {
             />
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => {
-                  setShowLostModal(false);
-                  setLostReasonInput("");
-                }}
+                onClick={() => { setShowLostModal(false); setLostReasonInput(""); }}
                 className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 Cancel
@@ -428,6 +552,91 @@ export default function LeadDetailContent({ initialLead }) {
                 className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPending ? "Updating..." : "Mark as Lost"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Convert to Deal Modal ═══ */}
+      {showDealModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDealModal(false)} />
+          <div className="relative bg-white rounded-[24px] p-8 w-full max-w-lg shadow-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <Handshake className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Convert to Deal</h3>
+                <p className="text-sm text-slate-500">
+                  Create a deal from <span className="font-medium text-slate-700">{lead.companyName}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              <SettingsInput
+                label="Deal Title *"
+                icon={Handshake}
+                value={dealForm.title}
+                onChange={(e) => setDealForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder="e.g., Acme Corporation — Website Redesign"
+              />
+              <SettingsInput
+                label="Deal Value"
+                type="number"
+                icon={DollarSign}
+                value={dealForm.value}
+                onChange={(e) => setDealForm((p) => ({ ...p, value: e.target.value }))}
+                placeholder="Estimated deal value"
+              />
+              <SettingsSelect
+                label="Assign To"
+                icon={UserCheck}
+                value={dealForm.assigneeId}
+                onChange={(e) => setDealForm((p) => ({ ...p, assigneeId: e.target.value }))}
+                options={[
+                  { value: "", label: "— Keep current assignee —" },
+                  ...assignees.map((u) => ({
+                    value: u.id,
+                    label: `${u.name} (${u.role.replace(/_/g, " ")})`,
+                  })),
+                ]}
+              />
+              <SettingsInput
+                label="Expected Close Date"
+                type="date"
+                icon={CalendarClock}
+                value={dealForm.expectedCloseAt}
+                onChange={(e) => setDealForm((p) => ({ ...p, expectedCloseAt: e.target.value }))}
+              />
+              <div>
+                <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
+                <textarea
+                  value={dealForm.notes}
+                  onChange={(e) => setDealForm((p) => ({ ...p, notes: e.target.value }))}
+                  rows={2}
+                  placeholder="Optional deal notes..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowDealModal(false)}
+                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateDeal}
+                disabled={isPending || !dealForm.title.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Rocket className="w-4 h-4" />
+                {isPending ? "Creating Deal..." : "Create Deal"}
               </button>
             </div>
           </div>
