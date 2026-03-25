@@ -18,6 +18,16 @@ const authenticate = async (req, _res, next) => {
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, config.jwt.accessSecret);
 
+    // const refToken = await prisma.RefreshToken.findUnique({
+    //   where: {
+    //     userId: decoded.userId
+    //   },
+    // });
+
+    // if (!refToken) {
+    //   throw ApiError.unauthorized("Invalid access token");
+    // }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {

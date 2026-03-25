@@ -43,6 +43,7 @@ class UserController {
    */
   resetPassword = catchAsync(async (req, res) => {
     await userService.resetPassword(req.params.id, req.body.newPassword);
+    cache.del(`user:${req.params.id}`);
     return ok(res, "Password reset successfully");
   });
 

@@ -232,7 +232,7 @@ export default function EditUserContent({ user }) {
       {/* Reset Password */}
       <SettingsCard
         title="Reset Password"
-        description="Force a password reset. The user will be logged out of all sessions."
+        description="Force a password reset. The user will need new password to login again."
       >
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
