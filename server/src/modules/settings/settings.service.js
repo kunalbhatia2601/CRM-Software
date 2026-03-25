@@ -1,20 +1,35 @@
 import prisma from "../../utils/prisma.js";
+import cache from "../../utils/cache.js";
 import { clearTransporterCache } from "../../utils/mailer.js";
+
+const CACHE_KEY = "settings";
+const CACHE_KEY_RAW = "settings:raw"; // Unmasked version for internal use
+const CACHE_TTL = 600; // 10 minutes
 
 class SettingsService {
   /**
+   * Get RAW settings from DB (with real password — for internal use only).
+   * Cached for 10 minutes.
+   */
+  async getRawSettings() {
+    return cache.get(CACHE_KEY_RAW, async () => {
+      let settings = await prisma.settings.findUnique({
+        where: { id: "default" },
+      });
+      if (!settings) {
+        settings = await prisma.settings.create({ data: { id: "default" } });
+      }
+      return settings;
+    }, CACHE_TTL);
+  }
+
+  /**
    * Get settings (auto-creates default record if none exists)
    * Masks the SMTP password for security.
+   * Uses cached raw settings internally.
    */
   async getSettings() {
-    let settings = await prisma.settings.findUnique({
-      where: { id: "default" },
-    });
-
-    if (!settings) {
-      settings = await prisma.settings.create({ data: { id: "default" } });
-    }
-
+    const settings = await this.getRawSettings();
     const { createdAt, updatedAt, ...data } = settings;
 
     // Mask SMTP password — only show if configured or not
@@ -33,6 +48,7 @@ class SettingsService {
   /**
    * Update settings (OWNER only)
    * If smtpPassword is the masked string, skip updating it.
+   * Invalidates cache after update.
    */
   async updateSettings(data) {
     // Don't overwrite password with the mask
@@ -63,6 +79,10 @@ class SettingsService {
         data,
       });
     }
+
+    // Invalidate settings cache
+    cache.del(CACHE_KEY);
+    cache.del(CACHE_KEY_RAW);
 
     // Clear cached nodemailer transporter if SMTP config changed
     if (smtpFieldsChanged) {

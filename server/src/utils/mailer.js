@@ -1,9 +1,10 @@
 import nodemailer from "nodemailer";
+import cache from "./cache.js";
 import prisma from "./prisma.js";
 
 /**
- * Mailer Utility — reads SMTP config from the database Settings table
- * and creates a fresh nodemailer transporter each time.
+ * Mailer Utility — reads SMTP config from the cached Settings,
+ * creates a nodemailer transporter (also cached), and sends emails.
  * Fully modular: all email sending goes through sendMail().
  */
 
@@ -18,13 +19,37 @@ function configHash(cfg) {
 }
 
 /**
- * Get or create a nodemailer transporter using SMTP settings from DB.
- * Caches the transporter until config changes.
+ * Get raw settings from the cache (same cache key as settings.service.js).
+ * Falls back to DB if cache is empty.
+ */
+async function getCachedSettings() {
+  return cache.get("settings:raw", async () => {
+    let settings = await prisma.settings.findUnique({ where: { id: "default" } });
+    if (!settings) {
+      settings = await prisma.settings.create({ data: { id: "default" } });
+    }
+    return settings;
+  }, 600);
+}
+
+/**
+ * Get cached site data (same cache key as site.service.js).
+ */
+async function getCachedSite() {
+  return cache.get("site", async () => {
+    let site = await prisma.site.findUnique({ where: { id: "default" } });
+    if (!site) {
+      site = await prisma.site.create({ data: { id: "default" } });
+    }
+    return site;
+  }, 600);
+}
+
+/**
+ * Get or create a nodemailer transporter using cached SMTP settings.
  */
 async function getTransporter() {
-  const settings = await prisma.settings.findUnique({
-    where: { id: "default" },
-  });
+  const settings = await getCachedSettings();
 
   if (!settings?.smtpHost || !settings?.smtpPort || !settings?.smtpEmail || !settings?.smtpPassword) {
     throw new Error("SMTP is not configured. Please configure SMTP settings first.");
@@ -40,12 +65,11 @@ async function getTransporter() {
   const transporter = nodemailer.createTransport({
     host: settings.smtpHost,
     port: settings.smtpPort,
-    secure: settings.smtpIsSecure, // true for 465, false for 587
+    secure: settings.smtpIsSecure,
     auth: {
       user: settings.smtpEmail,
       pass: settings.smtpPassword,
     },
-    // Connection pool for better performance
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
@@ -70,7 +94,7 @@ async function getTransporter() {
 export async function sendMail({ to, subject, html, text, from }) {
   const { transporter, fromEmail } = await getTransporter();
 
-  const site = await prisma.site.findUnique({ where: { id: "default" } });
+  const site = await getCachedSite();
   const siteName = site?.name || "TaskGo Agency";
 
   const info = await transporter.sendMail({
@@ -78,7 +102,7 @@ export async function sendMail({ to, subject, html, text, from }) {
     to,
     subject,
     html,
-    text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML for text fallback
+    text: text || html.replace(/<[^>]*>/g, ""),
   });
 
   return info;
@@ -86,7 +110,6 @@ export async function sendMail({ to, subject, html, text, from }) {
 
 /**
  * Verify SMTP connection is working.
- * Returns true if successful, throws on failure.
  */
 export async function verifySmtp() {
   const { transporter } = await getTransporter();

@@ -1,5 +1,11 @@
 import prisma from "../../utils/prisma.js";
+import cache from "../../utils/cache.js";
 import { ApiError } from "../../utils/apiError.js";
+
+const CACHE_PREFIX = "emailTpl:";
+const CACHE_ALL_KEY = "emailTpl:all";
+const CACHE_ALL_COUNT_KEY = "emailTpl:count";
+const CACHE_TTL = 600; // 10 minutes
 
 /**
  * Default templates seeded on first access.
@@ -77,18 +83,25 @@ class EmailTemplateService {
         await prisma.emailTemplate.create({ data: tpl });
       }
     }
+    // Clear all template caches after seeding
+    cache.delByPrefix(CACHE_PREFIX);
   }
 
   /**
    * List all templates (auto-seeds if empty).
    */
   async listTemplates() {
-    const count = await prisma.emailTemplate.count();
+    const count = await cache.get(CACHE_ALL_COUNT_KEY, async () => {
+      return prisma.emailTemplate.count();
+    }, CACHE_TTL);
+
     if (count === 0) await this.seedDefaults();
 
-    return prisma.emailTemplate.findMany({
-      orderBy: { createdAt: "asc" },
-    });
+    return cache.get(CACHE_ALL_KEY, async () => {
+      return prisma.emailTemplate.findMany({
+        orderBy: { createdAt: "asc" },
+      });
+    }, CACHE_TTL);
   }
 
   /**
@@ -102,32 +115,42 @@ class EmailTemplateService {
 
   /**
    * Get a template by slug (used internally for sending emails).
+   * Cached for 10 minutes — this is the hot path for every email send.
    */
   async getTemplateBySlug(slug) {
-    // Auto-seed if needed
-    let tpl = await prisma.emailTemplate.findUnique({ where: { slug } });
-    if (!tpl) {
-      await this.seedDefaults();
-      tpl = await prisma.emailTemplate.findUnique({ where: { slug } });
-    }
-    if (!tpl) throw ApiError.notFound(`Email template "${slug}" not found`);
-    return tpl;
+    return cache.get(`${CACHE_PREFIX}${slug}`, async () => {
+      let tpl = await prisma.emailTemplate.findUnique({ where: { slug } });
+      if (!tpl) {
+        await this.seedDefaults();
+        tpl = await prisma.emailTemplate.findUnique({ where: { slug } });
+      }
+      if (!tpl) throw ApiError.notFound(`Email template "${slug}" not found`);
+      return tpl;
+    }, CACHE_TTL);
   }
 
   /**
    * Update a template (subject + body only).
+   * Invalidates the slug-based cache.
    */
   async updateTemplate(id, data) {
     const existing = await prisma.emailTemplate.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("Email template not found");
 
-    return prisma.emailTemplate.update({
+    const updated = await prisma.emailTemplate.update({
       where: { id },
       data: {
         subject: data.subject !== undefined ? data.subject : undefined,
         body: data.body !== undefined ? data.body : undefined,
       },
     });
+
+    // Invalidate cache for this template's slug
+    cache.del(`${CACHE_PREFIX}${existing.slug}`);
+    cache.del(CACHE_ALL_KEY);
+    cache.del(CACHE_ALL_COUNT_KEY);
+
+    return updated;
   }
 
   /**

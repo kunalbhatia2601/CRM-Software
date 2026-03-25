@@ -1,6 +1,8 @@
 import userService from "./user.service.js";
 import catchAsync from "../../utils/catchAsync.js";
 import { ok, created } from "../../utils/apiResponse.js";
+import cache from "../../utils/cache.js";
+
 
 class UserController {
   /**
@@ -32,6 +34,7 @@ class UserController {
    */
   updateUser = catchAsync(async (req, res) => {
     const user = await userService.updateUser(req.params.id, req.body);
+    cache.del(`user:${req.params.id}`);
     return ok(res, "User updated successfully", user);
   });
 
@@ -56,6 +59,7 @@ class UserController {
    */
   deleteUser = catchAsync(async (req, res) => {
     await userService.deleteUser(req.params.id, req.user.id);
+    cache.del(`user:${req.params.id}`);
     return ok(res, "User deleted successfully");
   });
 }

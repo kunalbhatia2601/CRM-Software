@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import prisma from "../../utils/prisma.js";
+import cache from "../../utils/cache.js";
 import { sendMail } from "../../utils/mailer.js";
 import emailTemplateService from "../email-template/email-template.service.js";
 import { ApiError } from "../../utils/apiError.js";
@@ -9,12 +10,14 @@ const MAX_ATTEMPTS = 5; // Max wrong OTP attempts before invalidation
 class OtpService {
   /**
    * Check if OTP login is enabled and SMTP is configured.
-   * Returns { enabled, otpDigits, otpExpiryMins } or { enabled: false }
+   * Uses cached settings — no DB call on every login attempt.
    */
   async getOtpConfig() {
-    const settings = await prisma.settings.findUnique({
-      where: { id: "default" },
-    });
+    const settings = await cache.get("settings:raw", async () => {
+      let s = await prisma.settings.findUnique({ where: { id: "default" } });
+      if (!s) s = await prisma.settings.create({ data: { id: "default" } });
+      return s;
+    }, 600);
 
     if (!settings) return { enabled: false };
 
@@ -54,16 +57,16 @@ class OtpService {
     // Store OTP
     const expiresAt = new Date(Date.now() + otpConfig.otpExpiryMins * 60 * 1000);
     await prisma.otp.create({
-      data: {
-        code,
-        userId,
-        expiresAt,
-      },
+      data: { code, userId, expiresAt },
     });
 
-    // Get email template and render
+    // Get email template (cached) and site name (cached)
     const template = await emailTemplateService.getTemplateBySlug("login-otp");
-    const site = await prisma.site.findUnique({ where: { id: "default" } });
+    const site = await cache.get("site", async () => {
+      let s = await prisma.site.findUnique({ where: { id: "default" } });
+      if (!s) s = await prisma.site.create({ data: { id: "default" } });
+      return s;
+    }, 600);
     const siteName = site?.name || "TaskGo Agency";
 
     const { subject, body } = emailTemplateService.renderTemplate(template, {
@@ -75,11 +78,7 @@ class OtpService {
     });
 
     // Send email
-    await sendMail({
-      to: email,
-      subject,
-      html: body,
-    });
+    await sendMail({ to: email, subject, html: body });
 
     return {
       otpSent: true,
@@ -94,10 +93,7 @@ class OtpService {
    */
   async verifyOtp(userId, code) {
     const otp = await prisma.otp.findFirst({
-      where: {
-        userId,
-        verified: false,
-      },
+      where: { userId, verified: false },
       orderBy: { createdAt: "desc" },
     });
 

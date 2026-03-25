@@ -1,6 +1,9 @@
 import authService from "./auth.service.js";
 import catchAsync from "../../utils/catchAsync.js";
 import { ok, created } from "../../utils/apiResponse.js";
+import cache from "../../utils/cache.js";
+
+const USER_CACHE_TTL = 5 * 60; // 5 minutes
 
 class AuthController {
   /**
@@ -52,6 +55,7 @@ class AuthController {
   refreshToken = catchAsync(async (req, res) => {
     const { refreshToken } = req.body;
     const tokens = await authService.refreshToken(refreshToken);
+    cache.del(`user:${req.user.id}`);
     return ok(res, "Token refreshed successfully", tokens);
   });
 
@@ -61,6 +65,7 @@ class AuthController {
   logout = catchAsync(async (req, res) => {
     const { refreshToken } = req.body;
     await authService.logout(refreshToken);
+    cache.del(`user:${req.user.id}`);
     return ok(res, "Logged out successfully");
   });
 
@@ -70,14 +75,21 @@ class AuthController {
   changePassword = catchAsync(async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     await authService.changePassword(req.user.id, currentPassword, newPassword);
+    cache.del(`user:${req.user.id}`);
     return ok(res, "Password changed successfully");
   });
 
   /**
    * GET /api/auth/me
+   * Add cache for 5 minutes
    */
   getMe = catchAsync(async (req, res) => {
-    const user = await authService.getMe(req.user.id);
+    const cacheKey = `user:${req.user.id}`;
+
+    const user = await cache.get(cacheKey, async () => {
+      return await authService.getMe(req.user.id);
+    }, USER_CACHE_TTL);
+
     return ok(res, "User profile retrieved", user);
   });
 }
