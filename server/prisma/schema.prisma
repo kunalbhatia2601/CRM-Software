@@ -42,6 +42,7 @@ enum LeadSource {
   COLD_CALL
   EMAIL_CAMPAIGN
   ADVERTISEMENT
+  META_AD
   EVENT
   PARTNER
   OTHER
@@ -361,6 +362,14 @@ model Settings {
   otpLoginEnabled Boolean @default(false) @map("otp_login_enabled")
   otpDigits       Int     @default(6)     @map("otp_digits")
   otpExpiryMins   Int     @default(5)     @map("otp_expiry_mins")
+
+  // Meta (Facebook/Instagram) Ads Configuration
+  metaAppId           String? @map("meta_app_id")
+  metaAppSecret       String? @map("meta_app_secret")
+  metaAccessToken     String? @map("meta_access_token") @db.Text
+  metaAdAccountId     String? @map("meta_ad_account_id")
+  metaPageId          String? @map("meta_page_id")
+  metaWebhookVerifyToken String? @map("meta_webhook_verify_token")
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

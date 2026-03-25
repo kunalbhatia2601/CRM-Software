@@ -22,6 +22,14 @@ const navItems = [
     ],
   },
   {
+    name: "Campaigns",
+    href: "/owner/campaigns",
+    icon: "Megaphone",
+    children: [
+      { name: "All Campaigns", href: "/owner/campaigns" },
+    ],
+  },
+  {
     name: "Leads",
     href: "/owner/leads",
     icon: "Target",

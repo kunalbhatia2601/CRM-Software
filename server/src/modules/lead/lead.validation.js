@@ -3,7 +3,7 @@ import { z } from "zod";
 const statuses = ["NEW", "CONTACTED", "QUALIFIED", "UNQUALIFIED", "CONVERTED", "LOST"];
 const sources = [
   "WEBSITE", "REFERRAL", "SOCIAL_MEDIA", "COLD_CALL",
-  "EMAIL_CAMPAIGN", "ADVERTISEMENT", "EVENT", "PARTNER", "OTHER",
+  "EMAIL_CAMPAIGN", "ADVERTISEMENT", "META_AD", "EVENT", "PARTNER", "OTHER",
 ];
 const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 

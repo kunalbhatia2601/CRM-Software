@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { BotIcon, Coins, Database, Globe, LayoutTemplateIcon, Mail, Server } from "lucide-react";
+import { BotIcon, Coins, Database, Globe, LayoutTemplateIcon, Mail, Megaphone, Server } from "lucide-react";
 import SiteSettingsTab from "./SiteSettingsTab";
 import SmtpSettingsTab from "./SmtpSettingsTab";
 import EmailTemplatesTab from "./EmailTemplatesTab";
+import MetaSettingsTab from "./MetaSettingsTab";
 
 const TABS = [
   { id: "site", label: "Site Settings", icon: Globe },
   { id: "smtp", label: "Email Settings", icon: Mail },
   { id: "email-templates", label: "Email Templates", icon: LayoutTemplateIcon },
+  { id: "meta", label: "Meta Ads", icon: Megaphone },
   { id: "storage", label: "Storage Settings", icon: Database },
   { id: "payment", label: "Payment Settings", icon: Coins },
   { id: "ai", label: "AI Settings", icon: BotIcon },
@@ -57,6 +59,7 @@ export default function SettingsContent({ initialSite, initialSettings }) {
           <SmtpSettingsTab initialData={initialSettings} />
         )}
         {activeTab === "email-templates" && <EmailTemplatesTab />}
+        {activeTab === "meta" && <MetaSettingsTab initialData={initialSettings} />}
       </div>
     </div>
   );

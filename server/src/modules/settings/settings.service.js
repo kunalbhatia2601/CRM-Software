@@ -32,7 +32,7 @@ class SettingsService {
     const settings = await this.getRawSettings();
     const { createdAt, updatedAt, ...data } = settings;
 
-    // Mask SMTP password — only show if configured or not
+    // Mask sensitive fields
     return {
       ...data,
       smtpPassword: data.smtpPassword ? "••••••••" : null,
@@ -41,6 +41,14 @@ class SettingsService {
         data.smtpPort &&
         data.smtpEmail &&
         data.smtpPassword
+      ),
+      metaAppSecret: data.metaAppSecret ? "••••••••" : null,
+      metaAccessToken: data.metaAccessToken ? "••••••••" : null,
+      isMetaConfigured: !!(
+        data.metaAppId &&
+        data.metaAppSecret &&
+        data.metaAccessToken &&
+        data.metaAdAccountId
       ),
     };
   }
@@ -51,10 +59,10 @@ class SettingsService {
    * Invalidates cache after update.
    */
   async updateSettings(data) {
-    // Don't overwrite password with the mask
-    if (data.smtpPassword === "••••••••") {
-      delete data.smtpPassword;
-    }
+    // Don't overwrite secrets with the mask
+    if (data.smtpPassword === "••••••••") delete data.smtpPassword;
+    if (data.metaAppSecret === "••••••••") delete data.metaAppSecret;
+    if (data.metaAccessToken === "••••••••") delete data.metaAccessToken;
 
     // Track if SMTP fields are being changed
     const smtpFieldsChanged = !!(
@@ -99,6 +107,14 @@ class SettingsService {
         result.smtpPort &&
         result.smtpEmail &&
         result.smtpPassword
+      ),
+      metaAppSecret: result.metaAppSecret ? "••••••••" : null,
+      metaAccessToken: result.metaAccessToken ? "••••••••" : null,
+      isMetaConfigured: !!(
+        result.metaAppId &&
+        result.metaAppSecret &&
+        result.metaAccessToken &&
+        result.metaAdAccountId
       ),
     };
   }

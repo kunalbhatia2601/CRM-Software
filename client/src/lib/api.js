@@ -276,6 +276,61 @@ export async function updateEmailTemplateAPI(id, data, accessToken) {
   });
 }
 
+/* ───────── Campaign (Meta) Endpoints ───────── */
+
+export async function getCampaignsAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/campaigns?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignAPI(id, accessToken) {
+  return request(`/api/campaigns/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignOverviewAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/campaigns/overview?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignInsightsAPI(id, params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/campaigns/${id}/insights?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignDailyInsightsAPI(id, params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/campaigns/${id}/insights/daily?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignAdSetsAPI(id, accessToken) {
+  return request(`/api/campaigns/${id}/adsets`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignAdsAPI(id, accessToken) {
+  return request(`/api/campaigns/${id}/ads`, { method: "GET", token: accessToken });
+}
+
+export async function updateCampaignStatusAPI(id, status, accessToken) {
+  return request(`/api/campaigns/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+    token: accessToken,
+  });
+}
+
+export async function testMetaConnectionAPI(accessToken) {
+  return request("/api/campaigns/test-connection", { method: "GET", token: accessToken });
+}
+
+export async function getLeadFormsAPI(accessToken) {
+  return request("/api/campaigns/lead-forms", { method: "GET", token: accessToken });
+}
+
+export async function getLeadFormDataAPI(formId, params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/campaigns/lead-forms/${formId}/leads?${query}`, { method: "GET", token: accessToken });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

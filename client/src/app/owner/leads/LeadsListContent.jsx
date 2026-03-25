@@ -39,6 +39,7 @@ const SOURCES = [
   { value: "COLD_CALL", label: "Cold Call" },
   { value: "EMAIL_CAMPAIGN", label: "Email Campaign" },
   { value: "ADVERTISEMENT", label: "Advertisement" },
+  { value: "META_AD", label: "Meta Ad" },
   { value: "EVENT", label: "Event" },
   { value: "PARTNER", label: "Partner" },
   { value: "OTHER", label: "Other" },

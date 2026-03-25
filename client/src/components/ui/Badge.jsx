@@ -41,6 +41,11 @@ const VARIANTS = {
   // Client status
   CHURNED: "bg-red-50 text-red-600 border-red-200",
 
+  // Campaign status
+  PAUSED: "bg-amber-50 text-amber-600 border-amber-200",
+  ARCHIVED: "bg-slate-50 text-slate-500 border-slate-200",
+  DELETED: "bg-red-50 text-red-600 border-red-200",
+
   // Priorities
   LOW: "bg-slate-50 text-slate-500 border-slate-200",
   MEDIUM: "bg-blue-50 text-blue-600 border-blue-200",
@@ -61,6 +66,11 @@ const LABELS = {
   EMAIL_CAMPAIGN: "Email Campaign",
   SOCIAL_MEDIA: "Social Media",
   COLD_CALL: "Cold Call",
+  META_AD: "Meta Ad",
+  BRAND_AWARENESS: "Brand Awareness",
+  LEAD_GENERATION: "Lead Generation",
+  CATALOG_SALES: "Catalog Sales",
+  STORE_TRAFFIC: "Store Traffic",
 };
 
 export default function Badge({ value, className = "" }) {
