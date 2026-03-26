@@ -5,10 +5,11 @@ import { clearTransporterCache } from "../../utils/mailer.js";
 const CACHE_KEY = "settings";
 const CACHE_KEY_RAW = "settings:raw"; // Unmasked version for internal use
 const CACHE_TTL = 600; // 10 minutes
+const MASK = "••••••••";
 
 class SettingsService {
   /**
-   * Get RAW settings from DB (with real password — for internal use only).
+   * Get RAW settings from DB (with real passwords — for internal use only).
    * Cached for 10 minutes.
    */
   async getRawSettings() {
@@ -25,36 +26,38 @@ class SettingsService {
 
   /**
    * Get settings (auto-creates default record if none exists)
-   * Masks the SMTP password for security.
+   * Masks sensitive fields for security.
    * Uses cached raw settings internally.
    */
   async getSettings() {
     const settings = await this.getRawSettings();
     const { createdAt, updatedAt, ...data } = settings;
 
-    // Mask SMTP password — only show if configured or not
     return {
       ...data,
-      smtpPassword: data.smtpPassword ? "••••••••" : null,
+      // Mask SMTP password
+      smtpPassword: data.smtpPassword ? MASK : null,
       isSmtpConfigured: !!(
         data.smtpHost &&
         data.smtpPort &&
         data.smtpEmail &&
         data.smtpPassword
       ),
+      // Mask storage secret key
+      storageSecretKey: data.storageSecretKey ? MASK : null,
+      isStorageConfigured: this._checkStorageConfigured(data),
     };
   }
 
   /**
    * Update settings (OWNER only)
-   * If smtpPassword is the masked string, skip updating it.
+   * If passwords are the masked string, skip updating them.
    * Invalidates cache after update.
    */
   async updateSettings(data) {
-    // Don't overwrite password with the mask
-    if (data.smtpPassword === "••••••••") {
-      delete data.smtpPassword;
-    }
+    // Don't overwrite secrets with the mask
+    if (data.smtpPassword === MASK) delete data.smtpPassword;
+    if (data.storageSecretKey === MASK) delete data.storageSecretKey;
 
     // Track if SMTP fields are being changed
     const smtpFieldsChanged = !!(
@@ -93,14 +96,39 @@ class SettingsService {
 
     return {
       ...result,
-      smtpPassword: result.smtpPassword ? "••••••••" : null,
+      smtpPassword: result.smtpPassword ? MASK : null,
       isSmtpConfigured: !!(
         result.smtpHost &&
         result.smtpPort &&
         result.smtpEmail &&
         result.smtpPassword
       ),
+      storageSecretKey: result.storageSecretKey ? MASK : null,
+      isStorageConfigured: this._checkStorageConfigured(result),
     };
+  }
+
+  /**
+   * Check if storage is fully configured based on provider type.
+   */
+  _checkStorageConfigured(data) {
+    const p = data.storageProvider;
+    if (p === "LOCAL") return true;
+    if (p === "S3" || p === "R2") {
+      return !!(
+        data.storageAccessKeyId &&
+        data.storageSecretKey &&
+        data.storageBucket
+      );
+    }
+    if (p === "CUSTOM") {
+      return !!(
+        data.storageCustomPostUrl &&
+        data.storageCustomFileKey &&
+        data.storageCustomUrlKey
+      );
+    }
+    return false;
   }
 }
 

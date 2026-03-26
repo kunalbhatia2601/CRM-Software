@@ -21,18 +21,29 @@ import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import settingsRoutes from "./modules/settings/settings.routes.js";
 import emailTemplateRoutes from "./modules/email-template/email-template.routes.js";
 import serviceRoutes from "./modules/service/service.routes.js";
+import storageRoutes from "./modules/storage/storage.routes.js";
 
 const app = express();
 
 // ─── Global Middlewares ──────────────────────────────────
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use("/public", express.static("public"));
 app.use(
-  config.env === "development"
-    ? cors()
-    : cors({ origin: config.cors.origin, credentials: true })
+  cors({
+    origin: config.env === "development" ? true : config.cors.origin,
+    credentials: true,
+  })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Skip body parsing for local file upload (streaming raw body to disk)
+app.use((req, res, next) => {
+  if (req.path === "/api/storage/upload/local") return next();
+  express.json()(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path === "/api/storage/upload/local") return next();
+  express.urlencoded({ extended: true })(req, res, next);
+});
 
 if (config.env === "development") {
   app.use(morgan("dev"));
@@ -75,6 +86,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/email-templates", emailTemplateRoutes);
 app.use("/api/services", serviceRoutes);
+app.use("/api/storage", storageRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 

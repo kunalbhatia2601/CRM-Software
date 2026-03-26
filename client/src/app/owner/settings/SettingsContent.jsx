@@ -5,6 +5,7 @@ import { BotIcon, Coins, Database, Globe, LayoutTemplateIcon, Mail, Server } fro
 import SiteSettingsTab from "./SiteSettingsTab";
 import SmtpSettingsTab from "./SmtpSettingsTab";
 import EmailTemplatesTab from "./EmailTemplatesTab";
+import StorageSettingsTab from "./StorageSettingsTab";
 
 const TABS = [
   { id: "site", label: "Site Settings", icon: Globe },
@@ -57,6 +58,9 @@ export default function SettingsContent({ initialSite, initialSettings }) {
           <SmtpSettingsTab initialData={initialSettings} />
         )}
         {activeTab === "email-templates" && <EmailTemplatesTab />}
+        {activeTab === "storage" && (
+          <StorageSettingsTab initialData={initialSettings} />
+        )}
       </div>
     </div>
   );

@@ -395,6 +395,16 @@ export async function getServicesDropdownAPI(accessToken) {
   return request("/api/services/dropdown", { method: "GET", token: accessToken });
 }
 
+/* ───────── Storage ───────── */
+
+export async function getUploadConfigAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/storage/upload-config?${query}`, {
+    method: "GET",
+    token: accessToken,
+  });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

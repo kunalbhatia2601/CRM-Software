@@ -20,6 +20,8 @@ const config = {
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
   },
 
+  backendURL: process.env.BACKEND_URL || "http://localhost:4444",
+
   bcrypt: {
     saltRounds: 12,
   },

@@ -445,6 +445,21 @@ model Settings {
   otpDigits       Int     @default(6)     @map("otp_digits")
   otpExpiryMins   Int     @default(5)     @map("otp_expiry_mins")
 
+  // Storage Configuration
+  // Provider: LOCAL | S3 | R2 | CUSTOM
+  storageProvider       String  @default("LOCAL") @map("storage_provider")
+  // S3/R2 config (both use S3-compatible API)
+  storageAccessKeyId    String? @map("storage_access_key_id")
+  storageSecretKey      String? @map("storage_secret_key")
+  storageEndpoint       String? @map("storage_endpoint")       // e.g. https://<account>.r2.cloudflarestorage.com
+  storageRegion         String? @map("storage_region")         // e.g. us-east-1, auto
+  storageBucket         String? @map("storage_bucket")
+  storagePublicUrl      String? @map("storage_public_url")     // NEXT_PUBLIC_STORAGE_URL — CDN / public bucket URL
+  // Custom provider config
+  storageCustomPostUrl  String? @map("storage_custom_post_url")  // URL to POST files to
+  storageCustomFileKey  String? @map("storage_custom_file_key")  // Form field name for the file (e.g. "file")
+  storageCustomUrlKey   String? @map("storage_custom_url_key")   // JSON response key that holds the file URL (e.g. "url")
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

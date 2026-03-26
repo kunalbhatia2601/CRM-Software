@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import {
-  Save,
   Building,
   Mail,
   Phone,
@@ -13,8 +12,12 @@ import {
   Check,
   Loader2,
   Shield,
+  Upload,
+  ImageIcon,
+  X,
 } from "lucide-react";
 import { updateSiteSettings } from "@/actions/settings.action";
+import { useUpload } from "@/hooks/useUpload";
 
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingsInput from "@/components/settings/SettingsInput";
@@ -31,6 +34,8 @@ const CURRENCIES = [
 export default function SiteSettingsTab({ initialData }) {
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
+  const { upload, uploading, progress, error: uploadError } = useUpload();
+  const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
     name: initialData?.name || "",
@@ -83,7 +88,95 @@ export default function SiteSettingsTab({ initialData }) {
         </div>
       )}
 
-      {/* ═══ Card 1: General Info ═══ */}
+      {/* ═══ Card 1: Brand Identity ═══ */}
+      <SettingsCard
+        title="Brand Identity"
+        description="Your agency logo displayed across the system."
+      >
+        <div className="flex flex-col items-start gap-6 max-w-[300px]">
+          {/* Logo Preview */}
+          <div className="relative w-[88px] h-[88px] rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
+            {form.logo ? (
+              <img
+                src={form.logo}
+                alt="Logooo"
+                height={"100px"}
+                className="h-[88px] object-contain p-2"
+                onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+              />
+            ) : null}
+            <div
+              className={`${form.logo ? "hidden" : "flex"} flex-col items-center justify-center w-full h-full`}
+            >
+              <ImageIcon className="w-7 h-7 text-slate-300 dark:text-slate-600" />
+            </div>
+          </div>
+
+          {/* Upload controls */}
+          <div className="flex-1 flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Upload Logo</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">PNG, JPG, SVG or WebP. Recommended size 300×150px.</p>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const result = await upload(file);
+                if (result?.fileUrl) {
+                  update("logo", result.fileUrl);
+                }
+                e.target.value = "";
+              }}
+            />
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {uploading ? `Uploading ${progress}%` : "Choose File"}
+              </button>
+              {form.logo && !uploading && (
+                <button
+                  type="button"
+                  onClick={() => update("logo", "")}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Remove
+                </button>
+              )}
+            </div>
+
+            {uploading && (
+              <div className="w-full max-w-[260px] h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
+            {uploadError && (
+              <p className="text-xs text-red-500">{uploadError}</p>
+            )}
+          </div>
+        </div>
+      </SettingsCard>
+
+      {/* ═══ Card 2: General Info ═══ */}
       <SettingsCard
         title="General Information"
         description="Basic details about your agency displayed across the system."
@@ -95,12 +188,6 @@ export default function SiteSettingsTab({ initialData }) {
             value={form.name}
             onChange={(e) => update("name", e.target.value)}
             placeholder="TaskGo Agency"
-          />
-          <SettingsInput
-            label="Logo URL"
-            value={form.logo}
-            onChange={(e) => update("logo", e.target.value)}
-            placeholder="/logo.svg or https://..."
           />
           <SettingsInput
             label="Contact Email"
@@ -137,7 +224,7 @@ export default function SiteSettingsTab({ initialData }) {
         </div>
       </SettingsCard>
 
-      {/* ═══ Card 2: Currency & Exchange Rates ═══ */}
+      {/* ═══ Card 3: Currency & Exchange Rates ═══ */}
       <SettingsCard
         title="Currency & Exchange Rates"
         description="Set your display currency and exchange rates. All monetary values are stored in INR and converted on display."
@@ -185,7 +272,7 @@ export default function SiteSettingsTab({ initialData }) {
         </div>
       </SettingsCard>
 
-      {/* ═══ Card 3: System Modes ═══ */}
+      {/* ═══ Card 4: System Modes ═══ */}
       <SettingsCard
         title="System Modes"
         description="Toggle system-wide modes for maintenance or demonstration."
