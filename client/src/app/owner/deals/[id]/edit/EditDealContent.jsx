@@ -89,7 +89,7 @@ export default function EditDealContent({ deal }) {
       />
 
       {isWon && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-[20px] p-5 flex items-center gap-3">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 rounded-[20px] p-5 flex items-center gap-3">
           <Badge value="WON" />
           <p className="text-sm text-emerald-700 font-medium">
             This deal has been won and cannot be edited.
@@ -152,9 +152,9 @@ export default function EditDealContent({ deal }) {
             disabled={isWon}
           />
           {deal.assignee && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               Currently assigned to{" "}
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-slate-700 dark:text-slate-300">
                 {deal.assignee.firstName} {deal.assignee.lastName}
               </span>
             </p>
@@ -164,14 +164,14 @@ export default function EditDealContent({ deal }) {
 
       <SettingsCard title="Notes" description="Additional context for this deal.">
         <div>
-          <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
+          <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Notes</label>
           <textarea
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
             rows={4}
             placeholder="Deal notes..."
             disabled={isWon}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
       </SettingsCard>
@@ -180,7 +180,7 @@ export default function EditDealContent({ deal }) {
         <div className="flex items-center justify-between mt-2">
           <button
             onClick={() => router.back()}
-            className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             Cancel
           </button>

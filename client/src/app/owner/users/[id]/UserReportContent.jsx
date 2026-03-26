@@ -123,7 +123,7 @@ export default function UserReportContent({ report }) {
       />
 
       {/* ═══ Profile Header Card ═══ */}
-      <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none overflow-hidden">
         {/* Gradient Banner */}
         <div className={`h-28 bg-gradient-to-r ${config.color} relative`}>
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tMTIgMHYtMkgxMnYyaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
@@ -132,7 +132,7 @@ export default function UserReportContent({ report }) {
         <div className="px-8 pb-8 -mt-12 relative">
           <div className="flex flex-col md:flex-row gap-6 items-start">
             {/* Avatar */}
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-slate-700">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-slate-700 dark:text-slate-300">
               {user.avatar ? (
                 <img src={user.avatar} alt="" className="w-full h-full rounded-2xl object-cover" />
               ) : (
@@ -143,7 +143,7 @@ export default function UserReportContent({ report }) {
             {/* Info */}
             <div className="flex-1 pt-4">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-slate-900">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
                   {user.firstName} {user.lastName}
                 </h2>
                 <div className="flex items-center gap-2">
@@ -151,9 +151,9 @@ export default function UserReportContent({ report }) {
                   <Badge value={user.status} />
                 </div>
               </div>
-              <p className="text-sm text-slate-500 mb-4">{config.description}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{config.description}</p>
 
-              <div className="flex flex-wrap gap-6 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-6 text-sm text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400" />
                   {user.email}
@@ -180,13 +180,13 @@ export default function UserReportContent({ report }) {
 
       {/* ═══ Linked Client Company (CLIENT role only) ═══ */}
       {user.role === "CLIENT" && user.client && (
-        <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 flex items-center justify-center">
               <Building2 className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Linked Company</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Linked Company</h3>
               <span className="text-xs text-slate-400">Client portal account linked to this company</span>
             </div>
             <div className="ml-auto">
@@ -272,22 +272,22 @@ export default function UserReportContent({ report }) {
 
       {/* ═══ Deal Value Card (if has deals) ═══ */}
       {sections.includes("deals") && summary.totalDealValue > 0 && (
-        <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">Deal Performance</h3>
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-4">Deal Performance</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex flex-col gap-1 p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex flex-col gap-1 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
               <span className="text-xs text-slate-400 font-medium">Total Pipeline Value</span>
-              <span className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
+              <span className="text-2xl font-bold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
                 {formatCompact(summary.totalDealValue)}
               </span>
             </div>
-            <div className="flex flex-col gap-1 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+            <div className="flex flex-col gap-1 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
               <span className="text-xs text-emerald-600 font-medium">Won Deal Value</span>
               <span className="text-2xl font-bold text-emerald-700" suppressHydrationWarning>
                 {formatCompact(summary.wonDealValue)}
               </span>
             </div>
-            <div className="flex flex-col gap-1 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+            <div className="flex flex-col gap-1 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30">
               <span className="text-xs text-indigo-600 font-medium">Win Rate</span>
               <span className="text-2xl font-bold text-indigo-700">
                 {summary.totalDeals > 0
@@ -456,11 +456,11 @@ export default function UserReportContent({ report }) {
 function CompanyInfoItem({ icon: Icon, label, value }) {
   if (!value) return null;
   return (
-    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
       <Icon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
       <div className="min-w-0">
         <span className="text-xs text-slate-400 font-medium block">{label}</span>
-        <span className="text-sm text-slate-700 font-medium break-words">{value}</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium break-words">{value}</span>
       </div>
     </div>
   );
@@ -470,14 +470,14 @@ function CompanyInfoItem({ icon: Icon, label, value }) {
 
 function ReportTable({ title, icon: Icon, data, columns, emptyMessage }) {
   return (
-    <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
+    <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center">
-            <Icon className="w-5 h-5 text-slate-500" />
+          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center">
+            <Icon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">{title}</h3>
             <span className="text-xs text-slate-400">{data.length} total</span>
           </div>
         </div>
@@ -487,7 +487,7 @@ function ReportTable({ title, icon: Icon, data, columns, emptyMessage }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+              <tr className="text-left text-xs text-slate-400 border-b border-slate-100 dark:border-slate-800">
                 {columns.map((col) => (
                   <th
                     key={col.key}
@@ -502,15 +502,15 @@ function ReportTable({ title, icon: Icon, data, columns, emptyMessage }) {
               {data.map((row, idx) => (
                 <tr
                   key={row.id || idx}
-                  className="border-b border-slate-50 last:border-0"
+                  className="border-b border-slate-50 dark:border-slate-800 last:border-0"
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
                       className={`py-3.5 ${col.align === "right" ? "text-right" : ""} ${
                         col.key === columns[0].key
-                          ? "font-medium text-slate-900"
-                          : "text-slate-600"
+                          ? "font-medium text-slate-900 dark:text-slate-50"
+                          : "text-slate-600 dark:text-slate-400"
                       }`}
                     >
                       {col.render ? col.render(row[col.key], row) : row[col.key] || "—"}
@@ -523,7 +523,7 @@ function ReportTable({ title, icon: Icon, data, columns, emptyMessage }) {
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3 py-10">
-          <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
             <Inbox className="w-6 h-6 text-slate-300" />
           </div>
           <p className="text-sm text-slate-400">{emptyMessage}</p>

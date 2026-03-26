@@ -237,7 +237,7 @@ export default function LeadDetailContent({ initialLead }) {
       />
 
       {/* ═══ Profile Header Card ═══ */}
-      <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none overflow-hidden">
         {/* Gradient Banner */}
         <div className={`h-28 bg-gradient-to-r ${STATUS_COLORS[lead.status] || "from-slate-500 to-gray-600"} relative`}>
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tMTIgMHYtMkgxMnYyaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
@@ -246,23 +246,23 @@ export default function LeadDetailContent({ initialLead }) {
         <div className="px-8 pb-8 -mt-12 relative">
           <div className="flex flex-col md:flex-row gap-6 items-start">
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center">
-              <StatusIcon className="w-10 h-10 text-slate-600" />
+              <StatusIcon className="w-10 h-10 text-slate-600 dark:text-slate-400" />
             </div>
 
             <div className="flex-1 pt-4">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-slate-900">{lead.companyName}</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">{lead.companyName}</h2>
                 <div className="flex items-center gap-2">
                   <Badge value={lead.status} />
                   <Badge value={lead.priority} />
                   <Badge value={lead.source} />
                 </div>
               </div>
-              <p className="text-sm text-slate-500 mb-4">
-                Contact: <span className="font-medium text-slate-700">{lead.contactName}</span>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                Contact: <span className="font-medium text-slate-700 dark:text-slate-300">{lead.contactName}</span>
               </p>
 
-              <div className="flex flex-wrap gap-6 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-6 text-sm text-slate-600 dark:text-slate-400">
                 {lead.email && (
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-slate-400" />
@@ -288,8 +288,8 @@ export default function LeadDetailContent({ initialLead }) {
       </div>
 
       {/* ═══ Pipeline Progress ═══ */}
-      <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Pipeline Progress</h3>
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-6">Pipeline Progress</h3>
         <div className="flex items-center gap-0">
           {PIPELINE_STEPS.map((step, idx) => {
             const isActive = currentStepIdx >= idx;
@@ -303,7 +303,7 @@ export default function LeadDetailContent({ initialLead }) {
                         ? "bg-[#5542F6] text-white shadow-lg shadow-indigo-500/30 ring-4 ring-indigo-500/10"
                         : isActive
                           ? "bg-emerald-500 text-white"
-                          : "bg-slate-100 text-slate-400"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-400"
                     }`}
                   >
                     {isActive && !isCurrent ? (
@@ -330,7 +330,7 @@ export default function LeadDetailContent({ initialLead }) {
         {(lead.status === "LOST" || lead.status === "UNQUALIFIED") && (
           <div className="mt-4 flex items-center gap-2 text-sm">
             <Badge value={lead.status} />
-            <span className="text-slate-500">— This lead is not in the main pipeline.</span>
+            <span className="text-slate-500 dark:text-slate-400">— This lead is not in the main pipeline.</span>
           </div>
         )}
       </div>
@@ -341,7 +341,7 @@ export default function LeadDetailContent({ initialLead }) {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tMTIgMHYtMkgxMnYyaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
           <div className="relative flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-950/20 flex items-center justify-center">
                 <Rocket className="w-7 h-7 text-white" />
               </div>
               <div>
@@ -353,7 +353,7 @@ export default function LeadDetailContent({ initialLead }) {
             </div>
             <button
               onClick={() => setShowDealModal(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-700 text-sm font-bold rounded-xl shadow-lg hover:bg-emerald-50 transition-all active:scale-[0.98] shrink-0"
+              className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-950 text-emerald-700 text-sm font-bold rounded-xl shadow-lg hover:bg-emerald-50 transition-all active:scale-[0.98] shrink-0"
             >
               <Handshake className="w-5 h-5" />
               Convert to Deal
@@ -364,7 +364,7 @@ export default function LeadDetailContent({ initialLead }) {
 
       {/* ═══ Converted Banner ═══ */}
       {lead.status === "CONVERTED" && (
-        <div className="bg-emerald-50 rounded-[24px] p-6 lg:p-8 border border-emerald-200">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-[24px] p-6 lg:p-8 border border-emerald-200">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
@@ -429,9 +429,9 @@ export default function LeadDetailContent({ initialLead }) {
 
       {/* ═══ Status Actions (not for QUALIFIED since we have the CTA above) ═══ */}
       {allowedTransitions.length > 0 && (
-        <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Update Status</h3>
-          <p className="text-sm text-slate-500 mb-6">
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-2">Update Status</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
             Move this lead to the next stage in your pipeline.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -445,7 +445,7 @@ export default function LeadDetailContent({ initialLead }) {
                   className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
                     isLost
                       ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                      : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
+                      : "bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   <ArrowRight className="w-4 h-4" />
@@ -459,48 +459,48 @@ export default function LeadDetailContent({ initialLead }) {
 
       {/* ═══ Notes & People ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-slate-500" />
+            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-slate-500 dark:text-slate-400" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Notes</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Notes</h3>
           </div>
           {lead.notes ? (
-            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{lead.notes}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">{lead.notes}</p>
           ) : (
             <p className="text-sm text-slate-400 italic">No notes added yet.</p>
           )}
         </div>
 
-        <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/50 flex items-center justify-center">
-              <User className="w-5 h-5 text-slate-500" />
+            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center">
+              <User className="w-5 h-5 text-slate-500 dark:text-slate-400" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">People</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">People</h3>
           </div>
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
                 {(lead.createdBy?.firstName?.[0] || "").toUpperCase()}
                 {(lead.createdBy?.lastName?.[0] || "").toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-900">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
                   {lead.createdBy?.firstName} {lead.createdBy?.lastName}
                 </p>
                 <p className="text-xs text-slate-400">Created this lead</p>
               </div>
             </div>
             {lead.assignee && (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                 <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">
                   {(lead.assignee?.firstName?.[0] || "").toUpperCase()}
                   {(lead.assignee?.lastName?.[0] || "").toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
                     {lead.assignee.firstName} {lead.assignee.lastName}
                   </p>
                   <p className="text-xs text-slate-400">Assigned sales person · {lead.assignee.role?.replace(/_/g, " ")}</p>
@@ -526,23 +526,23 @@ export default function LeadDetailContent({ initialLead }) {
       {showLostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowLostModal(false)} />
-          <div className="relative bg-white rounded-[24px] p-8 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Mark Lead as Lost</h3>
-            <p className="text-sm text-slate-500 mb-6">
-              Please provide a reason for marking <span className="font-medium text-slate-700">{lead.companyName}</span> as lost.
+          <div className="relative bg-white dark:bg-slate-950 rounded-[24px] p-8 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-2">Mark Lead as Lost</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Please provide a reason for marking <span className="font-medium text-slate-700 dark:text-slate-300">{lead.companyName}</span> as lost.
             </p>
             <textarea
               value={lostReasonInput}
               onChange={(e) => setLostReasonInput(e.target.value)}
               rows={3}
               placeholder="e.g., Budget constraints, went with competitor, no response..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-red-500/10 focus:border-red-500 transition-all shadow-sm resize-none mb-6"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-red-500/10 focus:border-red-500 transition-all shadow-sm dark:shadow-none resize-none mb-6"
               autoFocus
             />
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => { setShowLostModal(false); setLostReasonInput(""); }}
-                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
@@ -562,15 +562,15 @@ export default function LeadDetailContent({ initialLead }) {
       {showDealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDealModal(false)} />
-          <div className="relative bg-white rounded-[24px] p-8 w-full max-w-lg shadow-2xl">
+          <div className="relative bg-white dark:bg-slate-950 rounded-[24px] p-8 w-full max-w-lg shadow-2xl">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
                 <Handshake className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Convert to Deal</h3>
-                <p className="text-sm text-slate-500">
-                  Create a deal from <span className="font-medium text-slate-700">{lead.companyName}</span>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Convert to Deal</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Create a deal from <span className="font-medium text-slate-700 dark:text-slate-300">{lead.companyName}</span>
                 </p>
               </div>
             </div>
@@ -612,13 +612,13 @@ export default function LeadDetailContent({ initialLead }) {
                 onChange={(e) => setDealForm((p) => ({ ...p, expectedCloseAt: e.target.value }))}
               />
               <div>
-                <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
+                <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Notes</label>
                 <textarea
                   value={dealForm.notes}
                   onChange={(e) => setDealForm((p) => ({ ...p, notes: e.target.value }))}
                   rows={2}
                   placeholder="Optional deal notes..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
                 />
               </div>
             </div>
@@ -626,7 +626,7 @@ export default function LeadDetailContent({ initialLead }) {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowDealModal(false)}
-                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
@@ -655,18 +655,18 @@ function DetailCard({ icon: Icon, label, value, subtext, accent, highlight }) {
         accent
           ? "bg-[#5542F6] text-white shadow-xl shadow-indigo-500/20"
           : highlight
-            ? "bg-amber-50 border border-amber-200"
-            : "bg-white border border-slate-100 shadow-sm shadow-slate-200/50"
+            ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-200"
+            : "bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none"
       }`}
     >
       <div className="flex justify-between items-start">
-        <span className={`font-medium text-sm ${accent ? "text-indigo-200" : highlight ? "text-amber-600" : "text-slate-600"}`}>
+        <span className={`font-medium text-sm ${accent ? "text-indigo-200" : highlight ? "text-amber-600" : "text-slate-600 dark:text-slate-400"}`}>
           {label}
         </span>
         {Icon && (
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              accent ? "bg-white/20" : highlight ? "bg-amber-100" : "bg-slate-50 text-slate-400"
+              accent ? "bg-white dark:bg-slate-950/20" : highlight ? "bg-amber-100" : "bg-slate-50 dark:bg-slate-900 text-slate-400"
             }`}
           >
             <Icon className="w-4 h-4" />
@@ -675,7 +675,7 @@ function DetailCard({ icon: Icon, label, value, subtext, accent, highlight }) {
       </div>
       <div>
         <span
-          className={`text-lg font-bold ${accent ? "text-white" : highlight ? "text-amber-700" : "text-slate-900"}`}
+          className={`text-lg font-bold ${accent ? "text-white" : highlight ? "text-amber-700" : "text-slate-900 dark:text-slate-50"}`}
           suppressHydrationWarning
         >
           {value}

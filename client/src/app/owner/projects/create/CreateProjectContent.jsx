@@ -205,13 +205,13 @@ export default function CreateProjectContent() {
             placeholder="Website Redesign"
           />
           <div>
-            <label className="text-sm font-semibold text-slate-800 mb-2 block">Description</label>
+            <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
               rows={3}
               placeholder="Brief description of the project scope and goals..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
             />
           </div>
         </div>
@@ -304,10 +304,10 @@ export default function CreateProjectContent() {
               return (
                 <div
                   key={svc.serviceId}
-                  className="grid grid-cols-12 gap-3 items-center px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors"
+                  className="grid grid-cols-12 gap-3 items-center px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-colors"
                 >
                   <div className="col-span-4">
-                    <p className="font-semibold text-slate-800 text-sm">{svc.name}</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{svc.name}</p>
                     {priceChanged && (
                       <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1 mt-0.5">
                         <Pencil className="h-3 w-3" /> Price adjusted
@@ -315,7 +315,7 @@ export default function CreateProjectContent() {
                     )}
                   </div>
                   <div className="col-span-2 text-right">
-                    <span className={`text-sm ${priceChanged ? "line-through text-slate-400" : "text-slate-600"}`}>
+                    <span className={`text-sm ${priceChanged ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400"}`}>
                       {format(svc.originalPrice)}
                     </span>
                   </div>
@@ -326,7 +326,7 @@ export default function CreateProjectContent() {
                       onChange={(e) => handleServicePriceChange(svc.serviceId, e.target.value)}
                       min="0"
                       step="0.01"
-                      className="w-full text-right px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full text-right px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400/20 focus:border-indigo-500"
                     />
                   </div>
                   <div className="col-span-1">
@@ -335,10 +335,10 @@ export default function CreateProjectContent() {
                       value={svc.quantity}
                       onChange={(e) => handleServiceQuantityChange(svc.serviceId, e.target.value)}
                       min="1"
-                      className="w-full text-center px-2 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full text-center px-2 py-1.5 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400/20 focus:border-indigo-500"
                     />
                   </div>
-                  <div className="col-span-2 text-right font-semibold text-sm text-slate-800">
+                  <div className="col-span-2 text-right font-semibold text-sm text-slate-800 dark:text-slate-200">
                     {format(svc.price * svc.quantity)}
                   </div>
                   <div className="col-span-1 flex justify-end">
@@ -353,9 +353,9 @@ export default function CreateProjectContent() {
               );
             })}
 
-            <div className="flex items-center justify-between px-4 pt-4 border-t border-slate-200">
-              <span className="text-sm font-semibold text-slate-600">Services Total</span>
-              <span className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between px-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Services Total</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 {format(servicesTotal)}
               </span>
             </div>
@@ -444,13 +444,13 @@ export default function CreateProjectContent() {
         description="Additional context or details about this project."
       >
         <div>
-          <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
+          <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Notes</label>
           <textarea
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
             rows={4}
             placeholder="Key requirements, milestones, or any context about this project..."
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
           />
         </div>
       </SettingsCard>
@@ -458,7 +458,7 @@ export default function CreateProjectContent() {
       <div className="flex items-center justify-between mt-2">
         <button
           onClick={() => router.back()}
-          className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+          className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
           Cancel
         </button>

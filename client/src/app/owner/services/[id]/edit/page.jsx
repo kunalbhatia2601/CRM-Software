@@ -8,7 +8,7 @@ export default async function EditServicePage({ params }) {
   if (!result.success) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-slate-500">Service not found.</p>
+        <p className="text-slate-500 dark:text-slate-400">Service not found.</p>
       </div>
     );
   }

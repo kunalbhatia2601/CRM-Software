@@ -21,14 +21,14 @@ export default function PageHeader({
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className="text-slate-600 font-medium">{crumb.label}</span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">{crumb.label}</span>
                 )}
               </React.Fragment>
             ))}
           </nav>
         )}
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{title}</h1>
-        {description && <p className="text-slate-500 mt-1">{description}</p>}
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-50">{title}</h1>
+        {description && <p className="text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>

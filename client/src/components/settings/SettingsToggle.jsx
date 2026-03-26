@@ -4,8 +4,8 @@ export default function SettingsToggle({
   label,
   description,
   icon: Icon,
-  iconColorClass = "text-slate-600",
-  iconBgClass = "bg-slate-50",
+  iconColorClass = "text-slate-600 dark:text-slate-400",
+  iconBgClass = "bg-slate-50 dark:bg-slate-900",
   activeColorClass = "bg-indigo-500",
   isActive,
   onToggle,
@@ -14,17 +14,17 @@ export default function SettingsToggle({
     <button
       type="button"
       onClick={onToggle}
-      className="w-full flex items-center justify-between p-5 rounded-[20px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 transition-all cursor-pointer group bg-white shadow-sm text-left"
+      className="w-full flex items-center justify-between p-5 rounded-[20px] border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer group bg-white dark:bg-slate-950 shadow-sm dark:shadow-none text-left"
     >
       <div className="flex items-start md:items-center gap-4">
         {Icon && (
-          <div className={`w-12 h-12 rounded-xl ${iconBgClass} flex items-center justify-center shrink-0 border border-slate-200/50 group-hover:scale-105 transition-transform`}>
+          <div className={`w-12 h-12 rounded-xl ${iconBgClass} flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700/50 group-hover:scale-105 transition-transform`}>
             <Icon className={`w-6 h-6 ${iconColorClass}`} />
           </div>
         )}
         <div className="flex flex-col">
-          <p className="text-[15px] font-bold text-slate-900">{label}</p>
-          <p className="text-[13px] text-slate-500 mt-0.5">{description}</p>
+          <p className="text-[15px] font-bold text-slate-900 dark:text-slate-50">{label}</p>
+          <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>
         </div>
       </div>
       <div
@@ -33,7 +33,7 @@ export default function SettingsToggle({
         }`}
       >
         <div
-          className={`absolute top-[3px] w-[24px] h-[24px] rounded-full bg-white shadow-md transition-transform ${
+          className={`absolute top-[3px] w-[24px] h-[24px] rounded-full bg-white dark:bg-slate-950 shadow-md transition-transform ${
             isActive ? "translate-x-[28px]" : "translate-x-[3px]"
           }`}
         />

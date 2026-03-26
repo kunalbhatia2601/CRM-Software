@@ -122,7 +122,7 @@ export default function ProjectsListContent({ initialData }) {
             {(row.name?.[0] || "").toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-slate-900 text-sm">{row.name}</p>
+            <p className="font-semibold text-slate-900 dark:text-slate-50 text-sm">{row.name}</p>
             <p className="text-xs text-slate-400">{row.client?.companyName || "—"}</p>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function ProjectsListContent({ initialData }) {
       key: "accountManager",
       label: "Manager",
       render: (val) => (
-        <span className="text-slate-600 text-sm">
+        <span className="text-slate-600 dark:text-slate-400 text-sm">
           {val ? `${val.firstName} ${val.lastName}` : "Unassigned"}
         </span>
       ),
@@ -151,7 +151,7 @@ export default function ProjectsListContent({ initialData }) {
       key: "budget",
       label: "Budget",
       render: (val) => (
-        <span className="text-slate-600 text-sm" suppressHydrationWarning>
+        <span className="text-slate-600 dark:text-slate-400 text-sm" suppressHydrationWarning>
           {val ? format(Number(val), { decimals: 0 }) : "—"}
         </span>
       ),
@@ -160,7 +160,7 @@ export default function ProjectsListContent({ initialData }) {
       key: "startDate",
       label: "Timeline",
       render: (_, row) => (
-        <span className="text-slate-500 text-xs">
+        <span className="text-slate-500 dark:text-slate-400 text-xs">
           {row.startDate
             ? new Date(row.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
             : "—"}
@@ -232,7 +232,7 @@ export default function ProjectsListContent({ initialData }) {
       />
 
       {/* Filters Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -241,14 +241,14 @@ export default function ProjectsListContent({ initialData }) {
               value={search}
               onChange={handleSearch}
               placeholder="Search by project name or client..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
             />
           </div>
 
           <select
             value={status}
             onChange={handleFilter}
-            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all appearance-none shadow-sm dark:shadow-none cursor-pointer min-w-[150px]"
           >
             {STATUSES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -263,7 +263,7 @@ export default function ProjectsListContent({ initialData }) {
               setPage(1);
               fetchProjects({ billingCycle: val, page: 1 });
             }}
-            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all appearance-none shadow-sm dark:shadow-none cursor-pointer min-w-[150px]"
           >
             {BILLING_CYCLES.map((b) => (
               <option key={b.value} value={b.value}>{b.label}</option>
@@ -280,7 +280,7 @@ export default function ProjectsListContent({ initialData }) {
       </div>
 
       {/* Data Table Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <DataTable
           columns={columns}
           data={data?.projects || []}

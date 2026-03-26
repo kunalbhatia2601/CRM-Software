@@ -8,7 +8,7 @@ export default async function ViewUserPage({ params }) {
   if (!result.success) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-slate-500">User not found or report unavailable.</p>
+        <p className="text-slate-500 dark:text-slate-400">User not found or report unavailable.</p>
       </div>
     );
   }

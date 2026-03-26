@@ -10,8 +10,8 @@ export default function Toast({ toast, onClose }) {
     <div
       className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium ${
         toast.type === "success"
-          ? "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm"
-          : "bg-red-50 text-red-700 border border-red-200 shadow-sm"
+          ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border border-emerald-200 shadow-sm dark:shadow-none"
+          : "bg-red-50 text-red-700 border border-red-200 shadow-sm dark:shadow-none"
       }`}
     >
       {toast.type === "success" ? (

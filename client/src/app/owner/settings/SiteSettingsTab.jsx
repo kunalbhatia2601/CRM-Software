@@ -74,8 +74,8 @@ export default function SiteSettingsTab({ initialData }) {
         <div
           className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium ${
             toast.type === "success"
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm"
-              : "bg-red-50 text-red-700 border border-red-200 shadow-sm"
+              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border border-emerald-200 shadow-sm dark:shadow-none"
+              : "bg-red-50 text-red-700 border border-red-200 shadow-sm dark:shadow-none"
           }`}
         >
           {toast.type === "success" ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
@@ -120,7 +120,7 @@ export default function SiteSettingsTab({ initialData }) {
 
           {/* Address (full width) */}
           <div className="flex flex-col gap-2 md:col-span-2">
-            <label className="text-sm font-semibold text-slate-800">Address</label>
+            <label className="text-sm font-semibold text-slate-800 dark:text-slate-200">Address</label>
             <div className="relative flex items-start">
               <div className="absolute left-4 top-3.5 flex justify-center items-center pointer-events-none">
                 <MapPin className="w-5 h-5 text-slate-400" />
@@ -130,7 +130,7 @@ export default function SiteSettingsTab({ initialData }) {
                 onChange={(e) => update("address", e.target.value)}
                 placeholder="Chandigarh, India"
                 rows={3}
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none shadow-sm"
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all resize-none shadow-sm dark:shadow-none"
               />
             </div>
           </div>
@@ -173,9 +173,9 @@ export default function SiteSettingsTab({ initialData }) {
         </div>
 
         {/* Preview conversion */}
-        <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
-          <p className="text-xs font-medium text-slate-500 mb-2">Preview (based on current rates)</p>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-700 font-medium tracking-tight">
+        <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Preview (based on current rates)</p>
+          <div className="flex flex-wrap gap-4 text-sm text-slate-700 dark:text-slate-300 font-medium tracking-tight">
             <span>₹1,00,000 = ${(100000 / (Number(form.usdToInr) || 92)).toFixed(2)} USD</span>
             <span className="text-slate-300">|</span>
             <span>₹1,00,000 = €{(100000 / (Number(form.eurToInr) || 105)).toFixed(2)} EUR</span>
@@ -196,7 +196,7 @@ export default function SiteSettingsTab({ initialData }) {
             description="Show maintenance page to visitors"
             icon={Shield}
             iconColorClass="text-amber-600"
-            iconBgClass="bg-amber-50"
+            iconBgClass="bg-amber-50 dark:bg-amber-900/20"
             activeColorClass="bg-amber-500"
             isActive={form.isMaintenanceMode}
             onToggle={() => update("isMaintenanceMode", !form.isMaintenanceMode)}

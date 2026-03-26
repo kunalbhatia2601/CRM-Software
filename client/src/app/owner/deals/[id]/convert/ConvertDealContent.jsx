@@ -201,14 +201,14 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
       />
 
       {/* ─── Deal Summary Banner ─── */}
-      <div className="rounded-[24px] border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-6 shadow-sm shadow-slate-200/50">
+      <div className="rounded-[24px] border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-6 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-200">
             <Trophy className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Winning This Deal</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Winning This Deal</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Review and configure the project details before finalizing
             </p>
           </div>
@@ -216,15 +216,15 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-slate-400">Lead</span>
-            <p className="font-semibold text-slate-800">{deal.lead?.companyName || "—"}</p>
+            <p className="font-semibold text-slate-800 dark:text-slate-200">{deal.lead?.companyName || "—"}</p>
           </div>
           <div>
             <span className="text-slate-400">Contact</span>
-            <p className="font-semibold text-slate-800">{deal.lead?.contactName || "—"}</p>
+            <p className="font-semibold text-slate-800 dark:text-slate-200">{deal.lead?.contactName || "—"}</p>
           </div>
           <div>
             <span className="text-slate-400">Deal Value</span>
-            <p className="font-semibold text-slate-800">
+            <p className="font-semibold text-slate-800 dark:text-slate-200">
               {deal.value ? format(Number(deal.value)) : "—"}
             </p>
           </div>
@@ -246,13 +246,13 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
             placeholder="Website Redesign"
           />
           <div>
-            <label className="text-sm font-semibold text-slate-800 mb-2 block">Description</label>
+            <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Description</label>
             <textarea
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
               rows={3}
               placeholder="Brief description of the project scope and goals..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
             />
           </div>
         </div>
@@ -312,10 +312,10 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
               return (
                 <div
                   key={svc.serviceId}
-                  className="grid grid-cols-12 gap-3 items-center px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors"
+                  className="grid grid-cols-12 gap-3 items-center px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-colors"
                 >
                   <div className="col-span-4">
-                    <p className="font-semibold text-slate-800 text-sm">{svc.name}</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{svc.name}</p>
                     {priceChanged && (
                       <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1 mt-0.5">
                         <Pencil className="h-3 w-3" /> Price adjusted
@@ -323,7 +323,7 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
                     )}
                   </div>
                   <div className="col-span-2 text-right">
-                    <span className={`text-sm ${priceChanged ? "line-through text-slate-400" : "text-slate-600"}`}>
+                    <span className={`text-sm ${priceChanged ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400"}`}>
                       {format(svc.originalPrice)}
                     </span>
                   </div>
@@ -334,7 +334,7 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
                       onChange={(e) => handleServicePriceChange(svc.serviceId, e.target.value)}
                       min="0"
                       step="0.01"
-                      className="w-full text-right px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full text-right px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400/20 focus:border-indigo-500"
                     />
                   </div>
                   <div className="col-span-1">
@@ -343,10 +343,10 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
                       value={svc.quantity}
                       onChange={(e) => handleServiceQuantityChange(svc.serviceId, e.target.value)}
                       min="1"
-                      className="w-full text-center px-2 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full text-center px-2 py-1.5 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400/20 focus:border-indigo-500"
                     />
                   </div>
-                  <div className="col-span-2 text-right font-semibold text-sm text-slate-800">
+                  <div className="col-span-2 text-right font-semibold text-sm text-slate-800 dark:text-slate-200">
                     {format(svc.price * svc.quantity)}
                   </div>
                   <div className="col-span-1 flex justify-end">
@@ -362,9 +362,9 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
             })}
 
             {/* Total */}
-            <div className="flex items-center justify-between px-4 pt-4 border-t border-slate-200">
-              <span className="text-sm font-semibold text-slate-600">Services Total</span>
-              <span className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between px-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Services Total</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-slate-50">
                 {format(servicesTotal)}
               </span>
             </div>
@@ -476,13 +476,13 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
         description="Additional context or instructions for the project."
       >
         <div>
-          <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
+          <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2 block">Notes</label>
           <textarea
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
             rows={4}
             placeholder="Key requirements, milestones, or any context about this project..."
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
           />
         </div>
       </SettingsCard>
@@ -491,7 +491,7 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
       <div className="flex items-center justify-between mt-2 pb-8">
         <button
           onClick={() => router.push(`/owner/deals/${deal.id}`)}
-          className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+          className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
           Cancel
         </button>

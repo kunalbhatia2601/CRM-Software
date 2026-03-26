@@ -143,7 +143,7 @@ export default function LeadsListContent({ initialData }) {
             {(row.companyName?.[0] || "").toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-slate-900 text-sm">{row.companyName}</p>
+            <p className="font-semibold text-slate-900 dark:text-slate-50 text-sm">{row.companyName}</p>
             <p className="text-xs text-slate-400">{row.contactName}</p>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function LeadsListContent({ initialData }) {
       label: "Est. Value",
       align: "right",
       render: (val) => (
-        <span className="text-slate-700 text-sm font-medium" suppressHydrationWarning>
+        <span className="text-slate-700 dark:text-slate-300 text-sm font-medium" suppressHydrationWarning>
           {val ? format(val, { decimals: 0 }) : "—"}
         </span>
       ),
@@ -178,7 +178,7 @@ export default function LeadsListContent({ initialData }) {
       key: "assignee",
       label: "Assignee",
       render: (val) => (
-        <span className="text-slate-600 text-sm">
+        <span className="text-slate-600 dark:text-slate-400 text-sm">
           {val ? `${val.firstName} ${val.lastName}` : "Unassigned"}
         </span>
       ),
@@ -187,7 +187,7 @@ export default function LeadsListContent({ initialData }) {
       key: "createdAt",
       label: "Created",
       render: (val) => (
-        <span className="text-slate-500 text-xs">
+        <span className="text-slate-500 dark:text-slate-400 text-xs">
           {val
             ? new Date(val).toLocaleDateString("en-IN", {
                 day: "numeric",
@@ -260,7 +260,7 @@ export default function LeadsListContent({ initialData }) {
       />
 
       {/* Filters Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="relative flex-1">
@@ -270,7 +270,7 @@ export default function LeadsListContent({ initialData }) {
               value={search}
               onChange={handleSearch}
               placeholder="Search by company, contact, or email..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
             />
           </div>
 
@@ -278,7 +278,7 @@ export default function LeadsListContent({ initialData }) {
           <select
             value={status}
             onChange={handleFilter(setStatus, "status")}
-            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all appearance-none shadow-sm dark:shadow-none cursor-pointer min-w-[150px]"
           >
             {STATUSES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -291,7 +291,7 @@ export default function LeadsListContent({ initialData }) {
           <select
             value={source}
             onChange={handleFilter(setSource, "source")}
-            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all appearance-none shadow-sm dark:shadow-none cursor-pointer min-w-[150px]"
           >
             {SOURCES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -304,7 +304,7 @@ export default function LeadsListContent({ initialData }) {
           <select
             value={priority}
             onChange={handleFilter(setPriority, "priority")}
-            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+            className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all appearance-none shadow-sm dark:shadow-none cursor-pointer min-w-[150px]"
           >
             {PRIORITIES.map((p) => (
               <option key={p.value} value={p.value}>
@@ -323,7 +323,7 @@ export default function LeadsListContent({ initialData }) {
       </div>
 
       {/* Data Table Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <DataTable
           columns={columns}
           data={data?.leads || []}

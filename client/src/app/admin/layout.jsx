@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }) {
 
   return (
     <AuthProvider initialUser={user}>
-      <div className="min-h-screen bg-slate-50">{children}</div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{children}</div>
     </AuthProvider>
   );
 }

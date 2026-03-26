@@ -80,7 +80,7 @@ export default function SmtpSettingsTab({ initialData }) {
           <div
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium ${
               toast.type === "success"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border border-emerald-200"
                 : "bg-red-50 text-red-700 border border-red-200"
             }`}
           >
@@ -92,8 +92,8 @@ export default function SmtpSettingsTab({ initialData }) {
         <div
           className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[15px] font-medium ${
             isConfigured
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm"
-              : "bg-amber-50 text-amber-700 border border-amber-200 shadow-sm"
+              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border border-emerald-200 shadow-sm dark:shadow-none"
+              : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 border border-amber-200 shadow-sm dark:shadow-none"
           }`}
         >
           {isConfigured ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -156,15 +156,15 @@ export default function SmtpSettingsTab({ initialData }) {
           description="Use secure connection (recommended for port 465)"
           icon={Shield}
           iconColorClass="text-emerald-600"
-          iconBgClass="bg-emerald-50"
+          iconBgClass="bg-emerald-50 dark:bg-emerald-900/20"
           activeColorClass="bg-emerald-500"
           isActive={form.smtpIsSecure}
           onToggle={() => update("smtpIsSecure", !form.smtpIsSecure)}
         />
 
         {/* Quick Presets */}
-        <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
-          <p className="text-xs font-medium text-slate-500 mb-3">Quick Presets</p>
+        <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">Quick Presets</p>
           <div className="flex flex-wrap gap-2">
             {[
               { name: "Gmail", host: "smtp.gmail.com", port: 465, secure: true },
@@ -182,7 +182,7 @@ export default function SmtpSettingsTab({ initialData }) {
                     smtpIsSecure: preset.secure,
                   }))
                 }
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-all font-semibold shadow-sm"
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-all font-semibold shadow-sm dark:shadow-none"
               >
                 {preset.name}
               </button>
@@ -206,7 +206,7 @@ export default function SmtpSettingsTab({ initialData }) {
             }
             icon={ShieldCheck}
             iconColorClass="text-indigo-600"
-            iconBgClass="bg-indigo-50"
+            iconBgClass="bg-indigo-50 dark:bg-indigo-900/20"
             activeColorClass="bg-indigo-500"
             isActive={form.otpLoginEnabled}
             onToggle={() => {
@@ -243,7 +243,7 @@ export default function SmtpSettingsTab({ initialData }) {
           )}
 
           {!isConfigured && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-amber-50/50 text-amber-600 border border-amber-100">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-amber-50 dark:bg-amber-900/20/50 text-amber-600 border border-amber-100">
               <AlertCircle className="w-4 h-4 shrink-0" />
               SMTP must be configured before OTP login can be enabled.
             </div>

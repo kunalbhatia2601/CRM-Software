@@ -70,7 +70,7 @@ export default function FAQ() {
             >
               {/* Title */}
               <div className="flex items-center gap-5 pt-[30px]">
-                <div className="flex-shrink-0 w-5 h-5 relative">
+                <div className="shrink-0 w-5 h-5 relative">
                   {/* Plus/minus icon */}
                   <span className="absolute top-1/2 left-0 w-full h-[2px] bg-dark -translate-y-1/2" />
                   <span

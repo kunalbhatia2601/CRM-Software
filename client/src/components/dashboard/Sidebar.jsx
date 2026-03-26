@@ -60,11 +60,11 @@ function NavItem({ item, isActive, pathname, isCollapsed, level = 0, onNavigate 
           paddingLeft: "1rem",
           paddingRight: "1rem",
         }}
-        className={`flex border-b border-slate-100 items-center justify-between py-3 rounded-2xl transition-colors group ${isItemActive && level === 0
+        className={`flex border-b border-slate-100 dark:border-slate-800 items-center justify-between py-3 rounded-2xl transition-colors group ${isItemActive && level === 0
             ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
             : isItemActive && level > 0
-              ? "text-indigo-600 bg-indigo-50/50"
-              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20/50"
+              : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
           }`}
       >
         <div className="flex items-center gap-3 w-full">
@@ -122,7 +122,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
 
   return (
     <aside
-      className={`relative flex flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out h-full ${isMobile ? "w-64 shadow-2xl" : isCollapsed ? "w-20" : "w-64"
+      className={`relative flex flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 ease-in-out h-full ${isMobile ? "w-64 shadow-2xl" : isCollapsed ? "w-20" : "w-64"
         } z-20`}
     >
       {/* Logo Area */}
@@ -135,7 +135,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
               <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
                 <Command className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-slate-900 tracking-tight whitespace-nowrap">
+              <span className="font-bold text-slate-900 dark:text-slate-50 tracking-tight whitespace-nowrap">
                 {site?.name?.split(" ")[0] || "TaskGo"}
               </span>
             </>
@@ -147,7 +147,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
           isMobile &&
           <button
             onClick={toggleCollapse}
-            className={`flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0 ${isCollapsed && !isMobile ? 'mx-auto' : ''}`}
+            className={`flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0 ${isCollapsed && !isMobile ? 'mx-auto' : ''}`}
           >
             {isMobile ? (
               <X className="w-4 h-4" />
@@ -174,10 +174,10 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
       </nav>
 
       {/* Profile & Logout */}
-      <div className="border-t border-slate-100 p-4 shrink-0 flex flex-col gap-2">
+      <div className="border-t border-slate-100 dark:border-slate-800 p-4 shrink-0 flex flex-col gap-2">
         {/* User Profile Block */}
-        <div className={`flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}>
-          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200">
+        <div className={`flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}>
+          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
             {user?.avatar ? (
               <img src={user.avatar} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
             ) : (
@@ -189,7 +189,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
 
           {(!isCollapsed || isMobile) && (
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="font-medium text-sm text-slate-900 truncate">
+              <span className="font-medium text-sm text-slate-900 dark:text-slate-50 truncate">
                 {user?.firstName} {user?.lastName}
               </span>
               <span className="text-xs text-slate-400 truncate">
@@ -202,7 +202,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
         {/* Logout Button */}
         <button
           onClick={logout}
-          className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}
         >
           <LogOut className="w-5 h-5 shrink-0 text-slate-400 group-hover:text-red-500" />
           {(!isCollapsed || isMobile) && <span className="font-medium whitespace-nowrap">Logout</span>}

@@ -72,7 +72,7 @@ export default function Features() {
 
             {/* Bottom: Real-Time Progress Tracking (full width of left column) */}
             <div className="reveal bg-light-gray rounded-[20px] p-[30px] overflow-hidden relative flex flex-col sm:flex-row gap-6" style={{ "--delay": "0.3s" }}>
-              <div className="sm:w-[50%] flex flex-col justify-center z-[1]">
+              <div className="sm:w-[50%] flex flex-col justify-center z-10">
                 <h3 className="text-[20px] lg:text-[24px] font-semibold leading-[120%] tracking-[-0.48px] text-dark mb-2">
                   Real-Time Progress Tracking
                 </h3>
@@ -80,7 +80,7 @@ export default function Features() {
                   Track deadlines, milestones, and performance with live status updates and visual indicators.
                 </p>
               </div>
-              <div className="sm:w-[60%] z-[1] flex items-center">
+              <div className="sm:w-[60%] z-10 flex items-center">
                 <div className="bg-white rounded-[20px] p-4 w-full">
                   <Image
                     src="/images/mask-group-3.svg"
@@ -104,7 +104,7 @@ export default function Features() {
 
           {/* RIGHT COLUMN: File & Comment Management (tall card spanning full height) */}
           <div className="reveal bg-light-gray rounded-[20px] p-6 overflow-hidden relative flex flex-col" style={{ "--delay": "0.25s" }}>
-            <div className="flex-none mb-6 z-[1]">
+            <div className="flex-none mb-6 z-10">
               <h3 className="text-[20px] lg:text-[24px] font-semibold leading-[120%] tracking-[-0.48px] text-dark mb-2">
                 File &amp; Comment Management
               </h3>
@@ -112,7 +112,7 @@ export default function Features() {
                 Consolidate everything with task comments, file attachments, and feedback threads.
               </p>
             </div>
-            <div className="flex-1 flex items-center justify-center z-[1]">
+            <div className="flex-1 flex items-center justify-center z-10">
               <div className="bg-white rounded-[20px] p-4 lg:p-[25px_25px_66px]">
                 <Image
                   src="/images/group-2087329809.webp"

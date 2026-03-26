@@ -26,23 +26,23 @@ export default function ConfirmModal({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       {/* Modal */}
-      <div className="relative bg-white rounded-[24px] p-8 w-full max-w-md shadow-2xl mx-4">
+      <div className="relative bg-white dark:bg-slate-950 rounded-[24px] p-8 w-full max-w-md shadow-2xl mx-4">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="flex items-start gap-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-            variant === "danger" ? "bg-red-50" : "bg-indigo-50"
+            variant === "danger" ? "bg-red-50" : "bg-indigo-50 dark:bg-indigo-900/20"
           }`}>
             <AlertTriangle className={`w-6 h-6 ${variant === "danger" ? "text-red-500" : "text-indigo-500"}`} />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-            <p className="text-sm text-slate-500 mt-1">{message}</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">{title}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{message}</p>
           </div>
         </div>
 
@@ -50,7 +50,7 @@ export default function ConfirmModal({
           <button
             onClick={onClose}
             disabled={isPending}
-            className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             {cancelLabel}
           </button>

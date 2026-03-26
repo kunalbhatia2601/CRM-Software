@@ -111,8 +111,8 @@ export default function ServicesListContent({ initialData }) {
             {val?.charAt(0).toUpperCase() || "S"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900">{val}</p>
-            <p className="text-xs text-slate-500 truncate">{row.description || "—"}</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{val}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{row.description || "—"}</p>
           </div>
         </div>
       ),
@@ -132,7 +132,7 @@ export default function ServicesListContent({ initialData }) {
               </span>
             </>
           ) : (
-            <span className="text-sm font-medium text-slate-700" suppressHydrationWarning>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300" suppressHydrationWarning>
               {format(Number(val))}
             </span>
           )}
@@ -146,7 +146,7 @@ export default function ServicesListContent({ initialData }) {
         const items = Array.isArray(val) ? val : [];
         const count = items.length;
         return (
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-slate-600 dark:text-slate-400">
             {count > 0 ? `${count} item${count !== 1 ? "s" : ""}` : "—"}
           </span>
         );
@@ -166,21 +166,21 @@ export default function ServicesListContent({ initialData }) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/owner/services/${row.id}`)}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             title="View details"
           >
             <Eye size={18} />
           </button>
           <Link
             href={`/owner/services/${row.id}/edit`}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             title="Edit service"
           >
             <Pencil size={18} />
           </Link>
           <button
             onClick={() => handleDeleteClick(row)}
-            className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-2 text-slate-600 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Delete service"
           >
             <Trash2 size={18} />
@@ -224,7 +224,7 @@ export default function ServicesListContent({ initialData }) {
       />
 
       {/* Filter Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Search Input */}
           <div className="flex-1 relative">
@@ -237,7 +237,7 @@ export default function ServicesListContent({ initialData }) {
               placeholder="Search services..."
               value={search}
               onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#5542F6] focus:ring-1 focus:ring-[#5542F6] text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-[#5542F6] focus:ring-1 focus:ring-[#5542F6] text-sm"
             />
           </div>
 
@@ -245,7 +245,7 @@ export default function ServicesListContent({ initialData }) {
           <select
             value={isActive}
             onChange={handleFilterChange}
-            className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#5542F6] focus:ring-1 focus:ring-[#5542F6] text-sm text-slate-700 bg-white"
+            className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-[#5542F6] focus:ring-1 focus:ring-[#5542F6] text-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-950"
           >
             <option value="">All Status</option>
             <option value="true">Active</option>
@@ -255,7 +255,7 @@ export default function ServicesListContent({ initialData }) {
       </div>
 
       {/* Data Table Card */}
-      <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
         <DataTable
           columns={columns}
           data={filteredData.services}

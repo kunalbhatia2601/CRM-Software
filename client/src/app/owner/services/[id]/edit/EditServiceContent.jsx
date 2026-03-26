@@ -136,14 +136,14 @@ export default function EditServiceContent({ service }) {
             required
           />
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-900">
+            <label className="block text-sm font-semibold text-slate-900 dark:text-slate-50">
               Description
             </label>
             <textarea
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
               placeholder="Describe what this service includes..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none resize-none"
               rows="4"
             />
           </div>
@@ -189,7 +189,7 @@ export default function EditServiceContent({ service }) {
                 }
               }}
               placeholder="e.g., Logo Design, Brand Book..."
-              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-50/80 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm"
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
             />
             <button
               type="button"
@@ -205,7 +205,7 @@ export default function EditServiceContent({ service }) {
               {form.points.map((point, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium border border-indigo-100"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 rounded-lg text-sm font-medium border border-indigo-100 dark:border-indigo-900/30"
                 >
                   {point}
                   <button
@@ -242,7 +242,7 @@ export default function EditServiceContent({ service }) {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-3 text-slate-700 font-semibold hover:text-slate-900 transition-colors"
+            className="px-6 py-3 text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             Cancel
           </button>

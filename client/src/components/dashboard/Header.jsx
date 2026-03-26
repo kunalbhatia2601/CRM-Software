@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { Search, Bell, Settings, Menu } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function Header({ isMobile, onMenuClick }) {
   const { user } = useAuth();
@@ -15,50 +16,48 @@ export default function Header({ isMobile, onMenuClick }) {
   };
 
   return (
-    <header className="h-20 lg:h-24 px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-[#F8FAFC] gap-3">
+    <header className="h-20 lg:h-24 px-4 sm:px-6 lg:px-8 flex items-center justify-between bg-[#F8FAFC] dark:bg-slate-950 gap-3">
       {/* Left: Hamburger (mobile) + Search */}
       <div className="flex items-center gap-3 flex-1 max-w-md">
         {/* Hamburger — visible only on mobile / tablet */}
         {isMobile && (
           <button
             onClick={onMenuClick}
-            className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm shadow-slate-200/50 shrink-0"
+            className="w-10 h-10 rounded-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
 
         {/* Search */}
-        <div className="relative flex items-center w-full h-12 rounded-full bg-white border border-slate-200 px-4 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 shadow-sm transition-all shadow-slate-200/50">
+        <div className="relative flex items-center w-full h-12 rounded-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-4 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 shadow-sm dark:shadow-none transition-all shadow-slate-200/50 dark:shadow-none">
           <Search className="w-5 h-5 text-slate-400 shrink-0" />
           <input
             type="text"
             placeholder="Search"
-            className="w-full bg-transparent border-none outline-none px-3 text-sm text-slate-700 placeholder:text-slate-400"
+            className="w-full bg-transparent border-none outline-none px-3 text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
           />
         </div>
       </div>
 
       {/* Center Date (Hidden on mobile / tablet) */}
       <div className="hidden lg:flex flex-1 justify-center">
-        <div className="text-sm font-medium text-indigo-600/80 bg-indigo-50 px-4 py-1.5 rounded-full">
+        <div className="text-sm font-medium text-indigo-600/80 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-1.5 rounded-full">
           {getFormattedDate()}
         </div>
       </div>
 
       {/* Right Actions */}
       <div className="flex justify-end items-center gap-2 sm:gap-4">
-        <button className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm shadow-slate-200/50">
-          <Settings className="w-5 h-5" />
-        </button>
-        <button className="relative w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm shadow-slate-200/50">
+        <ThemeToggle />
+        <button className="relative w-10 h-10 rounded-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
           <Bell className="w-5 h-5" />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white"></span>
         </button>
 
         {/* User Profile */}
         <div className="hidden sm:flex items-center gap-3 pl-2">
-          <button className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-slate-200">
+          <button className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-slate-200 dark:border-slate-700">
             {user?.avatar ? (
               <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
             ) : (

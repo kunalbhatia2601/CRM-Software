@@ -213,7 +213,7 @@ export default function CreateUserContent() {
       <div className="flex items-center justify-between mt-2">
         <button
           onClick={() => router.back()}
-          className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+          className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
           Cancel
         </button>
