@@ -60,3 +60,29 @@ export const changePasswordSchema = z.object({
       .max(128),
   }),
 });
+
+export const updateProfileSchema = z.object({
+  body: z.object({
+    firstName: z.string().min(1).max(50).optional(),
+    lastName: z.string().min(1).max(50).optional(),
+    phone: z.string().max(20).optional().nullable(),
+    avatar: z.string().max(500).optional().nullable(),
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email address"),
+  }),
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email address"),
+    otpCode: z.string().min(1, "OTP code is required"),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters")
+      .max(128),
+  }),
+});

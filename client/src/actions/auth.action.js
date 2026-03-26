@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { loginAPI, refreshTokenAPI, getMeAPI, logoutAPI, verifyOtpAPI, resendOtpAPI } from "@/lib/api";
+import { loginAPI, refreshTokenAPI, getMeAPI, logoutAPI, verifyOtpAPI, resendOtpAPI, forgotPasswordAPI, resetPasswordAPI_OTP } from "@/lib/api";
 import { checkForMaintenance } from "@/lib/checkForMaintainence";
 
 /* ───────── Role → Dashboard Path Map ───────── */
@@ -232,4 +232,39 @@ export async function getRedirectPath() {
   const user = await getAuthUser();
   if (!user) return "/login";
   return getDashboardPath(user.role);
+}
+
+/**
+ * Forgot password — sends OTP to user email.
+ */
+export async function forgotPasswordAction(email) {
+  try {
+    const res = await forgotPasswordAPI(email);
+    return {
+      success: true,
+      message: res.message || "If an account exists, an OTP has been sent",
+      expiryMins: res.data?.expiryMins || 5,
+      digits: res.data?.digits || 6,
+    };
+  } catch (error) {
+    // Don't reveal if email exists or not
+    return {
+      success: true,
+      message: "If an account exists with this email, an OTP has been sent",
+      expiryMins: 5,
+      digits: 6,
+    };
+  }
+}
+
+/**
+ * Reset password with OTP.
+ */
+export async function resetPasswordAction(email, otpCode, newPassword) {
+  try {
+    await resetPasswordAPI_OTP(email, otpCode, newPassword);
+    return { success: true, message: "Password reset successfully. You can now sign in." };
+  } catch (error) {
+    return { success: false, message: error.message || "Failed to reset password" };
+  }
 }

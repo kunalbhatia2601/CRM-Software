@@ -1,8 +1,20 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 import { Search, Bell, Settings, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+
+const ROLE_PREFIX_MAP = {
+  OWNER: "/owner",
+  ADMIN: "/admin",
+  SALES_MANAGER: "/sales",
+  ACCOUNT_MANAGER: "/accounts",
+  FINANCE_MANAGER: "/finance",
+  HR: "/hr",
+  EMPLOYEE: "/employee",
+  CLIENT: "/client",
+};
 
 export default function Header({ isMobile, onMenuClick }) {
   const { user } = useAuth();
@@ -57,7 +69,10 @@ export default function Header({ isMobile, onMenuClick }) {
 
         {/* User Profile */}
         <div className="hidden sm:flex items-center gap-3 pl-2">
-          <button className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-slate-200 dark:border-slate-700">
+          <Link
+            href={`${ROLE_PREFIX_MAP[user?.role] || "/owner"}/profile`}
+            className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-indigo-500/20 transition-all"
+          >
             {user?.avatar ? (
               <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -65,7 +80,7 @@ export default function Header({ isMobile, onMenuClick }) {
                 {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
               </span>
             )}
-          </button>
+          </Link>
         </div>
       </div>
     </header>

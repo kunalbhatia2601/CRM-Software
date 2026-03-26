@@ -23,6 +23,17 @@ import {
 
 import * as LucideIcons from "lucide-react";
 
+const ROLE_PREFIX_MAP = {
+  OWNER: "/owner",
+  ADMIN: "/admin",
+  SALES_MANAGER: "/sales",
+  ACCOUNT_MANAGER: "/accounts",
+  FINANCE_MANAGER: "/finance",
+  HR: "/hr",
+  EMPLOYEE: "/employee",
+  CLIENT: "/client",
+};
+
 /**
  * Recursive NavItem Component
  */
@@ -175,8 +186,12 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
 
       {/* Profile & Logout */}
       <div className="border-t border-slate-100 dark:border-slate-800 p-4 shrink-0 flex flex-col gap-2">
-        {/* User Profile Block */}
-        <div className={`flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}>
+        {/* User Profile Block — Clickable link to profile page */}
+        <Link
+          href={`${ROLE_PREFIX_MAP[user?.role] || "/owner"}/profile`}
+          onClick={onNavigate}
+          className={`flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${isCollapsed && !isMobile ? "justify-center" : ""}`}
+        >
           <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
             {user?.avatar ? (
               <img src={user.avatar} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
@@ -197,7 +212,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobil
               </span>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Logout Button */}
         <button

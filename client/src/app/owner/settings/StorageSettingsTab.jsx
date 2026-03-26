@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import {
   Database,
   Key,
@@ -18,8 +18,17 @@ import {
   Cloud,
   Cloudy,
   Webhook,
+  Upload,
+  FileCheck,
+  Loader2,
+  X,
+  ExternalLink,
+  Copy,
+  ImageIcon,
+  FileText,
 } from "lucide-react";
 import { updateSystemSettings } from "@/actions/settings.action";
+import { useUpload } from "@/hooks/useUpload";
 
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingsInput from "@/components/settings/SettingsInput";
@@ -72,6 +81,12 @@ export default function StorageSettingsTab({ initialData }) {
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
   const [showSecret, setShowSecret] = useState(false);
+
+  // Test upload
+  const { upload, uploading, progress, error: uploadError, reset: resetUpload } = useUpload();
+  const testFileRef = useRef(null);
+  const [testResult, setTestResult] = useState(null); // { success, fileUrl, fileName, fileSize, duration }
+  const [copied, setCopied] = useState(false);
 
   const [form, setForm] = useState({
     storageProvider: initialData?.storageProvider || "LOCAL",
@@ -384,6 +399,199 @@ export default function StorageSettingsTab({ initialData }) {
           label="Save Storage Settings"
         />
       </div>
+
+      {/* ─── Test Upload ─── */}
+      <SettingsCard
+        title="Test Upload"
+        description="Verify your storage configuration by uploading a test file."
+      >
+        <input
+          ref={testFileRef}
+          type="file"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setTestResult(null);
+            resetUpload();
+            const start = Date.now();
+            const result = await upload(file);
+            const duration = ((Date.now() - start) / 1000).toFixed(1);
+            if (result?.fileUrl) {
+              setTestResult({
+                success: true,
+                fileUrl: result.fileUrl,
+                fileName: file.name,
+                fileSize: file.size,
+                duration,
+              });
+            } else {
+              setTestResult({ success: false });
+            }
+            e.target.value = "";
+          }}
+        />
+
+        {/* Upload Area */}
+        {!uploading && !testResult && (
+          <button
+            type="button"
+            onClick={() => testFileRef.current?.click()}
+            className="w-full border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-all group"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 transition-colors">
+                <Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Click to choose a test file</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Any file type. This will upload to your configured storage.</p>
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* Uploading Progress */}
+        {uploading && (
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Uploading...</p>
+                <div className="mt-2 w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">{progress}% complete</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Error */}
+        {!uploading && uploadError && !testResult && (
+          <div className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-red-700 dark:text-red-400">Upload Failed</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1 break-all">{uploadError}</p>
+                <button
+                  type="button"
+                  onClick={() => { resetUpload(); setTestResult(null); }}
+                  className="mt-3 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Success */}
+        {!uploading && testResult?.success && (
+          <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                <FileCheck className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Upload Successful</p>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium">File:</span>
+                    <span className="truncate">{testResult.fileName}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                    <HardDrive className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium">Size:</span>
+                    <span>{testResult.fileSize < 1024 * 1024 ? `${(testResult.fileSize / 1024).toFixed(1)} KB` : `${(testResult.fileSize / (1024 * 1024)).toFixed(2)} MB`}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                    <Check className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium">Time:</span>
+                    <span>{testResult.duration}s</span>
+                  </div>
+                </div>
+
+                {/* File URL */}
+                <div className="mt-3 flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
+                  <span className="flex-1 text-xs text-slate-500 dark:text-slate-400 truncate font-mono">{testResult.fileUrl}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(testResult.fileUrl);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="shrink-0 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Copy URL"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  </button>
+                  <a
+                    href={testResult.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Open file"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                </div>
+
+                {/* Preview if image */}
+                {testResult.fileName?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) && (
+                  <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    <img
+                      src={testResult.fileUrl}
+                      alt="Preview"
+                      className="max-h-40 w-auto mx-auto object-contain p-2"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { resetUpload(); setTestResult(null); }}
+                  className="mt-4 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
+                  Upload another file
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Failed result (no uploadError) */}
+        {!uploading && testResult && !testResult.success && !uploadError && (
+          <div className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-700 dark:text-red-400">Upload Failed</p>
+                <p className="text-xs text-red-500 mt-1">The upload did not return a file URL. Check your storage configuration and try again.</p>
+                <button
+                  type="button"
+                  onClick={() => { resetUpload(); setTestResult(null); }}
+                  className="mt-3 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </SettingsCard>
     </div>
   );
 }

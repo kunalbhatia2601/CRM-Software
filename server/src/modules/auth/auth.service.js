@@ -4,6 +4,9 @@ import crypto from "crypto";
 import prisma from "../../utils/prisma.js";
 import config from "../../config/index.js";
 import { ApiError } from "../../utils/apiError.js";
+import { sendMail } from "../../utils/mailer.js";
+import emailTemplateService from "../email-template/email-template.service.js";
+import cache from "../../utils/cache.js";
 import otpService from "./otp.service.js";
 
 class AuthService {
@@ -191,6 +194,123 @@ class AuthService {
 
     // Revoke all refresh tokens for security
     await prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
+  /**
+   * Update own profile (name, phone, avatar only)
+   */
+  async updateProfile(userId, data) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw ApiError.notFound("User not found");
+
+    const allowedFields = {};
+    if (data.firstName !== undefined) allowedFields.firstName = data.firstName;
+    if (data.lastName !== undefined) allowedFields.lastName = data.lastName;
+    if (data.phone !== undefined) allowedFields.phone = data.phone;
+    if (data.avatar !== undefined) allowedFields.avatar = data.avatar;
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: allowedFields,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        avatar: true,
+        role: true,
+        status: true,
+        isEmailVerified: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Forgot password — sends OTP to user email for password reset.
+   * Reuses the OTP infrastructure but with the reset-password email template.
+   */
+  async forgotPassword(email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Don't reveal whether email exists — always return success
+    if (!user || user.status !== "ACTIVE") {
+      return { otpSent: true, expiryMins: 5, digits: 6 };
+    }
+
+    // Invalidate existing OTPs
+    await prisma.otp.deleteMany({ where: { userId: user.id } });
+
+    // Get OTP config for digits/expiry
+    const otpConfig = await otpService.getOtpConfig();
+    const digits = otpConfig.otpDigits || 6;
+    const expiryMins = otpConfig.otpExpiryMins || 5;
+
+    // Generate OTP
+    const min = Math.pow(10, digits - 1);
+    const max = Math.pow(10, digits) - 1;
+    const code = crypto.randomInt(min, max + 1).toString();
+
+    // Store OTP
+    const expiresAt = new Date(Date.now() + expiryMins * 60 * 1000);
+    await prisma.otp.create({
+      data: { code, userId: user.id, expiresAt },
+    });
+
+    // Send email using reset-password template
+    const template = await emailTemplateService.getTemplateBySlug("reset-password");
+    const site = await cache.get("site", async () => {
+      let s = await prisma.site.findUnique({ where: { id: "default" } });
+      if (!s) s = await prisma.site.create({ data: { id: "default" } });
+      return s;
+    }, 600);
+    const siteName = site?.name || "TaskGo Agency";
+
+    // If template has body, use it; otherwise send a simple OTP email
+    const { subject, body } = template?.body
+      ? emailTemplateService.renderTemplate(template, {
+          userName: user.firstName,
+          siteName,
+          otpCode: code,
+          expiryMins: String(expiryMins),
+        })
+      : {
+          subject: `Password Reset OTP — ${siteName}`,
+          body: `<p>Hi ${user.firstName},</p><p>Your password reset OTP is: <strong>${code}</strong></p><p>This code expires in ${expiryMins} minutes.</p><p>If you didn't request this, please ignore this email.</p>`,
+        };
+
+    await sendMail({ to: user.email, subject, html: body });
+
+    return { otpSent: true, expiryMins, digits };
+  }
+
+  /**
+   * Reset password with OTP verification.
+   */
+  async resetPassword(email, otpCode, newPassword) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw ApiError.badRequest("Invalid request");
+    if (user.status !== "ACTIVE") throw ApiError.forbidden("Account is not active");
+
+    // Verify OTP
+    await otpService.verifyOtp(user.id, otpCode);
+
+    // Hash and update password
+    const hashedPassword = await bcrypt.hash(newPassword, config.bcrypt.saltRounds);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Revoke all refresh tokens for security
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    return { passwordReset: true };
   }
 
   /**

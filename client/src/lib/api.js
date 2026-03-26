@@ -99,6 +99,28 @@ export async function resendOtpAPI(userId) {
   });
 }
 
+export async function updateProfileAPI(data, accessToken) {
+  return request("/api/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function forgotPasswordAPI(email) {
+  return request("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPasswordAPI_OTP(email, otpCode, newPassword) {
+  return request("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, otpCode, newPassword }),
+  });
+}
+
 /* ───────── Site Endpoint ───────── */
 
 export async function getSiteAPI() {

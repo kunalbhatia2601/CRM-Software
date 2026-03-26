@@ -23,6 +23,7 @@ export const createUserSchema = z.object({
     firstName: z.string().min(1, "First name is required").max(50),
     lastName: z.string().min(1, "Last name is required").max(50),
     phone: z.string().optional(),
+    avatar: z.string().max(500).nullable().optional(),
     role: z.enum(roles, { required_error: "Role is required" }),
     status: z.enum(statuses).optional(),
     clientId: z.string().nullable().optional(),

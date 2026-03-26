@@ -80,6 +80,33 @@ class AuthController {
   });
 
   /**
+   * PATCH /api/auth/profile
+   */
+  updateProfile = catchAsync(async (req, res) => {
+    const user = await authService.updateProfile(req.user.id, req.body);
+    cache.del(`user:${req.user.id}`);
+    return ok(res, "Profile updated successfully", user);
+  });
+
+  /**
+   * POST /api/auth/forgot-password
+   */
+  forgotPassword = catchAsync(async (req, res) => {
+    const { email } = req.body;
+    const result = await authService.forgotPassword(email);
+    return ok(res, "If an account exists with this email, an OTP has been sent", result);
+  });
+
+  /**
+   * POST /api/auth/reset-password
+   */
+  resetPassword = catchAsync(async (req, res) => {
+    const { email, otpCode, newPassword } = req.body;
+    const result = await authService.resetPassword(email, otpCode, newPassword);
+    return ok(res, "Password reset successfully", result);
+  });
+
+  /**
    * GET /api/auth/me
    * Add cache for 5 minutes
    */

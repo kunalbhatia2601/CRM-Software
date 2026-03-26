@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2 } from "lucide-react";
+import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2, Camera, Loader2, ImageIcon, X } from "lucide-react";
 
 import { createUser, getClientsDropdown } from "@/actions/users.action";
+import { useUpload } from "@/hooks/useUpload";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import SettingsCard from "@/components/settings/SettingsCard";
@@ -34,6 +35,8 @@ export default function CreateUserContent() {
   const [toast, setToast] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [clients, setClients] = useState([]);
+  const { upload, uploading, progress } = useUpload();
+  const avatarInputRef = useRef(null);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -44,6 +47,7 @@ export default function CreateUserContent() {
     role: "EMPLOYEE",
     status: "ACTIVE",
     clientId: "",
+    avatar: "",
   });
 
   // Fetch clients for dropdown when role is CLIENT
@@ -72,6 +76,7 @@ export default function CreateUserContent() {
     startTransition(async () => {
       const payload = { ...form };
       if (payload.role !== "CLIENT" || !payload.clientId) delete payload.clientId;
+      if (!payload.avatar) delete payload.avatar;
       const result = await createUser(payload);
       if (result.success) {
         router.push("/owner/users");
@@ -101,6 +106,73 @@ export default function CreateUserContent() {
         title="Personal Information"
         description="Basic details for the new user account."
       >
+        {/* Avatar Upload */}
+        <div className="flex items-center gap-5 mb-8 pb-8 border-b border-slate-100 dark:border-slate-800">
+          <div className="relative group">
+            <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center overflow-hidden shrink-0">
+              {form.avatar ? (
+                <img
+                  src={form.avatar}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div className={`${form.avatar ? "hidden" : "flex"} items-center justify-center w-full h-full`}>
+                <ImageIcon className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+              </div>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const result = await upload(file);
+                if (result?.fileUrl) update("avatar", result.fileUrl);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+            >
+              {uploading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </button>
+            {uploading && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 rounded-b-2xl overflow-hidden">
+                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Profile Photo</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Optional. PNG, JPG or WebP.</p>
+            {form.avatar && (
+              <button
+                type="button"
+                onClick={() => update("avatar", "")}
+                className="mt-2 flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600 transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SettingsInput
             label="First Name *"

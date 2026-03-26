@@ -56,6 +56,7 @@ class UserService {
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone || null,
+        avatar: data.avatar || null,
         role: data.role,
         status: data.status || "ACTIVE",
         clientId: data.role === "CLIENT" ? (data.clientId || null) : null,
