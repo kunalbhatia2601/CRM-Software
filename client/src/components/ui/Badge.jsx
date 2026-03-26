@@ -47,6 +47,13 @@ const VARIANTS = {
   HIGH: "bg-orange-50 text-orange-600 border-orange-200",
   URGENT: "bg-red-50 text-red-600 border-red-200",
 
+  // Billing Cycles
+  ONE_TIME: "bg-slate-50 text-slate-600 border-slate-200",
+  MONTHLY: "bg-violet-50 text-violet-600 border-violet-200",
+  QUARTERLY: "bg-blue-50 text-blue-600 border-blue-200",
+  SEMI_ANNUAL: "bg-cyan-50 text-cyan-600 border-cyan-200",
+  ANNUAL: "bg-teal-50 text-teal-600 border-teal-200",
+
   // Generic
   default: "bg-slate-50 text-slate-600 border-slate-200",
 };
@@ -58,6 +65,8 @@ const LABELS = {
   NOT_STARTED: "Not Started",
   IN_PROGRESS: "In Progress",
   ON_HOLD: "On Hold",
+  ONE_TIME: "One Time",
+  SEMI_ANNUAL: "Semi Annual",
   EMAIL_CAMPAIGN: "Email Campaign",
   SOCIAL_MEDIA: "Social Media",
   COLD_CALL: "Cold Call",

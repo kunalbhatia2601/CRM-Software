@@ -8,6 +8,8 @@ import {
   updateDealAPI,
   updateDealStageAPI,
   deleteDealAPI,
+  addDealServicesAPI,
+  removeDealServiceAPI,
   getUsersAPI,
   getLeadsAPI,
 } from "@/lib/api";
@@ -81,7 +83,7 @@ export async function updateDeal(id, data) {
 
 // ─── Update Deal Stage ───────────────────────────────────
 
-export async function updateDealStage(id, stage, lostReason, accountManagerId) {
+export async function updateDealStage(id, stage, lostReason, accountManagerId, projectConfig) {
   const token = await getToken();
   if (!token) return { success: false, error: "Not authenticated" };
 
@@ -89,6 +91,7 @@ export async function updateDealStage(id, stage, lostReason, accountManagerId) {
     const body = { stage };
     if (lostReason) body.lostReason = lostReason;
     if (accountManagerId) body.accountManagerId = accountManagerId;
+    if (projectConfig) body.projectConfig = projectConfig;
     const res = await updateDealStageAPI(id, body, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, error: res.message };
@@ -109,6 +112,36 @@ export async function deleteDeal(id) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to delete deal" };
+  }
+}
+
+// ─── Add Services to Deal ────────────────────────────────
+
+export async function addServicesToDeal(dealId, services) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+
+  try {
+    const res = await addDealServicesAPI(dealId, services, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to add services" };
+  }
+}
+
+// ─── Remove Service from Deal ────────────────────────────
+
+export async function removeServiceFromDeal(dealId, serviceId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+
+  try {
+    const res = await removeDealServiceAPI(dealId, serviceId, token);
+    if (res.success) return { success: true };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to remove service" };
   }
 }
 

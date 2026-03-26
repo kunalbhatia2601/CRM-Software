@@ -169,7 +169,7 @@ export default function Footer() {
               {/* Footer large text/image */}
               <div className="max-w-[766px] overflow-hidden">
                 <img
-                  src="/images/podr0aq2t2h4.svg"
+                  src={site.logo || "/images/podr0aq2t2h4.svg"}
                   alt={site.name}
                   className="w-full opacity-20"
                 />

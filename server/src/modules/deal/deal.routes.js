@@ -9,6 +9,8 @@ import {
   updateDealStageSchema,
   listDealsSchema,
   getDealSchema,
+  addDealServicesSchema,
+  removeDealServiceSchema,
 } from "./deal.validation.js";
 
 const router = Router();
@@ -23,5 +25,9 @@ router.get("/:id", dealAccess, validate(getDealSchema), dealController.getDealBy
 router.patch("/:id", dealAccess, validate(updateDealSchema), dealController.updateDeal);
 router.patch("/:id/stage", dealAccess, validate(updateDealStageSchema), dealController.updateDealStage);
 router.delete("/:id", authorize("OWNER"), validate(getDealSchema), dealController.deleteDeal);
+
+// Deal services
+router.post("/:id/services", dealAccess, validate(addDealServicesSchema), dealController.addServicesToDeal);
+router.delete("/:id/services/:serviceId", dealAccess, validate(removeDealServiceSchema), dealController.removeServiceFromDeal);
 
 export default router;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Pencil,
   Mail,
@@ -23,9 +24,14 @@ import {
   Trophy,
   Search,
   Rocket,
+  PackageCheck,
+  Plus,
+  X,
+  ListChecks,
 } from "lucide-react";
 
-import { updateDealStage, getAccountManagers } from "@/actions/deals.action";
+import { updateDealStage, getAccountManagers, addServicesToDeal, removeServiceFromDeal, getDeal } from "@/actions/deals.action";
+import { getServicesDropdown } from "@/actions/services.action";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
@@ -65,6 +71,7 @@ function getStepIndex(stage) {
 }
 
 export default function DealDetailContent({ initialDeal }) {
+  const router = useRouter();
   const { format, formatCompact } = useSite();
   const [deal, setDeal] = useState(initialDeal);
   const [isPending, startTransition] = useTransition();
@@ -74,16 +81,18 @@ export default function DealDetailContent({ initialDeal }) {
   const [showLostModal, setShowLostModal] = useState(false);
   const [lostReasonInput, setLostReasonInput] = useState("");
 
-  // WON modal (with account manager selection)
-  const [showWonModal, setShowWonModal] = useState(false);
-  const [accountManagers, setAccountManagers] = useState([]);
-  const [selectedAccountManager, setSelectedAccountManager] = useState("");
+  // (WON flow now uses /owner/deals/[id]/convert page)
+
+  // Services
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [availableServices, setAvailableServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
 
   useEffect(() => {
-    if (showWonModal && accountManagers.length === 0) {
-      getAccountManagers().then(setAccountManagers);
+    if (showAddServiceModal && availableServices.length === 0) {
+      getServicesDropdown().then(setAvailableServices);
     }
-  }, [showWonModal]);
+  }, [showAddServiceModal]);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -96,7 +105,8 @@ export default function DealDetailContent({ initialDeal }) {
       return;
     }
     if (newStage === "WON") {
-      setShowWonModal(true);
+      // Redirect to dedicated convert page instead of auto-creating
+      router.push(`/owner/deals/${deal.id}/convert`);
       return;
     }
 
@@ -129,16 +139,32 @@ export default function DealDetailContent({ initialDeal }) {
     });
   };
 
-  const handleWonConfirm = () => {
+  const handleAddService = () => {
+    if (!selectedServiceId) return;
     startTransition(async () => {
-      const result = await updateDealStage(deal.id, "WON", null, selectedAccountManager || null);
+      const result = await addServicesToDeal(deal.id, [{ serviceId: selectedServiceId }]);
       if (result.success) {
-        const data = result.data;
-        setDeal(data.deal || data);
-        setShowWonModal(false);
-        showToast("success", "Deal won! Client, Project, and User account created automatically.");
+        // Refetch deal to get updated services
+        const refreshed = await getDeal(deal.id);
+        if (refreshed.success) setDeal(refreshed.data);
+        setSelectedServiceId("");
+        setShowAddServiceModal(false);
+        showToast("success", "Service added to deal");
       } else {
-        showToast("error", result.error || "Failed to mark deal as won");
+        showToast("error", result.error || "Failed to add service");
+      }
+    });
+  };
+
+  const handleRemoveService = (serviceId) => {
+    startTransition(async () => {
+      const result = await removeServiceFromDeal(deal.id, serviceId);
+      if (result.success) {
+        const refreshed = await getDeal(deal.id);
+        if (refreshed.success) setDeal(refreshed.data);
+        showToast("success", "Service removed");
+      } else {
+        showToast("error", result.error || "Failed to remove service");
       }
     });
   };
@@ -364,6 +390,148 @@ export default function DealDetailContent({ initialDeal }) {
         </div>
       )}
 
+      {/* ═══ Services ═══ */}
+      <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+              <PackageCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Services</h3>
+              <p className="text-xs text-slate-400">Services included in this deal</p>
+            </div>
+          </div>
+          {deal.stage !== "WON" && (
+            <button
+              onClick={() => setShowAddServiceModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Service
+            </button>
+          )}
+        </div>
+
+        {deal.dealServices && deal.dealServices.length > 0 ? (
+          <div className="space-y-3">
+            {deal.dealServices.map((ds) => {
+              const priceChanged = ds.originalPrice && Number(ds.price) !== Number(ds.originalPrice);
+              return (
+                <div key={ds.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      {ds.service?.name?.[0]?.toUpperCase() || "S"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/owner/services/${ds.service?.id}`} className="text-sm font-semibold text-slate-900 hover:text-indigo-600 transition-colors">
+                        {ds.service?.name}
+                      </Link>
+                      {ds.service?.points && ds.service.points.length > 0 && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">
+                          {ds.service.points.slice(0, 3).join(" · ")}{ds.service.points.length > 3 ? ` +${ds.service.points.length - 3} more` : ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-slate-900" suppressHydrationWarning>{format(Number(ds.price))}</span>
+                      {priceChanged && (
+                        <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
+                          was {format(Number(ds.originalPrice))}
+                        </p>
+                      )}
+                      {ds.quantity > 1 && <p className="text-xs text-slate-400">x{ds.quantity}</p>}
+                    </div>
+                    {deal.stage !== "WON" && (
+                      <button
+                        onClick={() => handleRemoveService(ds.service?.id)}
+                        disabled={isPending}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+                        title="Remove service"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200 mt-3">
+              <span className="text-sm font-medium text-slate-500">Total Services Value</span>
+              <span className="text-lg font-bold text-slate-900" suppressHydrationWarning>
+                {format(deal.dealServices.reduce((sum, ds) => sum + Number(ds.price) * (ds.quantity || 1), 0))}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <PackageCheck className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-400">No services added to this deal yet.</p>
+            {deal.stage !== "WON" && (
+              <button
+                onClick={() => setShowAddServiceModal(true)}
+                className="mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                Add your first service
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ═══ Add Service Modal ═══ */}
+      {showAddServiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddServiceModal(false)} />
+          <div className="relative bg-white rounded-[24px] p-8 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <PackageCheck className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Add Service</h3>
+                <p className="text-sm text-slate-500">Select a service to add to this deal.</p>
+              </div>
+            </div>
+
+            <SettingsSelect
+              label="Service"
+              icon={PackageCheck}
+              value={selectedServiceId}
+              onChange={(e) => setSelectedServiceId(e.target.value)}
+              options={[
+                { value: "", label: "— Select Service —" },
+                ...availableServices
+                  .filter((s) => !deal.dealServices?.some((ds) => ds.service?.id === s.id))
+                  .map((s) => ({
+                    value: s.id,
+                    label: `${s.name} — ${format(Number(s.salePrice || s.price))}`,
+                  })),
+              ]}
+            />
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => { setShowAddServiceModal(false); setSelectedServiceId(""); }}
+                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddService}
+                disabled={isPending || !selectedServiceId}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#5542F6] rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                {isPending ? "Adding..." : "Add Service"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══ Notes & People ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-[24px] p-6 lg:p-8 border border-slate-100 shadow-sm shadow-slate-200/50">
@@ -463,61 +631,6 @@ export default function DealDetailContent({ initialDeal }) {
         </div>
       )}
 
-      {/* ═══ WON Modal ═══ */}
-      {showWonModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowWonModal(false)} />
-          <div className="relative bg-white rounded-[24px] p-8 w-full max-w-md shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Mark as Won</h3>
-                <p className="text-sm text-slate-500">This will auto-create a Client, Project & User account.</p>
-              </div>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-emerald-700 leading-relaxed">
-                When a deal is won, the system automatically creates a <span className="font-semibold">Client</span> record,
-                a <span className="font-semibold">Project</span>, and a <span className="font-semibold">CLIENT-role User account</span> so the client can log in immediately.
-              </p>
-            </div>
-
-            <SettingsSelect
-              label="Account Manager (optional)"
-              icon={UserCheck}
-              value={selectedAccountManager}
-              onChange={(e) => setSelectedAccountManager(e.target.value)}
-              options={[
-                { value: "", label: "— No account manager —" },
-                ...accountManagers.map((u) => ({
-                  value: u.id,
-                  label: `${u.name} (${u.role.replace(/_/g, " ")})`,
-                })),
-              ]}
-            />
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowWonModal(false)}
-                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleWonConfirm}
-                disabled={isPending}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Trophy className="w-4 h-4" />
-                {isPending ? "Processing..." : "Confirm Won"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

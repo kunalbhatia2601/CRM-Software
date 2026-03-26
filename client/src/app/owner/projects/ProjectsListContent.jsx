@@ -30,6 +30,15 @@ const STATUSES = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
+const BILLING_CYCLES = [
+  { value: "", label: "All Billing" },
+  { value: "ONE_TIME", label: "One Time" },
+  { value: "MONTHLY", label: "Monthly" },
+  { value: "QUARTERLY", label: "Quarterly" },
+  { value: "SEMI_ANNUAL", label: "Semi Annual" },
+  { value: "ANNUAL", label: "Annual" },
+];
+
 export default function ProjectsListContent({ initialData }) {
   const router = useRouter();
   const { format } = useSite();
@@ -37,6 +46,7 @@ export default function ProjectsListContent({ initialData }) {
   const [data, setData] = useState(initialData);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [billingCycle, setBillingCycle] = useState("");
   const [page, setPage] = useState(initialData?.pagination?.page || 1);
   const [toast, setToast] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ open: false, project: null });
@@ -54,6 +64,7 @@ export default function ProjectsListContent({ initialData }) {
         limit: 10,
         ...(params.search !== undefined ? { search: params.search } : search ? { search } : {}),
         ...(params.status !== undefined ? (params.status ? { status: params.status } : {}) : status ? { status } : {}),
+        ...(params.billingCycle !== undefined ? (params.billingCycle ? { billingCycle: params.billingCycle } : {}) : billingCycle ? { billingCycle } : {}),
       };
 
       startTransition(async () => {
@@ -63,7 +74,7 @@ export default function ProjectsListContent({ initialData }) {
         }
       });
     },
-    [page, search, status]
+    [page, search, status, billingCycle]
   );
 
   const handleSearch = (e) => {
@@ -132,10 +143,15 @@ export default function ProjectsListContent({ initialData }) {
       ),
     },
     {
+      key: "billingCycle",
+      label: "Billing",
+      render: (val) => <Badge value={val || "ONE_TIME"} />,
+    },
+    {
       key: "budget",
       label: "Budget",
       render: (val) => (
-        <span className="text-slate-600 text-sm">
+        <span className="text-slate-600 text-sm" suppressHydrationWarning>
           {val ? format(Number(val), { decimals: 0 }) : "—"}
         </span>
       ),
@@ -236,6 +252,21 @@ export default function ProjectsListContent({ initialData }) {
           >
             {STATUSES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={billingCycle}
+            onChange={(e) => {
+              const val = e.target.value;
+              setBillingCycle(val);
+              setPage(1);
+              fetchProjects({ billingCycle: val, page: 1 });
+            }}
+            className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[15px] font-medium text-slate-900 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-sm cursor-pointer min-w-[150px]"
+          >
+            {BILLING_CYCLES.map((b) => (
+              <option key={b.value} value={b.value}>{b.label}</option>
             ))}
           </select>
         </div>

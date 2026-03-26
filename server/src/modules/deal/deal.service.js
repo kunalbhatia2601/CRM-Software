@@ -13,7 +13,7 @@ const STAGE_TRANSITIONS = {
 
 const DEAL_INCLUDE = {
   lead: {
-    select: { id: true, companyName: true, contactName: true, email: true, source: true },
+    select: { id: true, companyName: true, contactName: true, email: true, phone: true, source: true },
   },
   assignee: {
     select: { id: true, firstName: true, lastName: true, email: true, role: true },
@@ -26,6 +26,14 @@ const DEAL_INCLUDE = {
   },
   project: {
     select: { id: true, name: true, status: true },
+  },
+  dealServices: {
+    include: {
+      service: {
+        select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
+      },
+    },
+    orderBy: { createdAt: "asc" },
   },
 };
 
@@ -159,12 +167,12 @@ class DealService {
 
   /**
    * Update deal stage with transition validation
-   * WON triggers: auto-create Client + Project
+   * WON triggers: auto-create Client + Project with user-provided config
    */
-  async updateDealStage(id, stage, lostReason, accountManagerId) {
+  async updateDealStage(id, stage, { lostReason, accountManagerId, projectConfig } = {}) {
     const deal = await prisma.deal.findUnique({
       where: { id },
-      include: { lead: true },
+      include: { lead: true, dealServices: true },
     });
 
     if (!deal) throw ApiError.notFound("Deal not found");
@@ -180,7 +188,7 @@ class DealService {
       throw ApiError.badRequest("Lost reason is required when marking a deal as lost");
     }
 
-    // ── WON: auto-create Client + Project in one transaction ──
+    // ── WON: create Client + Project with user-provided configuration ──
     if (stage === "WON") {
       // Validate account manager if provided
       if (accountManagerId) {
@@ -190,6 +198,10 @@ class DealService {
           throw ApiError.badRequest("Account manager must have Owner, Admin, or Account Manager role");
         }
       }
+
+      // projectConfig can override: name, description, budget, startDate, endDate,
+      // billingCycle, nextBillingDate, notes, services (with custom prices)
+      const cfg = projectConfig || {};
 
       const result = await prisma.$transaction(async (tx) => {
         // Check if client already exists with this email
@@ -214,16 +226,14 @@ class DealService {
           });
         }
 
-        // Auto-create CLIENT-role user if one doesn't already exist for this client
+        // Auto-create CLIENT-role user if one doesn't already exist
         let clientUser = null;
         if (deal.lead.email) {
-          // Check if a user with this email already exists
           const existingUser = await tx.user.findUnique({
             where: { email: deal.lead.email },
           });
 
           if (existingUser) {
-            // If user exists but isn't linked to a client, link them
             if (!existingUser.clientId && existingUser.role === "CLIENT") {
               await tx.user.update({
                 where: { id: existingUser.id },
@@ -232,11 +242,9 @@ class DealService {
             }
             clientUser = existingUser;
           } else {
-            // Generate a default password from company name
             const defaultPassword = `${deal.lead.companyName.replace(/\s+/g, "")}@123`;
             const hashedPassword = await bcrypt.hash(defaultPassword, config.bcrypt.saltRounds);
 
-            // Split contact name into first/last
             const nameParts = deal.lead.contactName.trim().split(/\s+/);
             const firstName = nameParts[0] || "Client";
             const lastName = nameParts.slice(1).join(" ") || deal.lead.companyName;
@@ -256,17 +264,51 @@ class DealService {
           }
         }
 
-        // Create project
+        // Create project with user-provided config
         const project = await tx.project.create({
           data: {
-            name: deal.title,
+            name: cfg.name || deal.title,
+            description: cfg.description || null,
             clientId: client.id,
             dealId: deal.id,
             accountManagerId: accountManagerId || null,
             createdById: deal.createdById,
-            budget: deal.value,
+            budget: cfg.budget != null ? cfg.budget : deal.value,
+            startDate: cfg.startDate ? new Date(cfg.startDate) : null,
+            endDate: cfg.endDate ? new Date(cfg.endDate) : null,
+            billingCycle: cfg.billingCycle || "ONE_TIME",
+            nextBillingDate: cfg.nextBillingDate ? new Date(cfg.nextBillingDate) : null,
+            notes: cfg.notes || null,
           },
         });
+
+        // Copy services — use custom prices from cfg.services if provided, else deal service prices
+        const servicesConfig = cfg.services; // [{ serviceId, price, originalPrice, quantity }]
+        const dealServicesData = deal.dealServices;
+
+        if (servicesConfig && servicesConfig.length > 0) {
+          // User provided custom service config from convert page
+          await tx.projectService.createMany({
+            data: servicesConfig.map((s) => ({
+              projectId: project.id,
+              serviceId: s.serviceId,
+              quantity: s.quantity || 1,
+              price: s.price,
+              originalPrice: s.originalPrice,
+            })),
+          });
+        } else if (dealServicesData.length > 0) {
+          // Fallback: copy deal services as-is
+          await tx.projectService.createMany({
+            data: dealServicesData.map((ds) => ({
+              projectId: project.id,
+              serviceId: ds.serviceId,
+              quantity: ds.quantity,
+              price: ds.price,
+              originalPrice: ds.originalPrice,
+            })),
+          });
+        }
 
         // Update deal
         const updatedDeal = await tx.deal.update({
@@ -299,6 +341,74 @@ class DealService {
     });
 
     return { deal: updated };
+  }
+
+  /**
+   * Add services to a deal — stores both snapshot price and original price
+   */
+  async addServicesToDeal(dealId, services) {
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) throw ApiError.notFound("Deal not found");
+
+    if (deal.stage === "WON") {
+      throw ApiError.badRequest("Cannot modify services on a won deal");
+    }
+
+    const results = [];
+    for (const item of services) {
+      const service = await prisma.service.findUnique({ where: { id: item.serviceId } });
+      if (!service) throw ApiError.badRequest(`Service ${item.serviceId} not found`);
+
+      // Original price = service's current effective price (salePrice or price)
+      const originalPrice = service.salePrice ?? service.price;
+      // Snapshot price = user-provided custom price, or the original price
+      const price = item.price ?? originalPrice;
+
+      const dealService = await prisma.dealService.upsert({
+        where: { dealId_serviceId: { dealId, serviceId: item.serviceId } },
+        create: {
+          dealId,
+          serviceId: item.serviceId,
+          quantity: item.quantity || 1,
+          price,
+          originalPrice,
+        },
+        update: {
+          quantity: item.quantity || 1,
+          price,
+          originalPrice,
+        },
+        include: {
+          service: {
+            select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
+          },
+        },
+      });
+      results.push(dealService);
+    }
+
+    return results;
+  }
+
+  /**
+   * Remove a service from a deal
+   */
+  async removeServiceFromDeal(dealId, serviceId) {
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) throw ApiError.notFound("Deal not found");
+
+    if (deal.stage === "WON") {
+      throw ApiError.badRequest("Cannot modify services on a won deal");
+    }
+
+    const existing = await prisma.dealService.findUnique({
+      where: { dealId_serviceId: { dealId, serviceId } },
+    });
+    if (!existing) throw ApiError.notFound("Service not linked to this deal");
+
+    await prisma.dealService.delete({
+      where: { dealId_serviceId: { dealId, serviceId } },
+    });
   }
 
   /**

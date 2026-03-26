@@ -7,6 +7,7 @@ import {
   Calendar,
   DollarSign,
   UserCheck,
+  RefreshCw,
 } from "lucide-react";
 import { updateProject, getProjectAccountManagers } from "@/actions/projects.action";
 import PageHeader from "@/components/ui/PageHeader";
@@ -37,6 +38,8 @@ export default function EditProjectContent({ project }) {
     budget: project.budget || "",
     notes: project.notes || "",
     accountManagerId: project.accountManagerId || "",
+    billingCycle: project.billingCycle || "ONE_TIME",
+    nextBillingDate: toDateInput(project.nextBillingDate),
   });
 
   useEffect(() => {
@@ -68,6 +71,10 @@ export default function EditProjectContent({ project }) {
       if (!payload.endDate) payload.endDate = null;
       if (!payload.notes) payload.notes = null;
       if (!payload.accountManagerId) payload.accountManagerId = null;
+      if (payload.billingCycle === "ONE_TIME") {
+        payload.nextBillingDate = null;
+      }
+      if (!payload.nextBillingDate) payload.nextBillingDate = null;
 
       const result = await updateProject(project.id, payload);
       if (result.success) {
@@ -205,6 +212,43 @@ export default function EditProjectContent({ project }) {
             disabled={isFieldDisabled}
           />
         </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Billing Cycle"
+        description="Set whether this project recurs on a schedule."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SettingsSelect
+            label="Billing Cycle"
+            icon={RefreshCw}
+            value={form.billingCycle}
+            onChange={(e) => update("billingCycle", e.target.value)}
+            options={[
+              { value: "ONE_TIME", label: "One Time" },
+              { value: "MONTHLY", label: "Monthly" },
+              { value: "QUARTERLY", label: "Quarterly (3 months)" },
+              { value: "SEMI_ANNUAL", label: "Semi Annual (6 months)" },
+              { value: "ANNUAL", label: "Annual (12 months)" },
+            ]}
+            disabled={isFieldDisabled}
+          />
+          {form.billingCycle !== "ONE_TIME" && (
+            <SettingsInput
+              label="Next Billing Date"
+              type="date"
+              icon={Calendar}
+              value={form.nextBillingDate}
+              onChange={(e) => update("nextBillingDate", e.target.value)}
+              disabled={isFieldDisabled}
+            />
+          )}
+        </div>
+        {form.billingCycle !== "ONE_TIME" && (
+          <p className="text-xs text-slate-400 mt-2">
+            Leave empty to auto-calculate from the start date.
+          </p>
+        )}
       </SettingsCard>
 
       <SettingsCard title="Notes" description="Additional context for this project.">

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const statuses = ["NOT_STARTED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"];
+const billingCycles = ["ONE_TIME", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"];
 
 export const createProjectSchema = z.object({
   body: z.object({
@@ -12,6 +13,14 @@ export const createProjectSchema = z.object({
     budget: z.coerce.number().min(0).optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     accountManagerId: z.string().optional().nullable(),
+    billingCycle: z.enum(billingCycles).optional().default("ONE_TIME"),
+    nextBillingDate: z.coerce.date().optional().nullable(),
+    services: z.array(z.object({
+      serviceId: z.string().min(1),
+      quantity: z.coerce.number().int().min(1).optional().default(1),
+      price: z.coerce.number().min(0),
+      originalPrice: z.coerce.number().min(0),
+    })).optional(),
   }),
 });
 
@@ -26,6 +35,8 @@ export const updateProjectSchema = z.object({
     budget: z.coerce.number().min(0).optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     accountManagerId: z.string().optional().nullable(),
+    billingCycle: z.enum(billingCycles).optional(),
+    nextBillingDate: z.coerce.date().optional().nullable(),
   }),
 });
 
@@ -34,11 +45,12 @@ export const listProjectsSchema = z.object({
     page: z.coerce.number().int().min(1).optional().default(1),
     limit: z.coerce.number().int().min(1).max(100).optional().default(10),
     status: z.enum(statuses).optional(),
+    billingCycle: z.enum(billingCycles).optional(),
     clientId: z.string().optional(),
     accountManagerId: z.string().optional(),
     search: z.string().optional(),
     sortBy: z
-      .enum(["createdAt", "name", "status", "startDate", "endDate", "budget"])
+      .enum(["createdAt", "name", "status", "startDate", "endDate", "budget", "billingCycle", "nextBillingDate"])
       .optional()
       .default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),

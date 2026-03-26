@@ -62,7 +62,7 @@ export default function Integrations() {
             {/* Center logo */}
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <Image
-                src="/images/frame-55.svg"
+                src={site.logo || "/images/frame-55.svg"}
                 alt={site.name}
                 width={80}
                 height={80}

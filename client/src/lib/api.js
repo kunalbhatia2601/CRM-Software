@@ -318,6 +318,21 @@ export async function deleteDealAPI(id, accessToken) {
   return request(`/api/deals/${id}`, { method: "DELETE", token: accessToken });
 }
 
+export async function addDealServicesAPI(dealId, services, accessToken) {
+  return request(`/api/deals/${dealId}/services`, {
+    method: "POST",
+    body: JSON.stringify({ services }),
+    token: accessToken,
+  });
+}
+
+export async function removeDealServiceAPI(dealId, serviceId, accessToken) {
+  return request(`/api/deals/${dealId}/services/${serviceId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
 /* ───────── Email Template Endpoints ───────── */
 
 export async function getEmailTemplatesAPI(accessToken) {
@@ -334,6 +349,41 @@ export async function updateEmailTemplateAPI(id, data, accessToken) {
     body: JSON.stringify(data),
     token: accessToken,
   });
+}
+
+/* ───────── Service Endpoints ───────── */
+
+export async function getServicesAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/services?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getServiceAPI(id, accessToken) {
+  return request(`/api/services/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createServiceAPI(data, accessToken) {
+  return request("/api/services", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateServiceAPI(id, data, accessToken) {
+  return request(`/api/services/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteServiceAPI(id, accessToken) {
+  return request(`/api/services/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getServicesDropdownAPI(accessToken) {
+  return request("/api/services/dropdown", { method: "GET", token: accessToken });
 }
 
 /* ───────── Generic Authenticated Requests ───────── */

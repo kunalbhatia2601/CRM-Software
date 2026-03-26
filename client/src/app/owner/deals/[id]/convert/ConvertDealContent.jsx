@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   FolderKanban,
   FileText,
@@ -10,87 +10,86 @@ import {
   UserCheck,
   Building2,
   RefreshCw,
+  Trophy,
   Package,
   Plus,
   X,
   ArrowRight,
+  AlertCircle,
   Pencil,
+  Check,
 } from "lucide-react";
 
-import {
-  createProject,
-  getProjectAccountManagers,
-  getProjectClients,
-} from "@/actions/projects.action";
-import { getServicesDropdown } from "@/actions/services.action";
+import { updateDealStage } from "@/actions/deals.action";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
+import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingsInput from "@/components/settings/SettingsInput";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import SettingsButton from "@/components/settings/SettingsButton";
 
-export default function CreateProjectContent() {
+export default function ConvertDealContent({ initialDeal, accountManagers, availableServices }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { format } = useSite();
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
-  const [managers, setManagers] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [availableServices, setAvailableServices] = useState([]);
 
-  // Services state
-  const [services, setServices] = useState([]);
+  const deal = initialDeal;
+
+  // Build initial services from deal's existing dealServices
+  const initialServices = (deal.dealServices || []).map((ds) => ({
+    serviceId: ds.serviceId || ds.service?.id,
+    name: ds.service?.name || "Unknown Service",
+    quantity: ds.quantity || 1,
+    price: Number(ds.price || 0),
+    originalPrice: Number(ds.originalPrice || ds.price || 0),
+  }));
+
+  const [services, setServices] = useState(initialServices);
   const [selectedServiceId, setSelectedServiceId] = useState("");
 
+  // Project config form
   const [form, setForm] = useState({
-    name: "",
+    name: deal.title || "",
     description: "",
-    clientId: "",
+    budget: deal.value ? String(deal.value) : "",
     startDate: "",
     endDate: "",
-    budget: "",
-    notes: "",
-    accountManagerId: "",
     billingCycle: "ONE_TIME",
     nextBillingDate: "",
+    accountManagerId: "",
+    notes: "",
   });
 
-  useEffect(() => {
-    getProjectAccountManagers().then(setManagers);
-    getProjectClients().then(setClients);
-    getServicesDropdown().then(setAvailableServices);
-
-    const clientId = searchParams.get("clientId");
-    if (clientId) {
-      setForm((prev) => ({ ...prev, clientId }));
-    }
-  }, [searchParams]);
-
   const update = (field, value) => setForm((p) => ({ ...p, [field]: value }));
+
+  // Calculate total from services
+  const servicesTotal = useMemo(() => {
+    return services.reduce((sum, s) => sum + s.price * s.quantity, 0);
+  }, [services]);
+
+  // Suggest budget from services total
+  const suggestBudget = () => {
+    update("budget", String(servicesTotal));
+  };
 
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ─── Service helpers ───
-  const servicesTotal = useMemo(() => {
-    return services.reduce((sum, s) => sum + s.price * s.quantity, 0);
-  }, [services]);
-
-  const suggestBudget = () => {
-    update("budget", String(servicesTotal));
-  };
-
+  // ─── Service Management ───
   const handleAddService = () => {
     if (!selectedServiceId) return;
+
+    // Check if already added
     if (services.find((s) => s.serviceId === selectedServiceId)) {
       showToast("error", "Service already added");
       return;
     }
+
     const svc = availableServices.find((s) => s.id === selectedServiceId);
     if (!svc) return;
 
@@ -128,40 +127,31 @@ export default function CreateProjectContent() {
     );
   };
 
-  const addableServices = availableServices.filter(
-    (s) => !services.find((added) => added.serviceId === s.id)
-  );
-
-  // ─── Submit ───
-  const handleSubmit = () => {
+  // ─── Submit Conversion ───
+  const handleConvert = () => {
     if (!form.name.trim()) {
       showToast("error", "Project name is required");
       return;
     }
 
-    if (!form.clientId) {
-      showToast("error", "Please select a client");
-      return;
-    }
-
     startTransition(async () => {
-      const payload = { ...form };
-      if (payload.budget) payload.budget = parseFloat(payload.budget);
-      else delete payload.budget;
-      if (!payload.description) delete payload.description;
-      if (!payload.startDate) delete payload.startDate;
-      if (!payload.endDate) delete payload.endDate;
-      if (!payload.notes) delete payload.notes;
-      if (!payload.accountManagerId) delete payload.accountManagerId;
-      if (!payload.billingCycle || payload.billingCycle === "ONE_TIME") {
-        payload.billingCycle = "ONE_TIME";
-        delete payload.nextBillingDate;
-      }
-      if (!payload.nextBillingDate) delete payload.nextBillingDate;
+      const projectConfig = {
+        name: form.name.trim(),
+      };
 
-      // Attach services
+      if (form.description.trim()) projectConfig.description = form.description.trim();
+      if (form.budget) projectConfig.budget = parseFloat(form.budget);
+      if (form.startDate) projectConfig.startDate = form.startDate;
+      if (form.endDate) projectConfig.endDate = form.endDate;
+      if (form.billingCycle) projectConfig.billingCycle = form.billingCycle;
+      if (form.billingCycle !== "ONE_TIME" && form.nextBillingDate) {
+        projectConfig.nextBillingDate = form.nextBillingDate;
+      }
+      if (form.notes.trim()) projectConfig.notes = form.notes.trim();
+
+      // Services with pricing
       if (services.length > 0) {
-        payload.services = services.map((s) => ({
+        projectConfig.services = services.map((s) => ({
           serviceId: s.serviceId,
           quantity: s.quantity,
           price: s.price,
@@ -169,33 +159,84 @@ export default function CreateProjectContent() {
         }));
       }
 
-      const result = await createProject(payload);
+      const result = await updateDealStage(
+        deal.id,
+        "WON",
+        null,
+        form.accountManagerId || null,
+        projectConfig
+      );
+
       if (result.success) {
-        router.push(`/owner/projects/${result.data.id}`);
+        const projectId = result.data?.project?.id;
+        if (projectId) {
+          router.push(`/owner/projects/${projectId}`);
+        } else {
+          router.push(`/owner/deals/${deal.id}`);
+        }
       } else {
-        showToast("error", result.error || "Failed to create project");
+        showToast("error", result.error || "Failed to convert deal");
       }
     });
   };
+
+  // Filter out already-added services from dropdown
+  const addableServices = availableServices.filter(
+    (s) => !services.find((added) => added.serviceId === s.id)
+  );
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl">
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       <PageHeader
-        title="New Project"
-        description="Create a new project under a client."
+        title="Convert Deal to Project"
+        description={`Finalize "${deal.title}" and create a project with client account.`}
         breadcrumbs={[
           { label: "Dashboard", href: "/owner/dashboard" },
-          { label: "Projects", href: "/owner/projects" },
-          { label: "New Project" },
+          { label: "Deals", href: "/owner/deals" },
+          { label: deal.title, href: `/owner/deals/${deal.id}` },
+          { label: "Convert" },
         ]}
       />
 
-      <SettingsCard
-        title="Project Info"
-        description="Basic project details."
-      >
+      {/* ─── Deal Summary Banner ─── */}
+      <div className="rounded-[24px] border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-6 shadow-sm shadow-slate-200/50">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-200">
+            <Trophy className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Winning This Deal</h3>
+            <p className="text-sm text-slate-500">
+              Review and configure the project details before finalizing
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="text-slate-400">Lead</span>
+            <p className="font-semibold text-slate-800">{deal.lead?.companyName || "—"}</p>
+          </div>
+          <div>
+            <span className="text-slate-400">Contact</span>
+            <p className="font-semibold text-slate-800">{deal.lead?.contactName || "—"}</p>
+          </div>
+          <div>
+            <span className="text-slate-400">Deal Value</span>
+            <p className="font-semibold text-slate-800">
+              {deal.value ? format(Number(deal.value)) : "—"}
+            </p>
+          </div>
+          <div>
+            <span className="text-slate-400">Stage</span>
+            <Badge value={deal.stage} />
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Project Info ─── */}
+      <SettingsCard title="Project Info" description="Name and description for the new project.">
         <div className="grid grid-cols-1 gap-6">
           <SettingsInput
             label="Project Name *"
@@ -217,44 +258,10 @@ export default function CreateProjectContent() {
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        title="Client & Assignment"
-        description="Assign this project to a client and account manager."
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <SettingsSelect
-            label="Client *"
-            icon={Building2}
-            value={form.clientId}
-            onChange={(e) => update("clientId", e.target.value)}
-            options={[
-              { value: "", label: "— Select Client —" },
-              ...clients.map((c) => ({
-                value: c.id,
-                label: c.companyName,
-              })),
-            ]}
-          />
-          <SettingsSelect
-            label="Account Manager"
-            icon={UserCheck}
-            value={form.accountManagerId}
-            onChange={(e) => update("accountManagerId", e.target.value)}
-            options={[
-              { value: "", label: "— Unassigned —" },
-              ...managers.map((u) => ({
-                value: u.id,
-                label: `${u.name} (${u.role.replace(/_/g, " ")})`,
-              })),
-            ]}
-          />
-        </div>
-      </SettingsCard>
-
       {/* ─── Services ─── */}
       <SettingsCard
         title="Services"
-        description="Optionally select services for this project. Prices can be adjusted as a snapshot."
+        description="Review, add, or remove services. You can adjust the snapshot price for this project."
       >
         {/* Add service row */}
         <div className="flex items-end gap-3 mb-6">
@@ -286,10 +293,11 @@ export default function CreateProjectContent() {
         {/* Services list */}
         {services.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm">
-            No services added yet. Services are optional — their prices will auto-sum as a budget suggestion.
+            No services added yet. Add services above to include them in the project.
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Header */}
             <div className="grid grid-cols-12 gap-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
               <div className="col-span-4">Service</div>
               <div className="col-span-2 text-right">Original Price</div>
@@ -353,6 +361,7 @@ export default function CreateProjectContent() {
               );
             })}
 
+            {/* Total */}
             <div className="flex items-center justify-between px-4 pt-4 border-t border-slate-200">
               <span className="text-sm font-semibold text-slate-600">Services Total</span>
               <span className="text-lg font-bold text-slate-900">
@@ -363,6 +372,7 @@ export default function CreateProjectContent() {
         )}
       </SettingsCard>
 
+      {/* ─── Timeline & Budget ─── */}
       <SettingsCard
         title="Timeline & Budget"
         description="Set the project schedule and budget."
@@ -404,6 +414,7 @@ export default function CreateProjectContent() {
         </div>
       </SettingsCard>
 
+      {/* ─── Billing Cycle ─── */}
       <SettingsCard
         title="Billing Cycle"
         description="Set whether this project recurs on a schedule."
@@ -439,9 +450,30 @@ export default function CreateProjectContent() {
         )}
       </SettingsCard>
 
+      {/* ─── Account Manager ─── */}
+      <SettingsCard
+        title="Account Manager"
+        description="Assign an account manager for the client and project."
+      >
+        <SettingsSelect
+          label="Account Manager"
+          icon={UserCheck}
+          value={form.accountManagerId}
+          onChange={(e) => update("accountManagerId", e.target.value)}
+          options={[
+            { value: "", label: "— Unassigned —" },
+            ...accountManagers.map((u) => ({
+              value: u.id,
+              label: `${u.name} (${u.role.replace(/_/g, " ")})`,
+            })),
+          ]}
+        />
+      </SettingsCard>
+
+      {/* ─── Notes ─── */}
       <SettingsCard
         title="Notes"
-        description="Additional context or details about this project."
+        description="Additional context or instructions for the project."
       >
         <div>
           <label className="text-sm font-semibold text-slate-800 mb-2 block">Notes</label>
@@ -455,17 +487,18 @@ export default function CreateProjectContent() {
         </div>
       </SettingsCard>
 
-      <div className="flex items-center justify-between mt-2">
+      {/* ─── Action Buttons ─── */}
+      <div className="flex items-center justify-between mt-2 pb-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push(`/owner/deals/${deal.id}`)}
           className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
         >
           Cancel
         </button>
         <SettingsButton
           isPending={isPending}
-          onClick={handleSubmit}
-          label="Create Project"
+          onClick={handleConvert}
+          label="Convert to Project"
         />
       </div>
     </div>

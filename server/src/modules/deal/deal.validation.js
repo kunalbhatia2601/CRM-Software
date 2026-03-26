@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const stages = ["DISCOVERY", "PROPOSAL", "NEGOTIATION", "WON", "LOST"];
+const billingCycles = ["ONE_TIME", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"];
 
 export const createDealSchema = z.object({
   body: z.object({
@@ -29,8 +30,24 @@ export const updateDealStageSchema = z.object({
   body: z.object({
     stage: z.enum(stages, { required_error: "Stage is required" }),
     lostReason: z.string().max(500).optional().nullable(),
-    // Fields for WON conversion
     accountManagerId: z.string().optional().nullable(),
+    // Full project configuration for WON conversion
+    projectConfig: z.object({
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(2000).optional().nullable(),
+      budget: z.coerce.number().min(0).optional().nullable(),
+      startDate: z.string().optional().nullable(),
+      endDate: z.string().optional().nullable(),
+      billingCycle: z.enum(billingCycles).optional(),
+      nextBillingDate: z.string().optional().nullable(),
+      notes: z.string().max(2000).optional().nullable(),
+      services: z.array(z.object({
+        serviceId: z.string().min(1),
+        quantity: z.coerce.number().int().min(1).optional().default(1),
+        price: z.coerce.number().min(0),
+        originalPrice: z.coerce.number().min(0),
+      })).optional(),
+    }).optional(),
   }),
 });
 
@@ -51,4 +68,24 @@ export const listDealsSchema = z.object({
 
 export const getDealSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
+});
+
+export const addDealServicesSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    services: z.array(
+      z.object({
+        serviceId: z.string().min(1, "Service ID is required"),
+        quantity: z.coerce.number().int().min(1).optional().default(1),
+        price: z.coerce.number().min(0).optional(),
+      })
+    ).min(1, "At least one service is required"),
+  }),
+});
+
+export const removeDealServiceSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+    serviceId: z.string().min(1),
+  }),
 });

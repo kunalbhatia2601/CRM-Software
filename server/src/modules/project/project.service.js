@@ -1,6 +1,32 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 
+/**
+ * Compute the next billing date from a reference date + billing cycle.
+ * Returns null for ONE_TIME.
+ */
+function computeNextBillingDate(referenceDate, billingCycle) {
+  if (!referenceDate || billingCycle === "ONE_TIME") return null;
+  const d = new Date(referenceDate);
+  switch (billingCycle) {
+    case "MONTHLY":
+      d.setMonth(d.getMonth() + 1);
+      break;
+    case "QUARTERLY":
+      d.setMonth(d.getMonth() + 3);
+      break;
+    case "SEMI_ANNUAL":
+      d.setMonth(d.getMonth() + 6);
+      break;
+    case "ANNUAL":
+      d.setFullYear(d.getFullYear() + 1);
+      break;
+    default:
+      return null;
+  }
+  return d;
+}
+
 const PROJECT_INCLUDE = {
   client: {
     select: { id: true, companyName: true, contactName: true, email: true, status: true },
@@ -13,6 +39,14 @@ const PROJECT_INCLUDE = {
   },
   createdBy: {
     select: { id: true, firstName: true, lastName: true, email: true },
+  },
+  projectServices: {
+    include: {
+      service: {
+        select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
+      },
+    },
+    orderBy: { createdAt: "asc" },
   },
 };
 
@@ -40,6 +74,49 @@ class ProjectService {
       throw ApiError.badRequest("Start date cannot be after end date");
     }
 
+    // Auto-compute nextBillingDate for recurring projects if not explicitly set
+    if (data.billingCycle && data.billingCycle !== "ONE_TIME" && !data.nextBillingDate && data.startDate) {
+      data.nextBillingDate = computeNextBillingDate(data.startDate, data.billingCycle);
+    }
+
+    // Extract services before creating project (not a Prisma field)
+    const servicesInput = data.services;
+    delete data.services;
+
+    // If services provided, use a transaction to create project + services
+    if (servicesInput && servicesInput.length > 0) {
+      return prisma.$transaction(async (tx) => {
+        const project = await tx.project.create({
+          data: { ...data, createdById },
+        });
+
+        // Validate & create project services
+        for (const item of servicesInput) {
+          const service = await tx.service.findUnique({ where: { id: item.serviceId } });
+          if (!service) throw ApiError.badRequest(`Service ${item.serviceId} not found`);
+
+          const originalPrice = item.originalPrice ?? (service.salePrice ?? service.price);
+          const price = item.price ?? originalPrice;
+
+          await tx.projectService.create({
+            data: {
+              projectId: project.id,
+              serviceId: item.serviceId,
+              quantity: item.quantity || 1,
+              price,
+              originalPrice,
+            },
+          });
+        }
+
+        // Return with full includes
+        return tx.project.findUnique({
+          where: { id: project.id },
+          include: PROJECT_INCLUDE,
+        });
+      });
+    }
+
     return prisma.project.create({
       data: { ...data, createdById },
       include: PROJECT_INCLUDE,
@@ -49,11 +126,12 @@ class ProjectService {
   /**
    * List projects with pagination, filters, search
    */
-  async listProjects({ page, limit, status, clientId, accountManagerId, search, sortBy, sortOrder }) {
+  async listProjects({ page, limit, status, billingCycle, clientId, accountManagerId, search, sortBy, sortOrder }) {
     const skip = (page - 1) * limit;
     const where = {};
 
     if (status) where.status = status;
+    if (billingCycle) where.billingCycle = billingCycle;
     if (clientId) where.clientId = clientId;
     if (accountManagerId) where.accountManagerId = accountManagerId;
 
@@ -117,6 +195,17 @@ class ProjectService {
     const endDate = data.endDate ? new Date(data.endDate) : project.endDate;
     if (startDate && endDate && startDate > endDate) {
       throw ApiError.badRequest("Start date cannot be after end date");
+    }
+
+    // Auto-recompute nextBillingDate when billingCycle changes
+    const newCycle = data.billingCycle || project.billingCycle;
+    if (data.billingCycle !== undefined || data.startDate !== undefined) {
+      const refDate = data.startDate ? new Date(data.startDate) : project.startDate;
+      if (newCycle === "ONE_TIME") {
+        data.nextBillingDate = null;
+      } else if (refDate && !data.nextBillingDate) {
+        data.nextBillingDate = computeNextBillingDate(refDate, newCycle);
+      }
     }
 
     return prisma.project.update({
