@@ -187,3 +187,5 @@ next-env.d.ts
 *.pdf*
 *.docx*
 *.doc*
+
+uploads/
