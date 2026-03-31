@@ -258,7 +258,7 @@ export default function GlobalSearch({ rolePrefix = "/owner" }) {
 
       {/* Results Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl dark:shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden z-[100] max-h-[480px] flex flex-col">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl dark:shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden z-100 max-h-[480px] flex flex-col">
           {/* Tabs */}
           <div className="flex items-center gap-0.5 px-3 pt-3 pb-2 border-b border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
             {TABS.map((tab) => {

@@ -492,6 +492,33 @@ export async function globalSearchAPI(params, accessToken) {
   return request(`/api/search?${query}`, { method: "GET", token: accessToken });
 }
 
+/* ───────── Notifications ───────── */
+
+export async function getNotificationsAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/notifications?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getUnreadCountAPI(accessToken) {
+  return request("/api/notifications/unread-count", { method: "GET", token: accessToken });
+}
+
+export async function markNotificationReadAPI(id, accessToken) {
+  return request(`/api/notifications/${id}/read`, { method: "PATCH", token: accessToken });
+}
+
+export async function markAllNotificationsReadAPI(accessToken) {
+  return request("/api/notifications/read-all", { method: "PATCH", token: accessToken });
+}
+
+export async function deleteNotificationAPI(id, accessToken) {
+  return request(`/api/notifications/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function clearReadNotificationsAPI(accessToken) {
+  return request("/api/notifications/clear-read", { method: "DELETE", token: accessToken });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

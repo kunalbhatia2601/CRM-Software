@@ -2,9 +2,10 @@
 
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import GlobalSearch from "./GlobalSearch";
+import NotificationDropdown from "./NotificationDropdown";
 
 const ROLE_PREFIX_MAP = {
   OWNER: "/owner",
@@ -57,10 +58,7 @@ export default function Header({ isMobile, onMenuClick }) {
       {/* Right Actions */}
       <div className="flex justify-end items-center gap-2 sm:gap-4">
         <ThemeToggle />
-        <button className="relative w-10 h-10 rounded-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm shadow-slate-200/50 dark:shadow-none">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 border-2 border-white"></span>
-        </button>
+        <NotificationDropdown />
 
         {/* User Profile */}
         <div className="hidden sm:flex items-center gap-3 pl-2">
