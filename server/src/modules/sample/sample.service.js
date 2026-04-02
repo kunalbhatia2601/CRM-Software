@@ -5,6 +5,20 @@ const SAMPLE_INCLUDE = {
   createdBy: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
+  leadSamples: {
+    include: {
+      lead: {
+        select: { id: true, companyName: true, contactName: true, status: true },
+      },
+    },
+  },
+  dealSamples: {
+    include: {
+      deal: {
+        select: { id: true, title: true, stage: true, value: true },
+      },
+    },
+  },
 };
 
 class SampleService {
