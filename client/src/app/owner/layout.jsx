@@ -76,6 +76,15 @@ const navItems = [
       { name: "Add Service", href: "/owner/services/create" },
     ],
   },
+  {
+    name: "Samples",
+    href: "/owner/samples",
+    icon: "Layers",
+    children: [
+      { name: "All Samples", href: "/owner/samples" },
+      { name: "Add Sample", href: "/owner/samples/create" },
+    ],
+  },
   { name: "Settings", href: "/owner/settings", icon: "Settings" },
 ];
 
