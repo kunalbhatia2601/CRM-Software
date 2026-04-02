@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 import config from "../../config/index.js";
+import sampleService from "../sample/sample.service.js";
 
 const STAGE_TRANSITIONS = {
   DISCOVERY: ["PROPOSAL", "LOST"],
@@ -89,7 +90,7 @@ class DealService {
         data: { status: "CONVERTED", convertedAt: new Date() },
       });
 
-      return tx.deal.create({
+      const newDeal = await tx.deal.create({
         data: {
           title: data.title,
           value: data.value,
@@ -101,6 +102,11 @@ class DealService {
         },
         include: DEAL_INCLUDE,
       });
+
+      // Copy samples from lead to the new deal
+      await sampleService.copySamplesFromLeadToDeal(data.leadId, newDeal.id, tx);
+
+      return newDeal;
     });
 
     return deal;

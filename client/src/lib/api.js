@@ -695,6 +695,79 @@ export async function deleteFollowUpAPI(id, accessToken) {
   return request(`/api/follow-ups/${id}`, { method: "DELETE", token: accessToken });
 }
 
+/* ───────── Samples ───────── */
+
+export async function getSamplesAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/samples?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getSampleAPI(id, accessToken) {
+  return request(`/api/samples/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createSampleAPI(data, accessToken) {
+  return request("/api/samples", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateSampleAPI(id, data, accessToken) {
+  return request(`/api/samples/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteSampleAPI(id, accessToken) {
+  return request(`/api/samples/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getSamplesDropdownAPI(accessToken) {
+  return request("/api/samples/dropdown", { method: "GET", token: accessToken });
+}
+
+export async function getSamplesByLeadAPI(leadId, accessToken) {
+  return request(`/api/samples/lead/${leadId}`, { method: "GET", token: accessToken });
+}
+
+export async function attachSamplesToLeadAPI(leadId, sampleIds, accessToken) {
+  return request(`/api/samples/lead/${leadId}`, {
+    method: "POST",
+    body: JSON.stringify({ sampleIds }),
+    token: accessToken,
+  });
+}
+
+export async function detachSampleFromLeadAPI(leadId, sampleId, accessToken) {
+  return request(`/api/samples/lead/${leadId}/${sampleId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
+export async function getSamplesByDealAPI(dealId, accessToken) {
+  return request(`/api/samples/deal/${dealId}`, { method: "GET", token: accessToken });
+}
+
+export async function attachSamplesToDealAPI(dealId, sampleIds, accessToken) {
+  return request(`/api/samples/deal/${dealId}`, {
+    method: "POST",
+    body: JSON.stringify({ sampleIds }),
+    token: accessToken,
+  });
+}
+
+export async function detachSampleFromDealAPI(dealId, sampleId, accessToken) {
+  return request(`/api/samples/deal/${dealId}/${sampleId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

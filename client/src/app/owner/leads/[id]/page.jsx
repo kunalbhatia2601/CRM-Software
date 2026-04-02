@@ -1,14 +1,16 @@
 import { getLead } from "@/actions/leads.action";
 import { getMeetingsByLead } from "@/actions/meetings.action";
 import { getFollowUpsByLead } from "@/actions/followups.action";
+import { getSamplesByLead } from "@/actions/samples.action";
 import LeadDetailContent from "./LeadDetailContent";
 
 export default async function LeadDetailPage({ params }) {
   const { id } = await params;
-  const [result, meetingsResult, followUpsResult] = await Promise.all([
+  const [result, meetingsResult, followUpsResult, samplesResult] = await Promise.all([
     getLead(id),
     getMeetingsByLead(id),
     getFollowUpsByLead(id),
+    getSamplesByLead(id),
   ]);
 
   if (!result.success) {
@@ -24,6 +26,7 @@ export default async function LeadDetailPage({ params }) {
       initialLead={result.data}
       initialMeetings={meetingsResult.data || []}
       initialFollowUps={followUpsResult.data || []}
+      initialSamples={samplesResult.data || []}
     />
   );
 }

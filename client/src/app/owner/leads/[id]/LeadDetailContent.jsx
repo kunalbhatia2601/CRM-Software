@@ -36,6 +36,7 @@ import SettingsInput from "@/components/settings/SettingsInput";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
 import FollowUpsSection from "@/components/followups/FollowUpsSection";
+import SamplesSection from "@/components/samples/SamplesSection";
 
 /* ─── Status flow config ─── */
 const STATUS_TRANSITIONS = {
@@ -73,7 +74,7 @@ function getStepIndex(status) {
   return PIPELINE_STEPS.indexOf(status);
 }
 
-export default function LeadDetailContent({ initialLead, initialMeetings = [], initialFollowUps = [] }) {
+export default function LeadDetailContent({ initialLead, initialMeetings = [], initialFollowUps = [], initialSamples = [] }) {
   const router = useRouter();
   const { format, formatCompact } = useSite();
   const [lead, setLead] = useState(initialLead);
@@ -458,6 +459,15 @@ export default function LeadDetailContent({ initialLead, initialMeetings = [], i
           </div>
         </div>
       )}
+
+      {/* ═══ Samples ═══ */}
+      <SamplesSection
+        samples={initialSamples}
+        entityType="lead"
+        entityId={lead.id}
+        showToast={showToast}
+        readOnly={lead.status === "CONVERTED"}
+      />
 
       {/* ═══ Follow-Ups ═══ */}
       {lead.status !== "CONVERTED" && (

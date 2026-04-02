@@ -151,6 +151,9 @@ model User {
   // Follow-ups
   createdFollowUps FollowUp[] @relation("FollowUpCreator")
 
+  // Samples
+  createdSamples Sample[] @relation("SampleCreator")
+
   @@index([clientId])
   @@map("users")
 }
@@ -223,6 +226,9 @@ model Lead {
   // Follow-ups
   followUps FollowUp[]
 
+  // Samples
+  leadSamples LeadSample[]
+
   // Duplicate prevention
   @@unique([email, companyName], map: "leads_email_company_unique")
 
@@ -273,6 +279,9 @@ model Deal {
 
   // Meetings
   meetings        Meeting[]
+
+  // Samples
+  dealSamples     DealSample[]
 
   wonAt           DateTime? @map("won_at")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -812,6 +821,66 @@ model FollowUp {
   @@index([dueAt])
   @@index([createdById])
   @@map("follow_ups")
+}
+
+// ─── Sample ─────────────────────────────────────────
+// Work samples / portfolio pieces shared with leads & deals
+
+model Sample {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  links       Json     @default("[]") // Array of { label, url } objects
+
+  // Who created this sample
+  createdById String   @map("created_by_id")
+  createdBy   User     @relation("SampleCreator", fields: [createdById], references: [id])
+
+  // Junction tables
+  leadSamples LeadSample[]
+  dealSamples DealSample[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@map("samples")
+}
+
+// ─── Lead ↔ Sample (many-to-many) ──────────────────
+
+model LeadSample {
+  id       String @id @default(cuid())
+  leadId   String @map("lead_id")
+  sampleId String @map("sample_id")
+
+  lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sample   Sample @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([leadId, sampleId])
+  @@index([leadId])
+  @@index([sampleId])
+  @@map("lead_samples")
+}
+
+// ─── Deal ↔ Sample (many-to-many) ──────────────────
+
+model DealSample {
+  id       String @id @default(cuid())
+  dealId   String @map("deal_id")
+  sampleId String @map("sample_id")
+
+  deal     Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  sample   Sample @relation(fields: [sampleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([dealId, sampleId])
+  @@index([dealId])
+  @@index([sampleId])
+  @@map("deal_samples")
 }
 
 // ─── Email Template ──────────────────────────────────

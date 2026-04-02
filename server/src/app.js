@@ -30,6 +30,7 @@ import aiRoutes from "./modules/ai/ai.routes.js";
 import documentRoutes from "./modules/document/document.routes.js";
 import meetingRoutes from "./modules/meeting/meeting.routes.js";
 import followUpRoutes from "./modules/follow-up/follow-up.routes.js";
+import sampleRoutes from "./modules/sample/sample.routes.js";
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/follow-ups", followUpRoutes);
+app.use("/api/samples", sampleRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 
