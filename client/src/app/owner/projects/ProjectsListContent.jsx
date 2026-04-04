@@ -23,6 +23,7 @@ import Toast from "@/components/ui/Toast";
 
 const STATUSES = [
   { value: "", label: "All Statuses" },
+  { value: "DUE_SIGNING", label: "Due Signing" },
   { value: "NOT_STARTED", label: "Not Started" },
   { value: "IN_PROGRESS", label: "In Progress" },
   { value: "ON_HOLD", label: "On Hold" },

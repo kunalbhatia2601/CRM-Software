@@ -39,11 +39,12 @@ class DealController {
    * PATCH /api/deals/:id/stage
    */
   updateDealStage = catchAsync(async (req, res) => {
-    const { stage, lostReason, accountManagerId, projectConfig } = req.body;
+    const { stage, lostReason, accountManagerId, projectConfig, documents } = req.body;
     const result = await dealService.updateDealStage(req.params.id, stage, {
       lostReason,
       accountManagerId,
       projectConfig,
+      documents,
     });
 
     const message = stage === "WON"

@@ -28,10 +28,13 @@ const VARIANTS = {
   // Deal stages
   DISCOVERY: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 border-indigo-200",
   PROPOSAL: "bg-blue-50 text-blue-600 border-blue-200",
+  AGREEMENT: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-200 dark:border-emerald-800",
+  NDA: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800",
   NEGOTIATION: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
   WON: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-200",
 
   // Project status
+  DUE_SIGNING: "bg-orange-50 dark:bg-orange-900/20 text-orange-600 border-orange-200 dark:border-orange-800",
   NOT_STARTED: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
   IN_PROGRESS: "bg-blue-50 text-blue-600 border-blue-200",
   ON_HOLD: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
@@ -62,6 +65,7 @@ const LABELS = {
   SALES_MANAGER: "Sales Manager",
   ACCOUNT_MANAGER: "Account Manager",
   FINANCE_MANAGER: "Finance Manager",
+  DUE_SIGNING: "Due Signing",
   NOT_STARTED: "Not Started",
   IN_PROGRESS: "In Progress",
   ON_HOLD: "On Hold",

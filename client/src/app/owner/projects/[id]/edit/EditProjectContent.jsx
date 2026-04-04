@@ -177,6 +177,7 @@ export default function EditProjectContent({ project }) {
             value={form.status}
             onChange={(e) => update("status", e.target.value)}
             options={[
+              { value: "DUE_SIGNING", label: "Due Signing" },
               { value: "NOT_STARTED", label: "Not Started" },
               { value: "IN_PROGRESS", label: "In Progress" },
               { value: "ON_HOLD", label: "On Hold" },

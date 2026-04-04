@@ -18,8 +18,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", validate(listDocumentsSchema), documentController.list);
-router.get("/:id", validate(getDocumentSchema), documentController.getById);
 router.get("/deal/:dealId", documentController.getByDeal);
+router.get("/project/:projectId", documentController.getByProject);
+router.get("/:id", validate(getDocumentSchema), documentController.getById);
 
 router.post(
   "/",

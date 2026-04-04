@@ -1,5 +1,6 @@
 import { getDeal, getAccountManagers } from "@/actions/deals.action";
 import { getServicesDropdown } from "@/actions/services.action";
+import { getIsAIEnabled } from "@/actions/settings.action";
 import ConvertDealContent from "./ConvertDealContent";
 import Link from "next/link";
 
@@ -17,11 +18,14 @@ function BackButton({ id }) {
 export default async function ConvertDealPage({ params }) {
   const { id } = await params;
 
-  const [dealResult, accountManagers, services] = await Promise.all([
+  const [dealResult, accountManagers, services, aiSettings] = await Promise.all([
     getDeal(id),
     getAccountManagers(),
     getServicesDropdown(),
+    getIsAIEnabled(),
   ]);
+
+  const aiEnabled = aiSettings.isAiConfigured;
 
   if (!dealResult.success) {
     return (
@@ -55,6 +59,7 @@ export default async function ConvertDealPage({ params }) {
       initialDeal={dealResult.data}
       accountManagers={accountManagers}
       availableServices={services}
+      aiEnabled={aiEnabled}
     />
   );
 }

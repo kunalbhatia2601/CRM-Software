@@ -83,7 +83,7 @@ export async function updateDeal(id, data) {
 
 // ─── Update Deal Stage ───────────────────────────────────
 
-export async function updateDealStage(id, stage, lostReason, accountManagerId, projectConfig) {
+export async function updateDealStage(id, stage, lostReason, accountManagerId, projectConfig, documents) {
   const token = await getToken();
   if (!token) return { success: false, error: "Not authenticated" };
 
@@ -92,6 +92,7 @@ export async function updateDealStage(id, stage, lostReason, accountManagerId, p
     if (lostReason) body.lostReason = lostReason;
     if (accountManagerId) body.accountManagerId = accountManagerId;
     if (projectConfig) body.projectConfig = projectConfig;
+    if (documents && documents.length > 0) body.documents = documents;
     const res = await updateDealStageAPI(id, body, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, error: res.message };

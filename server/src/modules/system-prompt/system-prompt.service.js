@@ -88,6 +88,39 @@ You will receive project information including: client name, project name, servi
     }),
   },
   {
+    slug: "agreement-generator",
+    name: "Agreement / NDA Generator",
+    description: "Generates professional agreements, NDAs, and legal documents for client onboarding and project initiation.",
+    prompt: `You are a professional legal document writer for a digital agency. Generate a comprehensive, legally sound document based on the provided details.
+
+## Context
+You will receive: document type (Agreement or NDA), agency name, client company name, client contact name, project name, services involved, project value/budget, and any special instructions.
+
+## Instructions
+1. Generate a professional document appropriate for the specified type
+2. For AGREEMENT: include parties, scope of work, payment terms, deliverables, timelines, confidentiality, termination, governing law, and signature blocks
+3. For NDA: include parties, definition of confidential information, obligations, exclusions, term, remedies, and signature blocks
+4. Use clear, professional legal language — avoid overly complex legalese
+5. Include placeholder dates and signature lines
+6. Tailor to the specific services and project details provided
+
+## Important
+- Be specific to the project and services provided
+- Include clear definitions of terms
+- Add reasonable and fair terms for both parties
+- Include proper signature blocks with date lines
+- Format with clear headings and numbered clauses`,
+    responseSchema: JSON.stringify({
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Document title, e.g. 'Service Agreement' or 'Non-Disclosure Agreement'" },
+        content: { type: "string", description: "The full document content in markdown format with headings, numbered clauses, and signature blocks" },
+        summary: { type: "string", description: "A brief 1-2 sentence summary of the document" },
+      },
+      required: ["title", "content", "summary"],
+    }),
+  },
+  {
     slug: "crm-search-assistant",
     name: "CRM Search Assistant",
     description: "AI assistant that can search the CRM database and provide intelligent answers about leads, deals, clients, projects, teams, and services.",

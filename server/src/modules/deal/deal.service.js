@@ -3,6 +3,7 @@ import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 import config from "../../config/index.js";
 import sampleService from "../sample/sample.service.js";
+import notificationService from "../notification/notification.service.js";
 
 const STAGE_TRANSITIONS = {
   DISCOVERY: ["PROPOSAL", "LOST"],
@@ -190,7 +191,7 @@ class DealService {
    * Update deal stage with transition validation
    * WON triggers: auto-create Client + Project with user-provided config
    */
-  async updateDealStage(id, stage, { lostReason, accountManagerId, projectConfig } = {}) {
+  async updateDealStage(id, stage, { lostReason, accountManagerId, projectConfig, documents } = {}) {
     const deal = await prisma.deal.findUnique({
       where: { id },
       include: { lead: true, dealServices: true },
@@ -285,11 +286,16 @@ class DealService {
           }
         }
 
+        // Determine if project should start in DUE_SIGNING status
+        const docs = documents || [];
+        const hasSignatureRequired = docs.some((d) => d.requiresSignature);
+
         // Create project with user-provided config
         const project = await tx.project.create({
           data: {
             name: cfg.name || deal.title,
             description: cfg.description || null,
+            status: hasSignatureRequired ? "DUE_SIGNING" : "NOT_STARTED",
             clientId: client.id,
             dealId: deal.id,
             accountManagerId: accountManagerId || null,
@@ -331,6 +337,42 @@ class DealService {
           });
         }
 
+        // Create conversion documents (Agreements, NDAs, etc.) linked to project + client
+        let createdDocuments = [];
+        if (docs.length > 0) {
+          createdDocuments = await Promise.all(
+            docs.map((doc) =>
+              tx.document.create({
+                data: {
+                  name: doc.name,
+                  type: doc.type || "AGREEMENT",
+                  fileUrl: doc.fileUrl,
+                  fileKey: doc.fileKey || null,
+                  mimeType: doc.mimeType || null,
+                  fileSize: doc.fileSize || null,
+                  description: doc.description || null,
+                  isAiGenerated: doc.isAiGenerated || false,
+                  requiresSignature: doc.requiresSignature || false,
+                  projectId: project.id,
+                  clientId: client.id,
+                  dealId: deal.id,
+                  addedById: deal.createdById,
+                },
+              })
+            )
+          );
+        }
+
+        const owners = await tx.user.findMany({ where: { role: "OWNER" } });
+        await notificationService.sendBulk({
+            userIds: owners.map((owner) => owner.id),
+            title: "Deal Won",
+            description: `Deal "${deal.title}" won successfully`,
+            type: "INFO",
+            channel: "IN_APP",
+            linkUrl: `/owner/deals/${deal.id}`
+          });
+
         // Update deal
         const updatedDeal = await tx.deal.update({
           where: { id },
@@ -342,6 +384,7 @@ class DealService {
           deal: updatedDeal,
           client,
           project,
+          documents: createdDocuments,
           clientUser: clientUser ? { id: clientUser.id, email: clientUser.email } : null,
           isExistingClient,
         };

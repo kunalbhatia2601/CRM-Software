@@ -69,6 +69,7 @@ enum ClientStatus {
 }
 
 enum ProjectStatus {
+  DUE_SIGNING
   NOT_STARTED
   IN_PROGRESS
   ON_HOLD
@@ -677,6 +678,8 @@ model Notification {
 
 enum DocumentType {
   PROPOSAL
+  AGREEMENT
+  NDA
   INVOICE
   CONTRACT
   REPORT
@@ -693,7 +696,10 @@ model Document {
   mimeType    String?      @map("mime_type")
   fileSize    Int?         @map("file_size")
   description String?      @db.Text
-  isAiGenerated Boolean    @default(false) @map("is_ai_generated")
+  isAiGenerated    Boolean    @default(false) @map("is_ai_generated")
+  requiresSignature Boolean   @default(false) @map("requires_signature")
+  isSigned          Boolean   @default(false) @map("is_signed")
+  signedAt          DateTime? @map("signed_at")
 
   // Optional relations
   dealId      String?      @map("deal_id")

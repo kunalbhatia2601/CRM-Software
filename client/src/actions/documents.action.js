@@ -5,6 +5,7 @@ import {
   getDocumentsAPI,
   getDocumentAPI,
   getDocumentsByDealAPI,
+  getDocumentsByProjectAPI,
   createDocumentAPI,
   updateDocumentAPI,
   deleteDocumentAPI,
@@ -48,6 +49,19 @@ export async function getDocumentsByDeal(dealId) {
 
   try {
     const res = await getDocumentsByDealAPI(dealId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, data: [], error: res.message };
+  } catch (err) {
+    return { success: false, data: [], error: err.message };
+  }
+}
+
+export async function getDocumentsByProject(projectId) {
+  const token = await getToken();
+  if (!token) return { success: false, data: [] };
+
+  try {
+    const res = await getDocumentsByProjectAPI(projectId, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, data: [], error: res.message };
   } catch (err) {

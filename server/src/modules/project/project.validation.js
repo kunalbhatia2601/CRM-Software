@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-const statuses = ["NOT_STARTED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"];
+const statuses = ["DUE_SIGNING", "NOT_STARTED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"];
 const billingCycles = ["ONE_TIME", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"];
 
 export const createProjectSchema = z.object({
   body: z.object({
     name: z.string().min(1, "Project name is required").max(200),
     description: z.string().max(2000).optional().nullable(),
+    status: z.enum(statuses).optional().default("NOT_STARTED"),
     clientId: z.string().min(1, "Client ID is required"),
     startDate: z.coerce.date().optional().nullable(),
     endDate: z.coerce.date().optional().nullable(),

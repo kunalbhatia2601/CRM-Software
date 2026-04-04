@@ -33,6 +33,11 @@ class DocumentController {
     return ok(res, "Documents retrieved", documents);
   });
 
+  getByProject = catchAsync(async (req, res) => {
+    const documents = await documentService.getDocumentsByProject(req.params.projectId);
+    return ok(res, "Documents retrieved", documents);
+  });
+
   sendEmail = catchAsync(async (req, res) => {
     const result = await documentService.sendDocumentEmail(req.params.id, req.body);
     return ok(res, "Document email sent successfully", result);

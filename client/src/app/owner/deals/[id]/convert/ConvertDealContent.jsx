@@ -18,9 +18,18 @@ import {
   AlertCircle,
   Pencil,
   Check,
+  Upload,
+  Sparkles,
+  ShieldCheck,
+  FileSignature,
+  Trash2,
+  Loader2,
+  Eye,
 } from "lucide-react";
 
 import { updateDealStage } from "@/actions/deals.action";
+import { aiGenerate } from "@/actions/ai.action";
+import { useUpload } from "@/hooks/useUpload";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
@@ -30,11 +39,12 @@ import SettingsInput from "@/components/settings/SettingsInput";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import SettingsButton from "@/components/settings/SettingsButton";
 
-export default function ConvertDealContent({ initialDeal, accountManagers, availableServices }) {
+export default function ConvertDealContent({ initialDeal, accountManagers, availableServices, aiEnabled }) {
   const router = useRouter();
   const { format } = useSite();
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
+  const { upload, uploading, progress } = useUpload();
 
   const deal = initialDeal;
 
@@ -64,6 +74,115 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
   });
 
   const update = (field, value) => setForm((p) => ({ ...p, [field]: value }));
+
+  // ─── Documents State ───
+  const [conversionDocs, setConversionDocs] = useState([]); // { id, name, type, fileUrl, fileKey, mimeType, fileSize, requiresSignature, isAiGenerated, preview }
+  const [generatingDoc, setGeneratingDoc] = useState(null); // "AGREEMENT" | "NDA" | null
+  const [previewDoc, setPreviewDoc] = useState(null); // doc to preview
+
+  const handleFileUpload = async (e, docType) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await upload(file);
+    if (result) {
+      setConversionDocs((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          type: docType,
+          fileUrl: result.fileUrl,
+          fileKey: result.key || null,
+          mimeType: file.type,
+          fileSize: file.size,
+          requiresSignature: true,
+          isAiGenerated: false,
+          preview: null,
+        },
+      ]);
+      showToast("success", `${docType === "NDA" ? "NDA" : "Agreement"} uploaded successfully`);
+    } else {
+      showToast("error", "Upload failed. Please try again.");
+    }
+    e.target.value = "";
+  };
+
+  const handleAiGenerate = async (docType) => {
+    setGeneratingDoc(docType);
+    try {
+      const context = {
+        documentType: docType === "NDA" ? "Non-Disclosure Agreement" : "Service Agreement",
+        clientCompany: deal.lead?.companyName || "",
+        clientContact: deal.lead?.contactName || "",
+        projectName: form.name || deal.title,
+        dealValue: deal.value ? Number(deal.value) : null,
+        services: services.map((s) => ({ name: s.name, price: s.price, quantity: s.quantity })),
+      };
+
+      const result = await aiGenerate(
+        "agreement-generator",
+        `Generate a professional ${docType === "NDA" ? "Non-Disclosure Agreement (NDA)" : "Service Agreement"} for the project "${form.name || deal.title}" with client "${deal.lead?.companyName}".`,
+        context,
+        true
+      );
+
+      if (result.success && result.data) {
+        const genTitle = result.data.title || (docType === "NDA" ? "Non-Disclosure Agreement" : "Service Agreement");
+        const genContent = result.data.content || result.data.raw || "";
+
+        // Store generated content as a markdown blob for uploading
+        const blob = new Blob([genContent], { type: "text/markdown" });
+        const file = new File([blob], `${genTitle.replace(/\s+/g, "_")}.md`, { type: "text/markdown" });
+        const uploadResult = await upload(file);
+
+        if (uploadResult) {
+          setConversionDocs((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              name: genTitle,
+              type: docType,
+              fileUrl: uploadResult.fileUrl,
+              fileKey: uploadResult.key || null,
+              mimeType: "text/markdown",
+              fileSize: blob.size,
+              requiresSignature: true,
+              isAiGenerated: true,
+              preview: genContent,
+            },
+          ]);
+          showToast("success", `${docType === "NDA" ? "NDA" : "Agreement"} generated and uploaded`);
+        } else {
+          showToast("error", "AI generated the document but upload failed.");
+        }
+      } else {
+        showToast("error", result.error || "AI generation failed. Check AI settings.");
+      }
+    } catch {
+      showToast("error", "AI generation failed. Please check your AI configuration in Settings.");
+    } finally {
+      setGeneratingDoc(null);
+    }
+  };
+
+  const handleRemoveDoc = (docId) => {
+    setConversionDocs((prev) => prev.filter((d) => d.id !== docId));
+  };
+
+  const handleToggleSignature = (docId) => {
+    setConversionDocs((prev) =>
+      prev.map((d) =>
+        d.id === docId ? { ...d, requiresSignature: !d.requiresSignature } : d
+      )
+    );
+  };
+
+  const handleDocNameChange = (docId, newName) => {
+    setConversionDocs((prev) =>
+      prev.map((d) => (d.id === docId ? { ...d, name: newName } : d))
+    );
+  };
 
   // Calculate total from services
   const servicesTotal = useMemo(() => {
@@ -159,12 +278,25 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
         }));
       }
 
+      // Prepare documents for API
+      const documentsPayload = conversionDocs.map((d) => ({
+        name: d.name,
+        type: d.type,
+        fileUrl: d.fileUrl,
+        fileKey: d.fileKey,
+        mimeType: d.mimeType,
+        fileSize: d.fileSize,
+        isAiGenerated: d.isAiGenerated,
+        requiresSignature: d.requiresSignature,
+      }));
+
       const result = await updateDealStage(
         deal.id,
         "WON",
         null,
         form.accountManagerId || null,
-        projectConfig
+        projectConfig,
+        documentsPayload
       );
 
       if (result.success) {
@@ -468,6 +600,215 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
             })),
           ]}
         />
+      </SettingsCard>
+
+      {/* ─── Conversion Documents (Agreements / NDAs) ─── */}
+      <SettingsCard
+        title="Agreements & Documents"
+        description="Upload or AI-generate agreements, NDAs, and other documents. Mark which ones require client signature."
+      >
+        {/* Add document actions */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {/* Upload Agreement */}
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Upload className="h-4 w-4" />
+            Upload Agreement
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.md,.txt"
+              className="hidden"
+              onChange={(e) => handleFileUpload(e, "AGREEMENT")}
+              disabled={uploading}
+            />
+          </label>
+
+          {/* Upload NDA */}
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Upload className="h-4 w-4" />
+            Upload NDA
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.md,.txt"
+              className="hidden"
+              onChange={(e) => handleFileUpload(e, "NDA")}
+              disabled={uploading}
+            />
+          </label>
+
+          {/* Upload Other */}
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Upload className="h-4 w-4" />
+            Upload Other
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.md,.txt,.xlsx,.csv"
+              className="hidden"
+              onChange={(e) => handleFileUpload(e, "OTHER")}
+              disabled={uploading}
+            />
+          </label>
+
+          {/* AI Generate buttons — only show if AI is configured */}
+          {aiEnabled && (
+            <>
+              <button
+                onClick={() => handleAiGenerate("AGREEMENT")}
+                disabled={generatingDoc !== null || uploading}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {generatingDoc === "AGREEMENT" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                AI Generate Agreement
+              </button>
+              <button
+                onClick={() => handleAiGenerate("NDA")}
+                disabled={generatingDoc !== null || uploading}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {generatingDoc === "NDA" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                AI Generate NDA
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Upload progress */}
+        {uploading && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <span>Uploading...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Documents list */}
+        {conversionDocs.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm">
+            No documents added yet. Upload or AI-generate agreements, NDAs, or other relevant documents.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {conversionDocs.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors"
+              >
+                {/* Icon */}
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  doc.type === "NDA"
+                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600"
+                    : doc.type === "AGREEMENT"
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                }`}>
+                  <FileSignature className="h-5 w-5" />
+                </div>
+
+                {/* Name + Meta */}
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={doc.name}
+                    onChange={(e) => handleDocNameChange(doc.id, e.target.value)}
+                    className="w-full text-sm font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-none outline-none focus:ring-0 p-0"
+                    placeholder="Document name"
+                  />
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge value={doc.type} />
+                    {doc.isAiGenerated && (
+                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> AI Generated
+                      </span>
+                    )}
+                    {doc.fileSize && (
+                      <span className="text-[11px] text-slate-400">
+                        {(doc.fileSize / 1024).toFixed(0)} KB
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* To Be Signed Toggle */}
+                <button
+                  onClick={() => handleToggleSignature(doc.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                    doc.requiresSignature
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700"
+                  }`}
+                  title={doc.requiresSignature ? "Client signature required" : "No signature required"}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {doc.requiresSignature ? "To Be Signed" : "No Signature"}
+                </button>
+
+                {/* Preview (for AI docs) */}
+                {doc.preview && (
+                  <button
+                    onClick={() => setPreviewDoc(previewDoc?.id === doc.id ? null : doc)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors shrink-0"
+                    title="Preview document"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                )}
+
+                {/* Remove */}
+                <button
+                  onClick={() => handleRemoveDoc(doc.id)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Preview panel */}
+        {previewDoc && (
+          <div className="mt-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Preview: {previewDoc.name}
+              </h4>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="p-1 rounded text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg bg-white dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+              {previewDoc.preview}
+            </div>
+          </div>
+        )}
+
+        {/* Info callout */}
+        {conversionDocs.some((d) => d.requiresSignature) && (
+          <div className="mt-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Documents marked <strong>"To Be Signed"</strong> will set the project status to <strong>Due Signing</strong>.
+              The client will see these documents in their portal and must sign them before the project proceeds.
+            </p>
+          </div>
+        )}
       </SettingsCard>
 
       {/* ─── Notes ─── */}

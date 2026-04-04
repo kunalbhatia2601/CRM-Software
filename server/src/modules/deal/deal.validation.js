@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const stages = ["DISCOVERY", "PROPOSAL", "NEGOTIATION", "WON", "LOST"];
 const billingCycles = ["ONE_TIME", "MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"];
+const documentTypes = ["PROPOSAL", "AGREEMENT", "NDA", "INVOICE", "CONTRACT", "REPORT", "OTHER"];
 
 export const createDealSchema = z.object({
   body: z.object({
@@ -48,6 +49,18 @@ export const updateDealStageSchema = z.object({
         originalPrice: z.coerce.number().min(0),
       })).optional(),
     }).optional(),
+    // Documents to attach during conversion (Agreements, NDAs, etc.)
+    documents: z.array(z.object({
+      name: z.string().min(1, "Document name is required").max(200),
+      type: z.enum(documentTypes).optional().default("AGREEMENT"),
+      fileUrl: z.string().min(1, "File URL is required"),
+      fileKey: z.string().optional().nullable(),
+      mimeType: z.string().optional().nullable(),
+      fileSize: z.coerce.number().optional().nullable(),
+      description: z.string().max(2000).optional().nullable(),
+      isAiGenerated: z.boolean().optional().default(false),
+      requiresSignature: z.boolean().optional().default(false),
+    })).optional(),
   }),
 });
 

@@ -589,6 +589,10 @@ export async function getDocumentsByDealAPI(dealId, accessToken) {
   return request(`/api/documents/deal/${dealId}`, { method: "GET", token: accessToken });
 }
 
+export async function getDocumentsByProjectAPI(projectId, accessToken) {
+  return request(`/api/documents/project/${projectId}`, { method: "GET", token: accessToken });
+}
+
 export async function createDocumentAPI(data, accessToken) {
   return request("/api/documents", {
     method: "POST",

@@ -55,6 +55,7 @@ export default function CreateProjectContent() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    status: "NOT_STARTED",
     clientId: "",
     startDate: "",
     endDate: "",
@@ -280,6 +281,20 @@ export default function CreateProjectContent() {
                 value: u.id,
                 label: `${u.name} (${u.role.replace(/_/g, " ")})`,
               })),
+            ]}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <SettingsSelect
+            label="Initial Status"
+            icon={FolderKanban}
+            value={form.status}
+            onChange={(e) => update("status", e.target.value)}
+            options={[
+              { value: "DUE_SIGNING", label: "Due Signing" },
+              { value: "NOT_STARTED", label: "Not Started" },
+              { value: "IN_PROGRESS", label: "In Progress" },
+              { value: "ON_HOLD", label: "On Hold" },
             ]}
           />
         </div>

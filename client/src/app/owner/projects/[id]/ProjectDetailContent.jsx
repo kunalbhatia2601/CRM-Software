@@ -25,6 +25,10 @@ import {
   CalendarClock,
   Users2,
   Crown,
+  FileSignature,
+  ShieldCheck,
+  Sparkles,
+  Download,
 } from "lucide-react";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
@@ -33,6 +37,7 @@ import MeetingsSection from "@/components/meetings/MeetingsSection";
 import Toast from "@/components/ui/Toast";
 
 const STATUS_COLORS = {
+  DUE_SIGNING: "from-orange-500 to-amber-600",
   NOT_STARTED: "from-slate-500 to-gray-600",
   IN_PROGRESS: "from-blue-500 to-indigo-600",
   ON_HOLD: "from-amber-500 to-orange-600",
@@ -41,6 +46,7 @@ const STATUS_COLORS = {
 };
 
 const STATUS_ICONS = {
+  DUE_SIGNING: FileSignature,
   NOT_STARTED: Clock,
   IN_PROGRESS: PlayCircle,
   ON_HOLD: PauseCircle,
@@ -134,7 +140,7 @@ function AvatarBadge({ initials, name, label }) {
   );
 }
 
-export default function ProjectDetailContent({ initialProject, initialMeetings = [] }) {
+export default function ProjectDetailContent({ initialProject, initialMeetings = [], initialDocuments = [] }) {
   const [project] = useState(initialProject);
   const { format } = useSite();
   const [toast, setToast] = useState(null);
@@ -158,6 +164,7 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
 
   const getStatusLabel = (status) => {
     const statusMap = {
+      DUE_SIGNING: "Due Signing",
       NOT_STARTED: "Not Started",
       IN_PROGRESS: "In Progress",
       ON_HOLD: "On Hold",
@@ -166,6 +173,12 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
     };
     return statusMap[status] || status;
   };
+
+  // Separate documents by signature status
+  const signingDocs = initialDocuments.filter((d) => d.requiresSignature);
+  const otherDocs = initialDocuments.filter((d) => !d.requiresSignature);
+  const pendingSignatures = signingDocs.filter((d) => !d.isSigned);
+  const completedSignatures = signingDocs.filter((d) => d.isSigned);
 
   const getBillingLabel = (cycle) => {
     const map = {
@@ -520,6 +533,107 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
                 </div>
                 <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors" />
               </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Due Signing Banner ═══ */}
+      {project.status === "DUE_SIGNING" && pendingSignatures.length > 0 && (
+        <div className="rounded-[24px] border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10 p-6 shadow-sm dark:shadow-none">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md shadow-orange-200 dark:shadow-none">
+              <FileSignature className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Awaiting Client Signature</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {pendingSignatures.length} document{pendingSignatures.length !== 1 ? "s" : ""} pending client signature before the project can proceed.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Documents Section ═══ */}
+      {initialDocuments.length > 0 && (
+        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30 flex items-center justify-center">
+              <FileSignature className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Documents</h3>
+              <p className="text-xs text-slate-400">
+                {signingDocs.length > 0 && `${pendingSignatures.length} pending signature · ${completedSignatures.length} signed · `}
+                {initialDocuments.length} total document{initialDocuments.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {initialDocuments.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800"
+              >
+                {/* Icon */}
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  doc.type === "NDA"
+                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600"
+                    : doc.type === "AGREEMENT"
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                }`}>
+                  <FileSignature className="h-5 w-5" />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{doc.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <Badge value={doc.type} />
+                    {doc.isAiGenerated && (
+                      <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> AI Generated
+                      </span>
+                    )}
+                    {doc.addedBy && (
+                      <span className="text-[11px] text-slate-400">
+                        by {doc.addedBy.firstName} {doc.addedBy.lastName}
+                      </span>
+                    )}
+                    <span className="text-[11px] text-slate-400">
+                      {new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Signature status */}
+                {doc.requiresSignature && (
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 ${
+                    doc.isSigned
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                      : "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800"
+                  }`}>
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {doc.isSigned ? "Signed" : "Pending Signature"}
+                  </div>
+                )}
+
+                {/* View / Download */}
+                {doc.fileUrl && (
+                  <a
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors shrink-0"
+                    title="View document"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
             ))}
           </div>
         </div>

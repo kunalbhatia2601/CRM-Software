@@ -139,6 +139,17 @@ class DocumentService {
   }
 
   /**
+   * Get documents for a specific project.
+   */
+  async getDocumentsByProject(projectId) {
+    return prisma.document.findMany({
+      where: { projectId },
+      include: DOCUMENT_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
    * Send a document via email using the "document-shared" email template.
    */
   async sendDocumentEmail(id, { to, cc, subject, message }) {
