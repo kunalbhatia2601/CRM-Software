@@ -155,6 +155,17 @@ model User {
   // Samples
   createdSamples Sample[] @relation("SampleCreator")
 
+  // Planning, Tasks, Milestones
+  createdPlanningSteps PlanningStep[] @relation("PlanningStepCreator")
+  assignedTasks        Task[]         @relation("TaskAssignee")
+  createdTasks         Task[]         @relation("TaskCreator")
+  reviewedTasks        Task[]         @relation("TaskReviewer")
+  createdMilestones    Milestone[]    @relation("MilestoneCreator")
+  taskFeedbacks        TaskFeedback[] @relation("TaskFeedbackGiver")
+
+  // Comments
+  comments             Comment[]      @relation("CommentAuthor")
+
   @@index([clientId])
   @@map("users")
 }
@@ -377,6 +388,11 @@ model Project {
 
   // Meetings
   meetings        Meeting[]
+
+  // Planning, Tasks, Milestones
+  planningSteps   PlanningStep[]
+  tasks           Task[]
+  milestones      Milestone[]
 
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -905,4 +921,190 @@ model EmailTemplate {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("email_templates")
+}
+
+// ─── Planning Steps ──────────────────────────────────
+// Phases/stages within a project plan
+
+enum PlanningStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model PlanningStep {
+  id          String             @id @default(cuid())
+  title       String
+  description String?            @db.Text
+  status      PlanningStepStatus @default(PENDING)
+  position    Int                @default(0)
+  startDate   DateTime?          @map("start_date")
+  endDate     DateTime?          @map("end_date")
+
+  projectId   String             @map("project_id")
+  project     Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdById String             @map("created_by_id")
+  createdBy   User               @relation("PlanningStepCreator", fields: [createdById], references: [id])
+
+  tasks       Task[]
+
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([status])
+  @@index([position])
+  @@map("planning_steps")
+}
+
+// ─── Tasks ───────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  REVIEWED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  position    Int          @default(0)
+  dueDate     DateTime?    @map("due_date")
+  completedAt DateTime?    @map("completed_at")
+  reviewedAt  DateTime?    @map("reviewed_at")
+
+  projectId   String       @map("project_id")
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Optional: task can belong to a planning step
+  planningStepId String?   @map("planning_step_id")
+  planningStep   PlanningStep? @relation(fields: [planningStepId], references: [id], onDelete: SetNull)
+
+  // Optional: task can be linked to a milestone
+  milestoneId String?      @map("milestone_id")
+  milestone   Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  // Assignee — must be a member of a team assigned to the project
+  assigneeId  String?      @map("assignee_id")
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  // Who reviewed/approved
+  reviewedById String?     @map("reviewed_by_id")
+  reviewedBy   User?       @relation("TaskReviewer", fields: [reviewedById], references: [id])
+
+  createdById String       @map("created_by_id")
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
+
+  // Follow-up / child tasks
+  parentTaskId String?      @map("parent_task_id")
+  parentTask   Task?        @relation("TaskChildren", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks   Task[]       @relation("TaskChildren")
+
+  feedbacks   TaskFeedback[]
+
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([planningStepId])
+  @@index([milestoneId])
+  @@index([assigneeId])
+  @@index([parentTaskId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+// ─── Task Feedback ──────────────────────────────────
+
+model TaskFeedback {
+  id          String   @id @default(cuid())
+  feedback    String?  @db.Text
+  nextStep    String?  @map("next_step")
+  statusAfter TaskStatus @map("status_after")
+
+  taskId      String   @map("task_id")
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  givenById   String   @map("given_by_id")
+  givenBy     User     @relation("TaskFeedbackGiver", fields: [givenById], references: [id])
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_feedbacks")
+}
+
+// ─── Milestones ──────────────────────────────────────
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  title       String
+  description String?         @db.Text
+  status      MilestoneStatus @default(PENDING)
+  dueDate     DateTime?       @map("due_date")
+  completedAt DateTime?       @map("completed_at")
+  position    Int             @default(0)
+
+  projectId   String          @map("project_id")
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdById String          @map("created_by_id")
+  createdBy   User            @relation("MilestoneCreator", fields: [createdById], references: [id])
+
+  // Tasks linked to this milestone
+  tasks       Task[]
+
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("milestones")
+}
+
+// ─── Comments (unified for Tasks, Milestones, Planning Steps) ──
+
+enum CommentEntityType {
+  TASK
+  MILESTONE
+  PLANNING_STEP
+}
+
+model Comment {
+  id          String            @id @default(cuid())
+  content     String            @db.Text
+  entityType  CommentEntityType @map("entity_type")
+  entityId    String            @map("entity_id")
+
+  authorId    String            @map("author_id")
+  author      User              @relation("CommentAuthor", fields: [authorId], references: [id])
+
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([entityType, entityId])
+  @@index([authorId])
+  @@map("comments")
 }

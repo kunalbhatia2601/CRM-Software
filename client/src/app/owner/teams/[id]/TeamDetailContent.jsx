@@ -15,6 +15,9 @@ import {
   Crown,
   Search,
   ExternalLink,
+  Layers,
+  Target,
+  ListChecks,
 } from "lucide-react";
 import {
   getTeam,
@@ -125,10 +128,14 @@ export default function TeamDetailContent({ initialTeam }) {
   };
 
   const handleOpenPermissions = (member) => {
+    const defaultCat = { view: true, create: false, edit: false, delete: false, review: false, approve: false };
     const perms = member.permissions || {
-      tasks: { view: true, create: false, edit: false, delete: false, review: false, approve: false },
-      milestones: { view: true, create: false, edit: false, delete: false, review: false, approve: false },
+      tasks: { ...defaultCat },
+      milestones: { ...defaultCat },
+      planningSteps: { ...defaultCat },
     };
+    // Ensure planningSteps exists even on legacy records
+    if (!perms.planningSteps) perms.planningSteps = { ...defaultCat };
     setPermissionsModal({ open: true, member, permissions: perms });
   };
 
@@ -483,18 +490,22 @@ export default function TeamDetailContent({ initialTeam }) {
               </div>
             </div>
 
-            <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 mb-6 font-medium">
-              These permissions are saved for future use. They are not enforced yet.
+            <p className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 mb-6 font-medium">
+              These permissions control what this member can do on project tasks, milestones, and planning steps.
             </p>
 
-            {["tasks", "milestones"].map((category) => (
+            {[
+              { key: "tasks", label: "Tasks", icon: ListChecks },
+              { key: "milestones", label: "Milestones", icon: Target },
+              { key: "planningSteps", label: "Planning Steps", icon: Layers },
+            ].map(({ key: category, label, icon: CatIcon }) => (
               <div key={category} className="mb-6">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-50 mb-3 capitalize flex items-center gap-2">
-                  {category === "tasks" ? <FolderKanban className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                  {category}
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-50 mb-3 flex items-center gap-2">
+                  <CatIcon className="w-4 h-4" />
+                  {label}
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {["view", "create", "edit", "delete", "review", "approve"].map((perm) => (
+                  {["view", "create", "edit", "delete", "review", "approve", "comment"].map((perm) => (
                     <label
                       key={perm}
                       className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-colors"

@@ -1,22 +1,19 @@
 import { z } from "zod";
 
+const categoryPermissions = z.object({
+  view: z.boolean().optional(),
+  create: z.boolean().optional(),
+  edit: z.boolean().optional(),
+  delete: z.boolean().optional(),
+  review: z.boolean().optional(),
+  approve: z.boolean().optional(),
+  comment: z.boolean().optional(),
+});
+
 const permissionsSchema = z.object({
-  tasks: z.object({
-    view: z.boolean().optional(),
-    create: z.boolean().optional(),
-    edit: z.boolean().optional(),
-    delete: z.boolean().optional(),
-    review: z.boolean().optional(),
-    approve: z.boolean().optional(),
-  }),
-  milestones: z.object({
-    view: z.boolean().optional(),
-    create: z.boolean().optional(),
-    edit: z.boolean().optional(),
-    delete: z.boolean().optional(),
-    review: z.boolean().optional(),
-    approve: z.boolean().optional(),
-  }),
+  tasks: categoryPermissions,
+  milestones: categoryPermissions,
+  planningSteps: categoryPermissions.optional(),
 });
 
 export const createTeamSchema = z.object({

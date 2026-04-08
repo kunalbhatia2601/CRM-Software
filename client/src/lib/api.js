@@ -772,6 +772,155 @@ export async function detachSampleFromDealAPI(dealId, sampleId, accessToken) {
   });
 }
 
+/* ───────── Planning Steps ───────── */
+
+export async function getPlanningStepsByProjectAPI(projectId, accessToken) {
+  return request(`/api/planning-steps/project/${projectId}`, { method: "GET", token: accessToken });
+}
+
+export async function getPlanningStepAPI(id, accessToken) {
+  return request(`/api/planning-steps/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createPlanningStepAPI(data, accessToken) {
+  return request("/api/planning-steps", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updatePlanningStepAPI(id, data, accessToken) {
+  return request(`/api/planning-steps/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deletePlanningStepAPI(id, accessToken) {
+  return request(`/api/planning-steps/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function reorderPlanningStepsAPI(projectId, stepIds, accessToken) {
+  return request(`/api/planning-steps/project/${projectId}/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ stepIds }),
+    token: accessToken,
+  });
+}
+
+/* ───────── Tasks ───────── */
+
+export async function getTasksByProjectAPI(projectId, params, accessToken) {
+  const query = params ? new URLSearchParams(params).toString() : "";
+  return request(`/api/tasks/project/${projectId}${query ? `?${query}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getTaskAPI(id, accessToken) {
+  return request(`/api/tasks/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createTaskAPI(data, accessToken) {
+  return request("/api/tasks", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateTaskAPI(id, data, accessToken) {
+  return request(`/api/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteTaskAPI(id, accessToken) {
+  return request(`/api/tasks/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function bulkUpdateTaskStatusAPI(data, accessToken) {
+  return request("/api/tasks/bulk-status", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function addTaskFeedbackAPI(taskId, data, accessToken) {
+  return request(`/api/tasks/${taskId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function getAssignableUsersAPI(projectId, accessToken) {
+  return request(`/api/tasks/project/${projectId}/assignable-users`, { method: "GET", token: accessToken });
+}
+
+export async function getChildTasksAPI(taskId, accessToken) {
+  return request(`/api/tasks/${taskId}/children`, { method: "GET", token: accessToken });
+}
+
+/* ───────── Milestones ───────── */
+
+export async function getMilestonesByProjectAPI(projectId, accessToken) {
+  return request(`/api/milestones/project/${projectId}`, { method: "GET", token: accessToken });
+}
+
+export async function getMilestoneAPI(id, accessToken) {
+  return request(`/api/milestones/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createMilestoneAPI(data, accessToken) {
+  return request("/api/milestones", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateMilestoneAPI(id, data, accessToken) {
+  return request(`/api/milestones/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteMilestoneAPI(id, accessToken) {
+  return request(`/api/milestones/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function reorderMilestonesAPI(projectId, milestoneIds, accessToken) {
+  return request(`/api/milestones/project/${projectId}/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ milestoneIds }),
+    token: accessToken,
+  });
+}
+
+/* ───────── Comments ───────── */
+
+export async function createCommentAPI(data, accessToken) {
+  return request("/api/comments", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function getCommentsAPI(entityType, entityId, accessToken) {
+  return request(`/api/comments/${entityType}/${entityId}`, { method: "GET", token: accessToken });
+}
+
+export async function deleteCommentAPI(id, accessToken) {
+  return request(`/api/comments/${id}`, { method: "DELETE", token: accessToken });
+}
+
 /* ───────── Generic Authenticated Requests ───────── */
 
 export async function apiGet(endpoint, accessToken) {

@@ -29,11 +29,15 @@ import {
   ShieldCheck,
   Sparkles,
   Download,
+  LayoutList,
+  Kanban,
 } from "lucide-react";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
+import PlanningSection from "@/components/project/PlanningSection";
+import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
 
 const STATUS_COLORS = {
@@ -140,10 +144,14 @@ function AvatarBadge({ initials, name, label }) {
   );
 }
 
-export default function ProjectDetailContent({ initialProject, initialMeetings = [], initialDocuments = [] }) {
+export default function ProjectDetailContent({ initialProject, initialMeetings = [], initialDocuments = [], initialSteps = [], initialTasks = [], initialMilestones = [], assignableUsers = [] }) {
   const [project] = useState(initialProject);
   const { format } = useSite();
   const [toast, setToast] = useState(null);
+  const [planningView, setPlanningView] = useState("list"); // "list" | "kanban"
+  const [tasks, setTasks] = useState(initialTasks);
+  const [steps, setSteps] = useState(initialSteps);
+  const [milestones, setMilestones] = useState(initialMilestones);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -638,6 +646,69 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
           </div>
         </div>
       )}
+
+      {/* ═══ Planning & Tasks ═══ */}
+      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center">
+              <ListChecks className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Planning & Tasks</h3>
+              <p className="text-xs text-slate-400">{tasks.length} task{tasks.length !== 1 ? "s" : ""} · {milestones.length} milestone{milestones.length !== 1 ? "s" : ""} · {steps.length} step{steps.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <button
+              onClick={() => setPlanningView("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                planningView === "list"
+                  ? "bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5" /> List
+            </button>
+            <button
+              onClick={() => setPlanningView("kanban")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                planningView === "kanban"
+                  ? "bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              <Kanban className="w-3.5 h-3.5" /> Board
+            </button>
+          </div>
+        </div>
+
+        {planningView === "list" ? (
+          <PlanningSection
+            projectId={project.id}
+            initialSteps={steps}
+            initialMilestones={milestones}
+            initialTasks={tasks}
+            assignableUsers={assignableUsers}
+            showToast={showToast}
+          />
+        ) : (
+          <KanbanBoard
+            projectId={project.id}
+            tasks={tasks}
+            assignableUsers={assignableUsers}
+            milestones={milestones}
+            planningSteps={steps}
+            onTaskUpdate={async (taskId, data) => {
+              setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...data } : t)));
+            }}
+            onTaskCreate={async (data) => {
+              setTasks((prev) => [...prev, data]);
+            }}
+            showToast={showToast}
+          />
+        )}
+      </div>
 
       {/* ═══ Meetings ═══ */}
       <MeetingsSection

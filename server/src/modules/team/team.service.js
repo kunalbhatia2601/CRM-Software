@@ -55,6 +55,7 @@ const DEFAULT_PERMISSIONS = {
     delete: false,
     review: false,
     approve: false,
+    comment: true,
   },
   milestones: {
     view: true,
@@ -63,6 +64,16 @@ const DEFAULT_PERMISSIONS = {
     delete: false,
     review: false,
     approve: false,
+    comment: true,
+  },
+  planningSteps: {
+    view: true,
+    create: false,
+    edit: false,
+    delete: false,
+    review: false,
+    approve: false,
+    comment: true,
   },
 };
 

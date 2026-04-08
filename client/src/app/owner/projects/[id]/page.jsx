@@ -1,14 +1,21 @@
 import { getProject } from "@/actions/projects.action";
 import { getMeetingsByProject } from "@/actions/meetings.action";
 import { getDocumentsByProject } from "@/actions/documents.action";
+import { getPlanningStepsByProject } from "@/actions/planning-steps.action";
+import { getTasksByProject, getAssignableUsers } from "@/actions/tasks.action";
+import { getMilestonesByProject } from "@/actions/milestones.action";
 import ProjectDetailContent from "./ProjectDetailContent";
 
 export default async function ProjectDetailPage({ params }) {
   const { id } = await params;
-  const [result, meetingsResult, docsResult] = await Promise.all([
+  const [result, meetingsResult, docsResult, stepsResult, tasksResult, milestonesResult, assignableResult] = await Promise.all([
     getProject(id),
     getMeetingsByProject(id),
     getDocumentsByProject(id),
+    getPlanningStepsByProject(id),
+    getTasksByProject(id),
+    getMilestonesByProject(id),
+    getAssignableUsers(id),
   ]);
 
   if (!result.success) {
@@ -24,6 +31,10 @@ export default async function ProjectDetailPage({ params }) {
       initialProject={result.data}
       initialMeetings={meetingsResult.data || []}
       initialDocuments={docsResult.data || []}
+      initialSteps={stepsResult.data || []}
+      initialTasks={tasksResult.data || []}
+      initialMilestones={milestonesResult.data || []}
+      assignableUsers={assignableResult.data || []}
     />
   );
 }

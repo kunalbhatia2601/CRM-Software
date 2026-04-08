@@ -44,6 +44,14 @@ const VARIANTS = {
   // Client status
   CHURNED: "bg-red-50 text-red-600 border-red-200",
 
+  // Task statuses
+  TODO: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  IN_REVIEW: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
+  REVIEWED: "bg-purple-50 dark:bg-purple-900/20 text-purple-600 border-purple-200",
+
+  // Milestone / Step statuses
+  PENDING: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+
   // Priorities
   LOW: "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700",
   MEDIUM: "bg-blue-50 text-blue-600 border-blue-200",
@@ -71,14 +79,18 @@ const LABELS = {
   ON_HOLD: "On Hold",
   ONE_TIME: "One Time",
   SEMI_ANNUAL: "Semi Annual",
+  TODO: "Todo",
+  IN_REVIEW: "In Review",
+  REVIEWED: "Reviewed",
   EMAIL_CAMPAIGN: "Email Campaign",
   SOCIAL_MEDIA: "Social Media",
   COLD_CALL: "Cold Call",
 };
 
 export default function Badge({ value, className = "" }) {
-  const variant = VARIANTS[value] || VARIANTS.default;
-  const label = LABELS[value] || (value || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const strValue = String(value ?? "");
+  const variant = VARIANTS[strValue] || VARIANTS.default;
+  const label = LABELS[strValue] || strValue.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <span

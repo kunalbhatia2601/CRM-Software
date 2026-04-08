@@ -31,6 +31,10 @@ import documentRoutes from "./modules/document/document.routes.js";
 import meetingRoutes from "./modules/meeting/meeting.routes.js";
 import followUpRoutes from "./modules/follow-up/follow-up.routes.js";
 import sampleRoutes from "./modules/sample/sample.routes.js";
+import planningStepRoutes from "./modules/planning-step/planning-step.routes.js";
+import taskRoutes from "./modules/task/task.routes.js";
+import milestoneRoutes from "./modules/milestone/milestone.routes.js";
+import commentRoutes from "./modules/comment/comment.routes.js";
 
 const app = express();
 
@@ -105,6 +109,10 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/follow-ups", followUpRoutes);
 app.use("/api/samples", sampleRoutes);
+app.use("/api/planning-steps", planningStepRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/milestones", milestoneRoutes);
+app.use("/api/comments", commentRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 
