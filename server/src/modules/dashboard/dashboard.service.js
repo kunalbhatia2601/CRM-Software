@@ -497,3 +497,138 @@ export async function getEmployeeDashboardStats(userId, projectIds) {
     projectsList,
   };
 }
+
+/**
+ * Fetches dashboard statistics for a Sales Manager.
+ * Shows the full sales pipeline: leads, deals, conversions, follow-ups, meetings.
+ */
+export async function getSalesDashboardStats() {
+  const now = new Date();
+
+  const [
+    totalLeads,
+    leadsByStatus,
+    totalDeals,
+    dealsByStage,
+    totalDealValue,
+    wonDealValue,
+    wonDealsCount,
+    recentLeads,
+    recentDeals,
+    upcomingFollowUps,
+    upcomingMeetings,
+  ] = await Promise.all([
+    prisma.lead.count(),
+    prisma.lead.groupBy({
+      by: ["status"],
+      _count: { id: true },
+    }),
+    prisma.deal.count(),
+    prisma.deal.groupBy({
+      by: ["stage"],
+      _count: { id: true },
+    }),
+    prisma.deal.aggregate({ _sum: { value: true } }),
+    prisma.deal.aggregate({ _sum: { value: true }, where: { stage: "WON" } }),
+    prisma.deal.count({ where: { stage: "WON" } }),
+
+    // Recent leads
+    prisma.lead.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        companyName: true,
+        contactName: true,
+        status: true,
+        priority: true,
+        estimatedValue: true,
+        source: true,
+        createdAt: true,
+      },
+    }),
+
+    // Recent deals
+    prisma.deal.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        stage: true,
+        value: true,
+        createdAt: true,
+        lead: { select: { companyName: true } },
+      },
+    }),
+
+    // Upcoming follow-ups
+    prisma.followUp.findMany({
+      where: {
+        status: { in: ["PENDING", "OVERDUE"] },
+        dueAt: { gte: now },
+      },
+      take: 5,
+      orderBy: { dueAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+        dueAt: true,
+        lead: { select: { id: true, companyName: true } },
+      },
+    }),
+
+    // Upcoming meetings (linked to leads or deals)
+    prisma.meeting.findMany({
+      where: {
+        scheduledAt: { gte: now },
+        status: "SCHEDULED",
+        OR: [{ leadId: { not: null } }, { dealId: { not: null } }],
+      },
+      take: 5,
+      orderBy: { scheduledAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        mode: true,
+        status: true,
+        scheduledAt: true,
+        duration: true,
+        lead: { select: { id: true, companyName: true } },
+        deal: { select: { id: true, title: true } },
+      },
+    }),
+  ]);
+
+  const toMap = (grouped) =>
+    grouped.reduce((acc, item) => {
+      const key = item.status || item.stage;
+      acc[key] = item._count.id;
+      return acc;
+    }, {});
+
+  const conversionRate = totalDeals > 0
+    ? parseFloat(((wonDealsCount / totalDeals) * 100).toFixed(1))
+    : 0;
+
+  return {
+    leads: {
+      total: totalLeads,
+      byStatus: toMap(leadsByStatus),
+    },
+    deals: {
+      total: totalDeals,
+      byStage: toMap(dealsByStage),
+      totalValue: totalDealValue._sum.value || 0,
+      wonValue: wonDealValue._sum.value || 0,
+      wonCount: wonDealsCount,
+      conversionRate,
+    },
+    recentLeads,
+    recentDeals,
+    upcomingFollowUps,
+    upcomingMeetings,
+  };
+}

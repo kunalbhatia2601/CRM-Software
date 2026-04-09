@@ -1,4 +1,4 @@
-import { getDashboardStats, getClientDashboardStats, getEmployeeDashboardStats } from "./dashboard.service.js";
+import { getDashboardStats, getClientDashboardStats, getEmployeeDashboardStats, getSalesDashboardStats } from "./dashboard.service.js";
 import { ok } from "../../utils/apiResponse.js";
 import prisma from "../../utils/prisma.js";
 import { getUserProjectIds } from "../../utils/projectPermission.js";
@@ -70,6 +70,19 @@ export async function getEmployeeStats(req, res, next) {
 
     const stats = await getEmployeeDashboardStats(req.user.id, projectIds);
     return ok(res, "Employee dashboard statistics fetched", stats);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/dashboard/sales-stats
+ * Returns dashboard statistics for the Sales Manager — pipeline view.
+ */
+export async function getSalesStats(req, res, next) {
+  try {
+    const stats = await getSalesDashboardStats();
+    return ok(res, "Sales dashboard statistics fetched", stats);
   } catch (error) {
     next(error);
   }
