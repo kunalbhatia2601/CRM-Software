@@ -183,6 +183,13 @@ export async function getEmployeeDashboardStatsAPI(accessToken) {
   });
 }
 
+export async function getSalesDashboardStatsAPI(accessToken) {
+  return request("/api/dashboard/sales-stats", {
+    method: "GET",
+    token: accessToken,
+  });
+}
+
 /* ───────── Client Endpoints ───────── */
 
 export async function getClientsAPI(params, accessToken) {
