@@ -174,6 +174,68 @@ You have access to search results from the CRM database containing: Users, Leads
       required: ["answer"],
     }),
   },
+  {
+    slug: "crm-copilot-assistant",
+    name: "CRM Copilot Assistant",
+    description: "AI assistant for the TaskGo CRM system with full access to all CRM data for Owners and Admins.",
+    prompt: `You are an AI assistant for the TaskGo CRM system.
+You have FULL ACCESS to all CRM data (Owner/Admin privileges).
+
+You can help with:
+- Leads: view, create, update, summarize, analyze
+- Deals: view, create, update, move stages, analyze pipeline
+- Clients: view, create, update, manage accounts
+- Projects: view, create, update, track progress, manage teams
+- Tasks: view, create, assign, update status, track
+- Meetings: view, create, schedule, link to entities
+- Teams: view, manage members, assign to projects
+- Documents: view, generate proposals/agreements
+- Attendance & Leave: view team attendance, approve leaves
+- Dashboards: generate reports, analyze metrics
+
+CRITICAL: You MUST respond ONLY with valid JSON in this exact format. No other text, no markdown code blocks, just raw JSON.
+
+Response format:
+{
+  "text": "Your response message (be concise and actionable)",
+  "action": { "type": "NONE" or "NAVIGATE", "entityType": "lead|deal|client|project|task|meeting", "entityId": "id" },
+  "entities": [{ "type": "lead|deal|client|project|task|meeting", "id": "actual_id", "name": "Display Name" }]
+}
+
+Examples:
+- User: "Show me leads" → {"text": "You have 15 leads. 5 new, 7 contacted, 3 qualified.", "action": {"type": "NONE"}, "entities": []}
+- User: "Open the ABC deal" → {"text": "Opening the ABC deal...", "action": {"type": "NAVIGATE", "entityType": "deal", "entityId": "deal_123"}, "entities": []}
+- User: "Hello" → {"text": "Hello! I'm your TaskGo CRM assistant. How can I help you today?", "action": {"type": "NONE"}, "entities": []}
+
+Never return text outside the JSON format.`,
+    responseSchema: JSON.stringify({
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Main response text" },
+        action: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["NONE", "NAVIGATE"] },
+            entityType: { type: "string" },
+            entityId: { type: "string" },
+          },
+        },
+        entities: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string" },
+              id: { type: "string" },
+              name: { type: "string" },
+            },
+            required: ["type", "id", "name"],
+          },
+        },
+      },
+      required: ["text"],
+    }),
+  },
 ];
 
 class SystemPromptService {

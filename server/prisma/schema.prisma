@@ -173,6 +173,9 @@ model User {
   leaveRequests     LeaveRequest[]  @relation("UserLeaveRequest")
   reviewedLeaves    LeaveRequest[]  @relation("LeaveReviewer")
 
+  // Copilot
+  copilotConversations CopilotConversation[]
+
   @@index([clientId])
   @@map("users")
 }
@@ -1292,4 +1295,37 @@ model Holiday {
 
   @@index([date])
   @@map("holidays")
+}
+
+// ─── Copilot ─────────────────────────────────────────────
+
+model CopilotConversation {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  title      String   @default("New Conversation")
+  isPinned   Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  messages CopilotMessage[]
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isArchived])
+  @@map("copilot_conversations")
+}
+
+model CopilotMessage {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  role           String   // "user" | "assistant" | "system"
+  content        String   @db.Text
+  contextData    Json?    @map("context_data") // entities, page info
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation CopilotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("copilot_messages")
 }

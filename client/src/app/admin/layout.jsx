@@ -3,6 +3,7 @@ import { getAuthUser } from "@/actions/auth.action";
 import { getSiteData } from "@/actions/site.action";
 import { AuthProvider } from "@/context/AuthContext";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { CopilotWrapper } from "@/components/copilot/CopilotWrapper";
 
 export async function generateMetadata() {
   const siteData = await getSiteData();
@@ -111,9 +112,11 @@ export default async function AdminLayout({ children }) {
 
   return (
     <AuthProvider initialUser={user}>
-      <DashboardShell title="Admin Panel" navItems={navItems}>
-        <div className="bg-slate-50 dark:bg-slate-950">{children}</div>
-      </DashboardShell>
+      <CopilotWrapper>
+        <DashboardShell title="Admin Panel" navItems={navItems}>
+          <div className="bg-slate-50 dark:bg-slate-950">{children}</div>
+        </DashboardShell>
+      </CopilotWrapper>
     </AuthProvider>
   );
 }

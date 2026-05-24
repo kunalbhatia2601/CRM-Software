@@ -1133,3 +1133,49 @@ export async function getCalendarEventsAPI(accessToken, start, end) {
     token: accessToken,
   });
 }
+
+/* ───────── Copilot ───────── */
+
+export async function getCopilotConversationsAPI(accessToken) {
+  return request("/api/copilot/conversations", { method: "GET", token: accessToken });
+}
+
+export async function getCopilotConversationAPI(id, accessToken) {
+  return request(`/api/copilot/conversations/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createCopilotConversationAPI(data, accessToken) {
+  return request("/api/copilot/conversations", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateCopilotConversationAPI(id, data, accessToken) {
+  return request(`/api/copilot/conversations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteCopilotConversationAPI(id, accessToken) {
+  return request(`/api/copilot/conversations/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getCopilotMessagesAPI(conversationId, accessToken) {
+  return request(`/api/copilot/messages/${conversationId}`, { method: "GET", token: accessToken });
+}
+
+export async function sendCopilotMessageAPI(data, accessToken) {
+  return request("/api/copilot/message", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function getCopilotSuggestionsAPI(accessToken) {
+  return request("/api/copilot/suggestions", { method: "GET", token: accessToken });
+}

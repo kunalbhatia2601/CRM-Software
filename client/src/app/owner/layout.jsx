@@ -3,6 +3,7 @@ import { getAuthUser } from "@/actions/auth.action";
 import { getSiteData } from "@/actions/site.action";
 import { AuthProvider } from "@/context/AuthContext";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { CopilotWrapper } from "@/components/copilot/CopilotWrapper";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 export async function generateMetadata() {
@@ -123,9 +124,11 @@ export default async function OwnerLayout({ children }) {
 
   return (
     <AuthProvider initialUser={user}>
+      <CopilotWrapper>
         <DashboardShell title="Owner Dashboard" navItems={navItems}>
           <div className="bg-slate-50 dark:bg-slate-950">{children}</div>
         </DashboardShell>
+      </CopilotWrapper>
     </AuthProvider>
   );
 }
