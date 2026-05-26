@@ -25,7 +25,7 @@ export async function getCopilotConversations() {
 
   try {
     const res = await getCopilotConversationsAPI(token);
-    return { success: true, data: Array.isArray(res) ? res : [] };
+    return { success: true, data: Array.isArray(res.data) ? res.data : [] };
   } catch (err) {
     console.error("[copilot.action] getConversations error:", err.message);
     return { success: false, data: [] };
@@ -38,7 +38,7 @@ export async function getCopilotConversation(id) {
 
   try {
     const res = await getCopilotConversationAPI(id, token);
-    return { success: true, data: res };
+    return { success: true, data: res.data || res };
   } catch (err) {
     console.error("[copilot.action] getConversation error:", err.message);
     return { success: false, data: null };

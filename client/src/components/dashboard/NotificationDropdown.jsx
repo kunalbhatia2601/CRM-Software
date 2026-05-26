@@ -62,6 +62,7 @@ function timeAgo(dateStr) {
 }
 
 const LIMIT = 20;
+const fetchTime = process.env.NEXT_PUBLIC_SERVER_URL.includes("localhost") ? 10000 : 30000;
 
 export default function NotificationDropdown() {
   const router = useRouter();
@@ -120,7 +121,7 @@ export default function NotificationDropdown() {
   // Poll unread count every 10s
   useEffect(() => {
     fetchUnreadCount();
-    pollingRef.current = setInterval(fetchUnreadCount, 10000);
+    pollingRef.current = setInterval(fetchUnreadCount, fetchTime);
     return () => clearInterval(pollingRef.current);
   }, [fetchUnreadCount]);
 

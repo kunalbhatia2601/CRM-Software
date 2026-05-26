@@ -161,18 +161,6 @@ class CopilotService {
       },
     });
 
-    // Build context for AI
-    const aiContext = {
-      user: {
-        id: userId,
-        role: context.userRole,
-      },
-      page: context.page,
-      entityType: context.entityType,
-      entityId: context.entityId,
-      timestamp: new Date().toISOString(),
-    };
-
     // Build conversation history for AI (keep last 50 messages)
     const recentHistory = history.slice(-50);
     const historyText = recentHistory.length > 0
@@ -185,12 +173,11 @@ class CopilotService {
     const userPrompt = content + historyText;
 
     try {
-      // Call AI service with structured output
-      const aiResponse = await aiService.generate({
+      // Call AI with tool calling - AI decides when to search/get stats
+      const aiResponse = await aiService.generateWithTools({
         systemPromptSlug: "crm-copilot-assistant",
         userPrompt,
-        context: aiContext,
-        structured: true, // Request structured JSON response
+        maxTurns: 2, // Allow nested tool calls up to 2 times
       });
 
       // Parse AI response

@@ -23,14 +23,6 @@ export function CopilotProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
-  // Fetch conversations on mount
-  useEffect(() => {
-    if (user && ["OWNER", "ADMIN"].includes(user.role)) {
-      fetchConversations();
-      fetchSuggestions();
-    }
-  }, [user]);
-
   // Fetch all conversations
   const fetchConversations = useCallback(async () => {
     const res = await getCopilotConversations();
@@ -50,6 +42,14 @@ export function CopilotProvider({ children }) {
       setSuggestions([]);
     }
   }, []);
+
+  // Fetch conversations on mount and when panel opens
+  useEffect(() => {
+    if (user && ["OWNER", "ADMIN"].includes(user.role)) {
+      fetchConversations();
+      fetchSuggestions();
+    }
+  }, [user, isOpen, fetchConversations, fetchSuggestions]);
 
   // Select a conversation
   const selectConversation = useCallback(async (conversationId) => {
