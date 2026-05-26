@@ -9,6 +9,8 @@ const nextConfig = {
       new URL('https://crm-api.kunalbhatia.dev/public/**'),
       new URL('https://crm.kunalbhatia.dev/**'),
       new URL('https://crm.kunalbhatia.dev/public/**'),
+      new URL('https://crm.totemservices.org/**'),
+      new URL('https://crm.totemservices.org/public/**'),
     ],
   },
 };
