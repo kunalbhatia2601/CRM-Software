@@ -62,7 +62,7 @@ function timeAgo(dateStr) {
 }
 
 const LIMIT = 20;
-const fetchTime = process.env.NEXT_PUBLIC_SERVER_URL.includes("localhost") ? 10000 : 30000;
+const fetchTime = 30000;
 
 export default function NotificationDropdown() {
   const router = useRouter();
