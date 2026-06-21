@@ -6,6 +6,7 @@ import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { listLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType } from "@/actions/leave.action";
+import WeekendDaysSettings from "./WeekendDaysSettings";
 
 const DEFAULT_COLORS = ["#10B981", "#F59E0B", "#3B82F6", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
 
@@ -91,6 +92,8 @@ export default function AdminLeaveTypesManager() {
           <Plus className="w-4 h-4" /> Add Leave Type
         </button>
       </div>
+
+      <WeekendDaysSettings />
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

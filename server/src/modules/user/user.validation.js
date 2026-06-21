@@ -27,6 +27,7 @@ export const createUserSchema = z.object({
     role: z.enum(roles, { required_error: "Role is required" }),
     status: z.enum(statuses).optional(),
     clientId: z.string().nullable().optional(),
+    biometricCode: z.coerce.number().int().positive().nullable().optional(),
   }),
 });
 
@@ -43,6 +44,7 @@ export const updateUserSchema = z.object({
     role: z.enum(roles).optional(),
     status: z.enum(statuses).optional(),
     clientId: z.string().nullable().optional(),
+    biometricCode: z.coerce.number().int().positive().nullable().optional(),
   }),
 });
 

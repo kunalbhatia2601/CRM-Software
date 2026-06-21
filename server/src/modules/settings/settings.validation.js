@@ -35,5 +35,8 @@ export const updateSettingsSchema = z.object({
     aiBaseUrl: z.string().url("Invalid AI base URL").max(500).nullable().optional(),
     aiTemperature: z.coerce.number().min(0).max(2).optional(),
     aiMaxTokens: z.coerce.number().int().min(100).max(128000).optional(),
+
+    // Attendance — weekend day-of-week numbers (0 = Sunday … 6 = Saturday)
+    weekendDays: z.array(z.coerce.number().int().min(0).max(6)).optional(),
   }),
 });

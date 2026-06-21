@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2, Camera, Loader2, ImageIcon, X } from "lucide-react";
+import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2, Camera, Loader2, ImageIcon, X, Fingerprint } from "lucide-react";
 
 import { createUser, getClientsDropdown } from "@/actions/users.action";
 import { useUpload } from "@/hooks/useUpload";
@@ -48,6 +48,7 @@ export default function CreateUserContent() {
     status: "ACTIVE",
     clientId: "",
     avatar: "",
+    biometricCode: "",
   });
 
   // Fetch clients for dropdown when role is CLIENT
@@ -77,6 +78,12 @@ export default function CreateUserContent() {
       const payload = { ...form };
       if (payload.role !== "CLIENT" || !payload.clientId) delete payload.clientId;
       if (!payload.avatar) delete payload.avatar;
+      // biometricCode — number for non-clients, omit when blank
+      if (payload.role === "CLIENT" || payload.biometricCode === "" || payload.biometricCode == null) {
+        delete payload.biometricCode;
+      } else {
+        payload.biometricCode = Number(payload.biometricCode);
+      }
       const result = await createUser(payload);
       if (result.success) {
         router.push("/owner/users");
@@ -226,6 +233,16 @@ export default function CreateUserContent() {
             onChange={(e) => update("status", e.target.value)}
             options={STATUSES}
           />
+          {form.role !== "CLIENT" && (
+            <SettingsInput
+              label="Biometric Code"
+              type="number"
+              icon={Fingerprint}
+              value={form.biometricCode}
+              onChange={(e) => update("biometricCode", e.target.value)}
+              placeholder="Device enroll number (e.g. 5)"
+            />
+          )}
         </div>
       </SettingsCard>
 

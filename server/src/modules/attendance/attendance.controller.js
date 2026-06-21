@@ -48,6 +48,22 @@ class AttendanceController {
     await attendanceService.deleteAttendance(req.params.id);
     return ok(res, "Attendance deleted");
   });
+
+  // Protected cron endpoint — no JWT, guarded by secret.
+  // Fills missing attendance (HOLIDAY / WEEKEND / ABSENT) for a date.
+  // Optional body/query `date` (YYYY-MM-DD); defaults to yesterday.
+  runDailyReconcile = catchAsync(async (req, res) => {
+    const date = req.body?.date || req.query?.date || null;
+    const summary = await attendanceService.reconcileDaily(date);
+    return ok(res, "Attendance reconciled", summary);
+  });
+
+  // Protected ingest endpoint — no JWT, guarded by secret.
+  // Receives clean punch summary from the on-prem biometric agent.
+  ingestBiometric = catchAsync(async (req, res) => {
+    const summary = await attendanceService.ingestBiometric(req.body);
+    return ok(res, "Biometric attendance ingested", summary);
+  });
 }
 
 export default new AttendanceController();

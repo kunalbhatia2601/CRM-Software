@@ -103,6 +103,8 @@ model User {
   avatar          String?
   role            Role       @default(EMPLOYEE)
   status          UserStatus @default(ACTIVE)
+  // Biometric device enroll number (maps device punches → this user)
+  biometricCode   Int?       @unique @map("biometric_code")
   isEmailVerified Boolean    @default(false) @map("is_email_verified")
   lastLoginAt     DateTime?  @map("last_login_at")
   createdAt       DateTime   @default(now()) @map("created_at")
@@ -535,6 +537,10 @@ model Settings {
   storageCustomPostUrl  String? @map("storage_custom_post_url")  // URL to POST files to
   storageCustomFileKey  String? @map("storage_custom_file_key")  // Form field name for the file (e.g. "file")
   storageCustomUrlKey   String? @map("storage_custom_url_key")   // JSON response key that holds the file URL (e.g. "url")
+
+  // Attendance Configuration
+  // Day-of-week numbers treated as weekend (0 = Sunday … 6 = Saturday)
+  weekendDays       Int[]   @default([0, 6]) @map("weekend_days")
 
   // AI Configuration
   aiProvider        String  @default("NONE") @map("ai_provider")       // NONE | GEMINI | OPENAI | CUSTOM

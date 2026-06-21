@@ -28,6 +28,8 @@ const config = {
 
   pullAndDeploySecret: process.env.PULL_AND_DEPLOY_SECRET || "pull-and-deploy-secret-change-me",
 
+  attendanceCronSecret: process.env.ATTENDANCE_CRON_SECRET || "attendance-cron-secret-change-me",
+
 };
 
 export default config;

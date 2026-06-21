@@ -13,6 +13,7 @@ const USER_SELECT = {
   avatar: true,
   role: true,
   status: true,
+  biometricCode: true,
   isEmailVerified: true,
   lastLoginAt: true,
   clientId: true,
@@ -60,6 +61,7 @@ class UserService {
         role: data.role,
         status: data.status || "ACTIVE",
         clientId: data.role === "CLIENT" ? (data.clientId || null) : null,
+        biometricCode: data.biometricCode ?? null,
       },
       select: USER_SELECT,
     });
