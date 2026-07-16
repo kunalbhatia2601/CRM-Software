@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   Pencil,
   Mail,
@@ -18,8 +19,13 @@ import {
   Globe,
   MapPin,
   Factory,
+  Upload,
+  FileText,
+  Paperclip,
 } from "lucide-react";
 
+import { createDocument } from "@/actions/documents.action";
+import { useUpload } from "@/hooks/useUpload";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
@@ -77,12 +83,88 @@ const ROLE_CONFIG = {
   },
 };
 
+const EMPLOYEE_TYPE_LABELS = {
+  FULL_TIME: "Full Time",
+  PART_TIME: "Part Time",
+  INTERN: "Intern",
+  FREELANCER: "Freelancer",
+  CONTRACT: "Contract",
+  OTHER: "Other",
+};
+
+const DOCUMENT_TYPES = ["PROPOSAL", "INVOICE", "CONTRACT", "REPORT", "OTHER"];
+
 export default function UserReportContent({ report }) {
   const { format, formatCompact } = useSite();
-  const { user, summary, leads, deals, clients, projects } = report;
+  const { user, summary, leads, deals, clients, projects, documents: initialDocuments = [] } = report;
+  const { upload, uploading } = useUpload();
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [documentName, setDocumentName] = useState("");
+  const [documentType, setDocumentType] = useState("OTHER");
+  const [documentDescription, setDocumentDescription] = useState("");
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentSaving, setDocumentSaving] = useState(false);
+  const [documentMessage, setDocumentMessage] = useState(null);
 
   const config = ROLE_CONFIG[user.role] || ROLE_CONFIG.EMPLOYEE;
   const sections = config.sections;
+
+  const employeeTypeLabel = user.employeeType
+    ? EMPLOYEE_TYPE_LABELS[user.employeeType] || user.employeeType
+    : "—";
+  const reportingManagerLabel = user.reportingManager
+    ? `${user.reportingManager.firstName} ${user.reportingManager.lastName}`
+    : "—";
+
+  const handleDocumentUpload = async () => {
+    if (!documentFile) {
+      setDocumentMessage({ type: "error", text: "Please select a document file." });
+      return;
+    }
+
+    if (!documentName.trim()) {
+      setDocumentMessage({ type: "error", text: "Please provide a document name." });
+      return;
+    }
+
+    setDocumentSaving(true);
+    setDocumentMessage(null);
+
+    try {
+      const uploadResult = await upload(documentFile);
+      if (!uploadResult) {
+        setDocumentMessage({ type: "error", text: "File upload failed." });
+        return;
+      }
+
+      const result = await createDocument({
+        name: documentName.trim(),
+        type: documentType,
+        fileUrl: uploadResult.fileUrl,
+        fileKey: uploadResult.key,
+        mimeType: documentFile.type || null,
+        fileSize: documentFile.size || null,
+        description: documentDescription.trim() || null,
+        userId: user.id,
+      });
+
+      if (!result.success) {
+        setDocumentMessage({ type: "error", text: result.error || "Failed to save document." });
+        return;
+      }
+
+      setDocuments((current) => [result.data, ...current]);
+      setDocumentName("");
+      setDocumentType("OTHER");
+      setDocumentDescription("");
+      setDocumentFile(null);
+      setDocumentMessage({ type: "success", text: "Document uploaded successfully." });
+    } catch (error) {
+      setDocumentMessage({ type: "error", text: error.message || "Failed to upload document." });
+    } finally {
+      setDocumentSaving(false);
+    }
+  };
 
   const joinedDate = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString("en-IN", {
@@ -123,16 +205,16 @@ export default function UserReportContent({ report }) {
       />
 
       {/* ═══ Profile Header Card ═══ */}
-      <div className="bg-white dark:bg-slate-950 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50 overflow-hidden">
         {/* Gradient Banner */}
-        <div className={`h-28 bg-gradient-to-r ${config.color} relative`}>
+        <div className={`h-28 bg-linear-to-r ${config.color} relative`}>
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tMTIgMHYtMkgxMnYyaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
         </div>
 
         <div className="px-8 pb-8 -mt-12 relative">
           <div className="flex flex-col md:flex-row gap-6 items-start">
             {/* Avatar */}
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-slate-700 dark:text-slate-300">
+            <div className="w-24 h-24 rounded-2xl bg-linear-to-br from-white to-slate-50 border-4 border-white shadow-xl flex items-center justify-center text-2xl font-bold text-slate-700 dark:text-slate-300">
               {user.avatar ? (
                 <img src={user.avatar} alt="" className="w-full h-full rounded-2xl object-cover" />
               ) : (
@@ -178,9 +260,33 @@ export default function UserReportContent({ report }) {
         </div>
       </div>
 
+      {/* ═══ Employment Details ═══ */}
+      <div className="bg-white dark:bg-slate-950 rounded-3xl p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200/50 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Employment Details</h3>
+            <span className="text-xs text-slate-400">Internal profile and emergency contact information</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CompanyInfoItem icon={Shield} label="Employee Type" value={employeeTypeLabel} />
+          {user.employeeType === "OTHER" && user.employeeTypeOther && (
+            <CompanyInfoItem icon={Shield} label="Employee Type (Other)" value={user.employeeTypeOther} />
+          )}
+          <CompanyInfoItem icon={Shield} label="Biometric Code" value={user.biometricCode ?? "—"} />
+          <CompanyInfoItem icon={Shield} label="Reporting Manager" value={reportingManagerLabel} />
+          <CompanyInfoItem icon={Phone} label="Emergency Contact" value={user.emergencyContactNumber || "—"} />
+          <CompanyInfoItem icon={MapPin} label="Address" value={user.address || "—"} />
+        </div>
+      </div>
+
       {/* ═══ Linked Client Company (CLIENT role only) ═══ */}
       {user.role === "CLIENT" && user.client && (
-        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+        <div className="bg-white dark:bg-slate-950 rounded-3xl p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 flex items-center justify-center">
               <Building2 className="w-5 h-5 text-amber-600" />
@@ -233,6 +339,120 @@ export default function UserReportContent({ report }) {
         </div>
       )}
 
+      {/* ═══ Employee Documents ═══ */}
+      <div className="bg-white dark:bg-slate-950 rounded-3xl p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Documents</h3>
+            <span className="text-xs text-slate-400">Attach documents directly to this user</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Document Name</label>
+              <input
+                value={documentName}
+                onChange={(e) => setDocumentName(e.target.value)}
+                placeholder="Offer Letter, NDA, ID Proof, etc."
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Document Type</label>
+              <select
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
+              >
+                {DOCUMENT_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+              <textarea
+                value={documentDescription}
+                onChange={(e) => setDocumentDescription(e.target.value)}
+                rows={3}
+                placeholder="Optional notes about this file"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">File</label>
+              <input
+                type="file"
+                onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-200"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleDocumentUpload}
+              disabled={documentSaving || uploading}
+              className="inline-flex items-center gap-2 px-5 py-3 bg-[#5542F6] text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              {documentSaving || uploading ? "Uploading..." : "Upload Document"}
+            </button>
+            {documentMessage && (
+              <p className={`text-sm ${documentMessage.type === "success" ? "text-emerald-600" : "text-red-600"}`}>
+                {documentMessage.text}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {documents.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-sm text-slate-400">
+              No documents uploaded yet.
+            </div>
+          ) : (
+            documents.map((document) => (
+              <div key={document.id} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-2xl border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/70 dark:bg-slate-900/40">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0">
+                    <Paperclip className="w-4 h-4 text-slate-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-slate-900 dark:text-slate-50">{document.name}</p>
+                      <Badge value={document.type} />
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Uploaded {document.createdAt ? new Date(document.createdAt).toLocaleDateString("en-IN") : "—"}
+                      {document.addedBy ? ` · by ${document.addedBy.firstName} ${document.addedBy.lastName}` : ""}
+                    </p>
+                    {document.description && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">{document.description}</p>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={document.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  Open File
+                  <ArrowUpRight className="w-4 h-4" />
+                </a>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* ═══ Summary Stats ═══ */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {sections.includes("leads") && (
@@ -272,7 +492,7 @@ export default function UserReportContent({ report }) {
 
       {/* ═══ Deal Value Card (if has deals) ═══ */}
       {sections.includes("deals") && summary.totalDealValue > 0 && (
-        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+        <div className="bg-white dark:bg-slate-950 rounded-3xl p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 mb-4">Deal Performance</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-1 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
@@ -460,7 +680,7 @@ function CompanyInfoItem({ icon: Icon, label, value }) {
       <Icon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
       <div className="min-w-0">
         <span className="text-xs text-slate-400 font-medium block">{label}</span>
-        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium break-words">{value}</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium wrap-break-word">{value}</span>
       </div>
     </div>
   );
@@ -470,7 +690,7 @@ function CompanyInfoItem({ icon: Icon, label, value }) {
 
 function ReportTable({ title, icon: Icon, data, columns, emptyMessage }) {
   return (
-    <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+    <div className="bg-white dark:bg-slate-950 rounded-3xl p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm shadow-slate-200/50">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center">

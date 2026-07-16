@@ -12,6 +12,7 @@ const roles = [
 ];
 
 const statuses = ["ACTIVE", "INACTIVE", "SUSPENDED", "INVITED"];
+const employeeTypes = ["FULL_TIME", "PART_TIME", "INTERN", "FREELANCER", "CONTRACT", "OTHER"];
 
 export const createUserSchema = z.object({
   body: z.object({
@@ -24,9 +25,14 @@ export const createUserSchema = z.object({
     lastName: z.string().min(1, "Last name is required").max(50),
     phone: z.string().optional(),
     avatar: z.string().max(500).nullable().optional(),
+    emergencyContactNumber: z.string().max(20).nullable().optional(),
+    address: z.string().max(2000).nullable().optional(),
     role: z.enum(roles, { required_error: "Role is required" }),
     status: z.enum(statuses).optional(),
     clientId: z.string().nullable().optional(),
+    reportingManagerId: z.string().nullable().optional(),
+    employeeType: z.enum(employeeTypes).optional().default("FULL_TIME"),
+    employeeTypeOther: z.string().max(100).nullable().optional(),
     biometricCode: z.coerce.number().int().positive().nullable().optional(),
   }),
 });
@@ -41,9 +47,14 @@ export const updateUserSchema = z.object({
     lastName: z.string().min(1).max(50).optional(),
     phone: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
+    emergencyContactNumber: z.string().max(20).nullable().optional(),
+    address: z.string().max(2000).nullable().optional(),
     role: z.enum(roles).optional(),
     status: z.enum(statuses).optional(),
     clientId: z.string().nullable().optional(),
+    reportingManagerId: z.string().nullable().optional(),
+    employeeType: z.enum(employeeTypes).optional(),
+    employeeTypeOther: z.string().max(100).nullable().optional(),
     biometricCode: z.coerce.number().int().positive().nullable().optional(),
   }),
 });

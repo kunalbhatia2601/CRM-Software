@@ -15,6 +15,7 @@ export const createDocumentSchema = z.object({
     dealId: z.string().optional().nullable(),
     clientId: z.string().optional().nullable(),
     projectId: z.string().optional().nullable(),
+    userId: z.string().optional().nullable(),
   }),
 });
 
@@ -35,6 +36,7 @@ export const listDocumentsSchema = z.object({
     dealId: z.string().optional(),
     clientId: z.string().optional(),
     projectId: z.string().optional(),
+    userId: z.string().optional(),
     search: z.string().optional(),
     sortBy: z.enum(["createdAt", "name", "type", "version"]).optional().default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),

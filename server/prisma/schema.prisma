@@ -19,6 +19,15 @@ enum Role {
   CLIENT
 }
 
+enum EmployeeType {
+  FULL_TIME
+  PART_TIME
+  INTERN
+  FREELANCER
+  CONTRACT
+  OTHER
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -103,6 +112,10 @@ model User {
   avatar          String?
   role            Role       @default(EMPLOYEE)
   status          UserStatus @default(ACTIVE)
+  emergencyContactNumber String? @map("emergency_contact_number")
+  address         String?    @db.Text
+  employeeType    EmployeeType @default(FULL_TIME) @map("employee_type")
+  employeeTypeOther String?   @map("employee_type_other")
   // Biometric device enroll number (maps device punches → this user)
   biometricCode   Int?       @unique @map("biometric_code")
   isEmailVerified Boolean    @default(false) @map("is_email_verified")
@@ -131,6 +144,11 @@ model User {
   clientId       String?  @map("client_id")
   client         Client?  @relation("ClientPortalUsers", fields: [clientId], references: [id])
 
+  // Reporting manager (self relation)
+  reportingManagerId String? @map("reporting_manager_id")
+  reportingManager   User?   @relation("UserReportingManager", fields: [reportingManagerId], references: [id])
+  reportingDirectReports User[] @relation("UserReportingManager")
+
   // Projects
   managedProjects Project[] @relation("ProjectAccountManager")
   createdProjects Project[] @relation("ProjectCreator")
@@ -147,6 +165,7 @@ model User {
 
   // Documents
   documents      Document[] @relation("DocumentCreator")
+  employeeDocuments Document[] @relation("EmployeeDocument")
 
   // Meetings
   createdMeetings Meeting[] @relation("MeetingCreator")
@@ -179,6 +198,7 @@ model User {
   copilotConversations CopilotConversation[]
 
   @@index([clientId])
+  @@index([reportingManagerId])
   @@map("users")
 }
 
@@ -743,6 +763,9 @@ model Document {
   projectId   String?      @map("project_id")
   project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  userId      String?      @map("user_id")
+  user        User?        @relation("EmployeeDocument", fields: [userId], references: [id], onDelete: SetNull)
+
   // Who uploaded/created this document
   addedById   String       @map("added_by_id")
   addedBy     User         @relation("DocumentCreator", fields: [addedById], references: [id])
@@ -753,6 +776,7 @@ model Document {
   @@index([dealId])
   @@index([clientId])
   @@index([projectId])
+  @@index([userId])
   @@index([addedById])
   @@index([type])
   @@index([createdAt])

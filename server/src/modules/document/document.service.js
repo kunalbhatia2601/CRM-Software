@@ -14,6 +14,9 @@ const DOCUMENT_INCLUDE = {
   project: {
     select: { id: true, name: true, status: true },
   },
+  user: {
+    select: { id: true, firstName: true, lastName: true, email: true, role: true },
+  },
   addedBy: {
     select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
   },
@@ -28,6 +31,8 @@ class DocumentService {
     const versionWhere = { type: data.type || "PROPOSAL" };
     if (data.dealId) versionWhere.dealId = data.dealId;
     if (data.clientId) versionWhere.clientId = data.clientId;
+    if (data.projectId) versionWhere.projectId = data.projectId;
+    if (data.userId) versionWhere.userId = data.userId;
 
     const existingCount = await prisma.document.count({ where: versionWhere });
     const version = existingCount + 1;
@@ -46,6 +51,7 @@ class DocumentService {
         dealId: data.dealId || null,
         clientId: data.clientId || null,
         projectId: data.projectId || null,
+        userId: data.userId || null,
         addedById,
       },
       include: DOCUMENT_INCLUDE,
@@ -57,7 +63,7 @@ class DocumentService {
   /**
    * List documents with pagination, filters, search.
    */
-  async listDocuments({ page, limit, type, dealId, clientId, projectId, projectIds, search, sortBy, sortOrder }) {
+  async listDocuments({ page, limit, type, dealId, clientId, projectId, userId, projectIds, search, sortBy, sortOrder }) {
     const skip = (page - 1) * limit;
     const where = {};
 
@@ -65,6 +71,7 @@ class DocumentService {
     if (dealId) where.dealId = dealId;
     if (clientId) where.clientId = clientId;
     if (projectId) where.projectId = projectId;
+    if (userId) where.userId = userId;
     if (projectIds?.length) where.projectId = { in: projectIds };
 
     if (search) {
@@ -145,6 +152,17 @@ class DocumentService {
   async getDocumentsByProject(projectId) {
     return prisma.document.findMany({
       where: { projectId },
+      include: DOCUMENT_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
+   * Get documents for a specific employee/user.
+   */
+  async getDocumentsByUser(userId) {
+    return prisma.document.findMany({
+      where: { userId },
       include: DOCUMENT_INCLUDE,
       orderBy: { createdAt: "desc" },
     });

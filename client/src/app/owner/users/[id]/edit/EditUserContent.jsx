@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, KeyRound, Building2 } from "lucide-react";
 
-import { updateUser, resetUserPassword, getClientsDropdown } from "@/actions/users.action";
+import { updateUser, resetUserPassword, getClientsDropdown, getUserDirectory } from "@/actions/users.action";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import SettingsCard from "@/components/settings/SettingsCard";
@@ -30,6 +30,15 @@ const STATUSES = [
   { value: "INVITED", label: "Invited" },
 ];
 
+const EMPLOYEE_TYPES = [
+  { value: "FULL_TIME", label: "Full Time" },
+  { value: "PART_TIME", label: "Part Time" },
+  { value: "INTERN", label: "Intern" },
+  { value: "FREELANCER", label: "Freelancer" },
+  { value: "CONTRACT", label: "Contract" },
+  { value: "OTHER", label: "Other" },
+];
+
 export default function EditUserContent({ user }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -38,6 +47,7 @@ export default function EditUserContent({ user }) {
   const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [clients, setClients] = useState([]);
+  const [managers, setManagers] = useState([]);
 
   const [form, setForm] = useState({
     firstName: user.firstName || "",
@@ -47,6 +57,12 @@ export default function EditUserContent({ user }) {
     role: user.role || "EMPLOYEE",
     status: user.status || "ACTIVE",
     clientId: user.clientId || "",
+    emergencyContactNumber: user.emergencyContactNumber || "",
+    address: user.address || "",
+    employeeType: user.employeeType || "FULL_TIME",
+    employeeTypeOther: user.employeeTypeOther || "",
+    reportingManagerId: user.reportingManagerId || "",
+    biometricCode: user.biometricCode || "",
   });
 
   // Fetch clients for dropdown when role is CLIENT
@@ -56,10 +72,22 @@ export default function EditUserContent({ user }) {
     }
   }, [form.role]);
 
+  useEffect(() => {
+    if (form.role !== "CLIENT" && form.role !== "OWNER" && managers.length === 0) {
+      getUserDirectory().then((result) => {
+        if (result.success) {
+          setManagers((result.data || []).filter((manager) => manager.id !== user.id));
+        }
+      });
+    }
+  }, [form.role]);
+
   const update = (field, value) => {
     setForm((p) => {
       const next = { ...p, [field]: value };
       if (field === "role" && value !== "CLIENT") next.clientId = "";
+      if (field === "role" && (value === "CLIENT" || value === "OWNER")) next.reportingManagerId = "";
+      if (field === "employeeType" && value !== "OTHER") next.employeeTypeOther = "";
       return next;
     });
   };
@@ -83,6 +111,20 @@ export default function EditUserContent({ user }) {
       } else if (!payload.clientId) {
         payload.clientId = null;
       }
+      if (payload.role === "CLIENT" || payload.role === "OWNER") {
+        payload.reportingManagerId = null;
+        payload.employeeType = "FULL_TIME";
+        payload.employeeTypeOther = null;
+      } else if (payload.employeeType !== "OTHER") {
+        payload.employeeTypeOther = null;
+      }
+      if (payload.biometricCode === "" || payload.biometricCode == null) {
+        payload.biometricCode = null;
+      } else {
+        payload.biometricCode = Number(payload.biometricCode);
+      }
+      if (!payload.emergencyContactNumber) payload.emergencyContactNumber = null;
+      if (!payload.address) payload.address = null;
       const result = await updateUser(user.id, payload);
       if (result.success) {
         showToast("success", "User updated successfully");
@@ -185,6 +227,82 @@ export default function EditUserContent({ user }) {
           />
         </div>
       </SettingsCard>
+
+      {/* Contact Details */}
+      <SettingsCard
+        title="Contact Details"
+        description="Add or update emergency contact and address details."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SettingsInput
+            label="Emergency Contact Number"
+            icon={Phone}
+            value={form.emergencyContactNumber}
+            onChange={(e) => update("emergencyContactNumber", e.target.value)}
+            placeholder="+91 98765-00000"
+          />
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Address
+            </label>
+            <textarea
+              value={form.address}
+              onChange={(e) => update("address", e.target.value)}
+              placeholder="Street, city, state, postal code"
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[15px] font-medium text-slate-900 dark:text-slate-50 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500 dark:focus:ring-indigo-400/10 focus:border-indigo-500 transition-all shadow-sm dark:shadow-none"
+            />
+          </div>
+        </div>
+      </SettingsCard>
+
+      {/* Employment Details */}
+      {form.role !== "CLIENT" && form.role !== "OWNER" && (
+        <SettingsCard
+          title="Employment Details"
+          description="Update reporting manager and employee classification."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SettingsSelect
+              label="Reporting Manager"
+              icon={Shield}
+              value={form.reportingManagerId}
+              onChange={(e) => update("reportingManagerId", e.target.value)}
+              options={[
+                { value: "", label: "— No manager —" },
+                ...managers.map((manager) => ({
+                  value: manager.id,
+                  label: `${manager.firstName} ${manager.lastName} — ${manager.role}`,
+                })),
+              ]}
+            />
+            <SettingsSelect
+              label="Employee Type"
+              icon={Shield}
+              value={form.employeeType}
+              onChange={(e) => update("employeeType", e.target.value)}
+              options={EMPLOYEE_TYPES}
+            />
+            {form.employeeType === "OTHER" && (
+              <SettingsInput
+                label="Employee Type (Other)"
+                icon={Shield}
+                value={form.employeeTypeOther}
+                onChange={(e) => update("employeeTypeOther", e.target.value)}
+                placeholder="Enter a custom type"
+              />
+            )}
+            <SettingsInput
+              label="Biometric Code"
+              type="number"
+              icon={Shield}
+              value={form.biometricCode}
+              onChange={(e) => update("biometricCode", e.target.value)}
+              placeholder="Device enroll number"
+            />
+          </div>
+        </SettingsCard>
+      )}
 
       {/* Link to Client (only when role is CLIENT) */}
       {form.role === "CLIENT" && (

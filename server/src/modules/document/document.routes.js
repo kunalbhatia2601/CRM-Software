@@ -20,6 +20,7 @@ router.use(authenticate);
 router.get("/", validate(listDocumentsSchema), documentController.list);
 router.get("/deal/:dealId", documentController.getByDeal);
 router.get("/project/:projectId", documentController.getByProject);
+router.get("/user/:userId", documentController.getByUser);
 router.get("/:id", validate(getDocumentSchema), documentController.getById);
 
 router.post(

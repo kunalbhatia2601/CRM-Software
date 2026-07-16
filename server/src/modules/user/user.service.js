@@ -13,12 +13,40 @@ const USER_SELECT = {
   avatar: true,
   role: true,
   status: true,
+  emergencyContactNumber: true,
+  address: true,
+  employeeType: true,
+  employeeTypeOther: true,
   biometricCode: true,
   isEmailVerified: true,
   lastLoginAt: true,
   clientId: true,
+  reportingManagerId: true,
+  reportingManager: {
+    select: { id: true, firstName: true, lastName: true, email: true, role: true },
+  },
   client: {
     select: { id: true, companyName: true, contactName: true, status: true },
+  },
+  employeeDocuments: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      version: true,
+      fileUrl: true,
+      fileKey: true,
+      mimeType: true,
+      fileSize: true,
+      description: true,
+      isAiGenerated: true,
+      createdAt: true,
+      updatedAt: true,
+      addedBy: {
+        select: { id: true, firstName: true, lastName: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
   },
   createdAt: true,
   updatedAt: true,
@@ -38,6 +66,25 @@ class UserService {
     }
 
     const hashedPassword = await bcrypt.hash(data.password, config.bcrypt.saltRounds);
+    const isInternalUser = data.role !== "CLIENT";
+
+    if (data.reportingManagerId && !isInternalUser) {
+      throw ApiError.badRequest("Reporting manager can only be set for internal users");
+    }
+
+    if (data.employeeType === "OTHER" && !data.employeeTypeOther) {
+      throw ApiError.badRequest("Please provide a custom employee type label");
+    }
+
+    if (data.reportingManagerId) {
+      const reportingManager = await prisma.user.findUnique({
+        where: { id: data.reportingManagerId },
+        select: { id: true },
+      });
+      if (!reportingManager) {
+        throw ApiError.badRequest("Reporting manager not found");
+      }
+    }
 
     // Validate clientId if provided (only for CLIENT role)
     if (data.clientId) {
@@ -58,9 +105,14 @@ class UserService {
         lastName: data.lastName,
         phone: data.phone || null,
         avatar: data.avatar || null,
+        emergencyContactNumber: data.emergencyContactNumber || null,
+        address: data.address || null,
         role: data.role,
         status: data.status || "ACTIVE",
         clientId: data.role === "CLIENT" ? (data.clientId || null) : null,
+        reportingManagerId: isInternalUser ? (data.reportingManagerId || null) : null,
+        employeeType: isInternalUser ? (data.employeeType || "FULL_TIME") : "FULL_TIME",
+        employeeTypeOther: data.employeeType === "OTHER" ? (data.employeeTypeOther || null) : null,
         biometricCode: data.biometricCode ?? null,
       },
       select: USER_SELECT,
@@ -160,6 +212,31 @@ class UserService {
       throw ApiError.badRequest("Users with role OWNER cannot be updated");
     }
 
+    const nextRole = data.role || user.role;
+    const isInternalUser = nextRole !== "CLIENT";
+
+    if (data.reportingManagerId && !isInternalUser) {
+      throw ApiError.badRequest("Reporting manager can only be set for internal users");
+    }
+
+    if (data.reportingManagerId && data.reportingManagerId === id) {
+      throw ApiError.badRequest("A user cannot report to themselves");
+    }
+
+    if (data.employeeType === "OTHER" && !data.employeeTypeOther) {
+      throw ApiError.badRequest("Please provide a custom employee type label");
+    }
+
+    if (data.reportingManagerId) {
+      const reportingManager = await prisma.user.findUnique({
+        where: { id: data.reportingManagerId },
+        select: { id: true },
+      });
+      if (!reportingManager) {
+        throw ApiError.badRequest("Reporting manager not found");
+      }
+    }
+
     // If email is being changed, check for duplicates
     if (data.email && data.email !== user.email) {
       const emailTaken = await prisma.user.findUnique({
@@ -171,9 +248,8 @@ class UserService {
     }
 
     // Handle clientId — only valid for CLIENT role
-    const effectiveRole = data.role || user.role;
     if (data.clientId !== undefined) {
-      if (effectiveRole !== "CLIENT") {
+      if (nextRole !== "CLIENT") {
         // Clear clientId if role is changing away from CLIENT
         data.clientId = null;
       } else if (data.clientId) {
@@ -186,6 +262,21 @@ class UserService {
     if (data.role && data.role !== "CLIENT" && user.clientId) {
       data.clientId = null;
     }
+
+    if (!isInternalUser) {
+      data.reportingManagerId = null;
+      data.employeeType = "FULL_TIME";
+      data.employeeTypeOther = null;
+    } else if (data.employeeType && data.employeeType !== "OTHER") {
+      data.employeeTypeOther = null;
+    }
+
+    if (data.emergencyContactNumber === "") data.emergencyContactNumber = null;
+    if (data.address === "") data.address = null;
+    if (data.avatar === "") data.avatar = null;
+    if (data.phone === "") data.phone = null;
+    if (data.reportingManagerId === "") data.reportingManagerId = null;
+    if (data.employeeTypeOther === "") data.employeeTypeOther = null;
 
     const updated = await prisma.user.update({
       where: { id },
@@ -296,6 +387,26 @@ class UserService {
           },
           orderBy: { createdAt: "desc" },
         },
+        employeeDocuments: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            version: true,
+            fileUrl: true,
+            fileKey: true,
+            mimeType: true,
+            fileSize: true,
+            description: true,
+            isAiGenerated: true,
+            createdAt: true,
+            updatedAt: true,
+            addedBy: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -363,6 +474,13 @@ class UserService {
       user: {
         id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
         phone: user.phone, avatar: user.avatar, role: user.role, status: user.status,
+        biometricCode: user.biometricCode,
+        emergencyContactNumber: user.emergencyContactNumber,
+        address: user.address,
+        employeeType: user.employeeType,
+        employeeTypeOther: user.employeeTypeOther,
+        reportingManagerId: user.reportingManagerId,
+        reportingManager: user.reportingManager || null,
         isEmailVerified: user.isEmailVerified, lastLoginAt: user.lastLoginAt,
         clientId: user.clientId, client: user.client || null,
         createdAt: user.createdAt, updatedAt: user.updatedAt,
@@ -372,6 +490,7 @@ class UserService {
       deals: allDeals,
       clients: allClients,
       projects: allProjects,
+      documents: user.employeeDocuments || [],
     };
   }
 

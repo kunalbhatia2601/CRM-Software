@@ -70,6 +70,11 @@ class DocumentController {
     return ok(res, "Documents retrieved", documents);
   });
 
+  getByUser = catchAsync(async (req, res) => {
+    const documents = await documentService.getDocumentsByUser(req.params.userId);
+    return ok(res, "Documents retrieved", documents);
+  });
+
   sendEmail = catchAsync(async (req, res) => {
     const result = await documentService.sendDocumentEmail(req.params.id, req.body);
     return ok(res, "Document email sent successfully", result);
