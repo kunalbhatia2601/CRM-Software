@@ -7,7 +7,7 @@ const TASK_INCLUDE = {
     select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
   },
   createdBy: {
-    select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
+    select: { id: true, firstName: true, lastName: true, email: true, avatar: true, role: true },
   },
   reviewedBy: {
     select: { id: true, firstName: true, lastName: true },
@@ -137,6 +137,8 @@ class TaskService {
         milestoneId: data.milestoneId || null,
         assigneeId: data.assigneeId || null,
         parentTaskId: data.parentTaskId || null,
+        internalCostAmount: data.internalCostAmount ?? null,
+        internalCostType: data.internalCostType || "NONE",
         createdById,
       },
       include: TASK_INCLUDE,
@@ -209,6 +211,8 @@ class TaskService {
     if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId || null;
     if (data.planningStepId !== undefined) updateData.planningStepId = data.planningStepId || null;
     if (data.milestoneId !== undefined) updateData.milestoneId = data.milestoneId || null;
+    if (data.internalCostAmount !== undefined) updateData.internalCostAmount = data.internalCostAmount ?? null;
+    if (data.internalCostType !== undefined) updateData.internalCostType = data.internalCostType || "NONE";
 
     // ── Handle status transition timestamps ──
     if (statusChanged) {

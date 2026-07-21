@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const statuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"];
 const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const costTypes = ["HOUR", "DAY", "MONTH", "NONE"];
 
 const referenceSchema = z.object({
   label: z.string().min(1).max(200),
@@ -24,6 +25,8 @@ export const createTaskSchema = z.object({
     milestoneId: z.string().optional().nullable(),
     assigneeId: z.string().optional().nullable(),
     parentTaskId: z.string().optional().nullable(),
+    internalCostAmount: z.coerce.number().min(0).optional().nullable(),
+    internalCostType: z.enum(costTypes).optional(),
   }),
 });
 
@@ -45,6 +48,8 @@ export const updateTaskSchema = z.object({
     assigneeId: z.string().optional().nullable(),
     // Feedback fields — required when moving to REVIEWED
     feedback: z.string().max(5000).optional(),
+    internalCostAmount: z.coerce.number().min(0).optional().nullable(),
+    internalCostType: z.enum(costTypes).optional(),
     nextStep: z.string().max(2000).optional().nullable(),
   }),
 });

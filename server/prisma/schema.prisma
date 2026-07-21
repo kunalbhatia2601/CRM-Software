@@ -1032,6 +1032,15 @@ model PlanningStep {
   @@map("planning_steps")
 }
 
+// ─── Task Cost Type ──────────────────────────────────
+
+enum TaskCostType {
+  HOUR
+  DAY
+  MONTH
+  NONE
+}
+
 // ─── Tasks ───────────────────────────────────────────
 
 enum TaskStatus {
@@ -1062,6 +1071,8 @@ model Task {
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   position    Int          @default(0)
+  internalCostAmount Decimal? @map("internal_cost_amount") @db.Decimal(12, 2)
+  internalCostType   TaskCostType @default(NONE) @map("internal_cost_type")
   dueDate     DateTime?    @map("due_date")
   completedAt DateTime?    @map("completed_at")
   reviewedAt  DateTime?    @map("reviewed_at")

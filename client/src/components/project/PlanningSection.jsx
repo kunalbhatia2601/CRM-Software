@@ -40,6 +40,7 @@ import {
   deleteMilestone,
 } from "@/actions/milestones.action";
 import CommentThread from "@/components/project/CommentThread";
+import { useAuth } from "@/context/AuthContext";
 
 export default function PlanningSection({
   projectId,
@@ -857,7 +858,9 @@ function StepModal({ isOpen, onClose, onSave, mode, data, saving }) {
 }
 
 function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, assignableUsers, saving }) {
+  const { user } = useAuth();
   const [formData, setFormData] = React.useState({});
+  const canViewCost = ["OWNER", "ADMIN", "SALES_MANAGER"].includes(user?.role);
 
   React.useEffect(() => {
     if (isOpen && data) {
@@ -984,6 +987,34 @@ function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, ass
             </div>
           </div>
         </div>
+
+        {/* ── Internal Cost (OWNER/ADMIN/SALES_MANAGER only) ── */}
+        {canViewCost && (
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Internal Cost</p>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                label="Cost Amount"
+                type="number"
+                value={formData.internalCostAmount || ""}
+                onChange={(e) => setFormData({ ...formData, internalCostAmount: e.target.value ? Number(e.target.value) : null })}
+                placeholder="0.00"
+              />
+              <FormField
+                label="Cost Type"
+                type="select"
+                value={formData.internalCostType || "NONE"}
+                onChange={(e) => setFormData({ ...formData, internalCostType: e.target.value })}
+                options={[
+                  { value: "NONE", label: "None" },
+                  { value: "HOUR", label: "Per Hour" },
+                  { value: "DAY", label: "Per Day" },
+                  { value: "MONTH", label: "Per Month" },
+                ]}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-4">
           <FormField label="Status" type="select" value={formData.status || "TODO"} onChange={(e) => setFormData({ ...formData, status: e.target.value })} options={[
