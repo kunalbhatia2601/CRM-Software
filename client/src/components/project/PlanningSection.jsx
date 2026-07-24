@@ -645,13 +645,20 @@ export default function PlanningSection({
 
   const AccordionSection = ({ title, icon: Icon, expanded, onToggle, onCreateClick, children }) => (
     <div className="rounded-[24px] bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 overflow-hidden">
-      <button onClick={onToggle} className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors border-b border-slate-100 dark:border-slate-800">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer"
+      >
         <div className="flex items-center gap-3">
           <Icon className="w-5 h-5 text-[#5542F6]" />
           <span className="font-semibold text-slate-900 dark:text-slate-50">{title}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); onCreateClick(); }}
             className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#5542F6] text-white text-xs font-semibold rounded-xl hover:bg-[#4636d4] transition-colors"
           >
@@ -659,7 +666,7 @@ export default function PlanningSection({
           </button>
           {expanded ? <ChevronDown className="w-5 h-5 text-slate-600 dark:text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />}
         </div>
-      </button>
+      </div>
       {expanded && <div className="p-6">{children}</div>}
     </div>
   );

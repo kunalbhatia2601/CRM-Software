@@ -2,12 +2,18 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/actions/auth.action";
 import { getSiteData } from "@/actions/site.action";
 import { AuthProvider } from "@/context/AuthContext";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 
 export async function generateMetadata() {
   const siteData = await getSiteData();
   const name = siteData?.name || "TaskGo Agency";
   return { title: `Finance Panel — ${name}` };
 }
+
+const navItems = [
+  { name: "Dashboard", href: "/finance/dashboard", icon: "LayoutDashboard" },
+  { name: "Invoices", href: "/finance/invoices", icon: "ReceiptText" },
+];
 
 export default async function FinanceLayout({ children }) {
   const user = await getAuthUser();
@@ -22,7 +28,9 @@ export default async function FinanceLayout({ children }) {
 
   return (
     <AuthProvider initialUser={user}>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{children}</div>
+      <DashboardShell title="Finance Panel" navItems={navItems}>
+        <div className="bg-slate-50 dark:bg-slate-950">{children}</div>
+      </DashboardShell>
     </AuthProvider>
   );
 }

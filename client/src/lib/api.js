@@ -1183,3 +1183,38 @@ export async function sendCopilotMessageAPI(data, accessToken) {
 export async function getCopilotSuggestionsAPI(accessToken) {
   return request("/api/copilot/suggestions", { method: "GET", token: accessToken });
 }
+
+/* ───────── Invoices ───────── */
+
+export async function getInvoicesAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/invoices?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getInvoiceAPI(id, accessToken) {
+  return request(`/api/invoices/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function getInvoicesByProjectAPI(projectId, accessToken) {
+  return request(`/api/invoices/project/${projectId}`, { method: "GET", token: accessToken });
+}
+
+export async function createInvoiceAPI(data, accessToken) {
+  return request("/api/invoices", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updateInvoiceAPI(id, data, accessToken) {
+  return request(`/api/invoices/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteInvoiceAPI(id, accessToken) {
+  return request(`/api/invoices/${id}`, { method: "DELETE", token: accessToken });
+}

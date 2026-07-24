@@ -108,6 +108,7 @@ const navItems = [
       { name: "Balances", href: "/owner/leave-balances" },
     ],
   },
+  { name: "Invoices", href: "/owner/invoices", icon: "ReceiptText" },
   { name: "Settings", href: "/owner/settings", icon: "Settings" },
 ];
 
