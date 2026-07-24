@@ -49,6 +49,7 @@ const navItems = [
       { name: "Add Project", href: "/admin/projects/create" },
     ],
   },
+  { name: "Invoices", href: "/admin/invoices", icon: "ReceiptText" },
   {
     name: "Teams",
     href: "/admin/teams",

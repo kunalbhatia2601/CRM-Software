@@ -17,6 +17,11 @@ class SettingsController {
     return ok(res, "AI Settings retrieved", settings);
   });
 
+  getInvoiceConfig = catchAsync(async (_req, res) => {
+    const config = await settingsService.getInvoiceConfig();
+    return ok(res, "Invoice config retrieved", config);
+  });
+
   /**
    * PATCH /api/settings
    * Protected — OWNER only. Updates system settings.

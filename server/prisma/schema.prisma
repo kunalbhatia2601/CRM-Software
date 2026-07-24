@@ -656,6 +656,14 @@ model Settings {
   // Day-of-week numbers treated as weekend (0 = Sunday … 6 = Saturday)
   weekendDays       Int[]   @default([0, 6]) @map("weekend_days")
 
+  // Invoice Configuration
+  invoiceBgImage          String?  @map("invoice_bg_image")                          // background/watermark URL
+  invoiceBgOpacity        Float    @default(0.05) @map("invoice_bg_opacity")         // 0.0 - 1.0
+  invoiceDefaultTaxPercent Decimal @default(0) @map("invoice_default_tax_percent") @db.Decimal(5, 2)
+  invoiceDefaultDiscount  Decimal  @default(0) @map("invoice_default_discount") @db.Decimal(12, 2)
+  invoiceDefaultNotes     String?  @map("invoice_default_notes") @db.Text
+  invoiceDefaultTerms     String?  @map("invoice_default_terms") @db.Text
+
   // AI Configuration
   aiProvider        String  @default("NONE") @map("ai_provider")       // NONE | GEMINI | OPENAI | CUSTOM
   aiApiKey          String? @map("ai_api_key")

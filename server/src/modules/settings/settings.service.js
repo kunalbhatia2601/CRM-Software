@@ -62,6 +62,21 @@ class SettingsService {
   }
 
   /**
+   * Public-to-authed invoice config (bg + defaults) — non-sensitive.
+   */
+  async getInvoiceConfig() {
+    const s = await this.getRawSettings();
+    return {
+      invoiceBgImage: s.invoiceBgImage || null,
+      invoiceBgOpacity: s.invoiceBgOpacity ?? 0.05,
+      invoiceDefaultTaxPercent: Number(s.invoiceDefaultTaxPercent ?? 0),
+      invoiceDefaultDiscount: Number(s.invoiceDefaultDiscount ?? 0),
+      invoiceDefaultNotes: s.invoiceDefaultNotes || "",
+      invoiceDefaultTerms: s.invoiceDefaultTerms || "",
+    };
+  }
+
+  /**
    * Update settings (OWNER only)
    * If passwords are the masked string, skip updating them.
    * Invalidates cache after update.

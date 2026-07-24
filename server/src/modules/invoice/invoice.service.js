@@ -214,6 +214,17 @@ class InvoiceService {
     const existing = await prisma.invoice.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("Invoice not found");
 
+    // A paid or cancelled invoice is locked — block content edits.
+    // (A pure amountPaid update, e.g. reconciliation, is still allowed.)
+    const isContentEdit =
+      data.items !== undefined || data.discountAmount !== undefined || data.taxPercent !== undefined ||
+      data.billToName !== undefined || data.billToEmail !== undefined || data.billToAddress !== undefined ||
+      data.notes !== undefined || data.terms !== undefined || data.issueDate !== undefined ||
+      data.dueDate !== undefined || data.currency !== undefined;
+    if (isContentEdit && ["PAID", "CANCELLED"].includes(existing.status)) {
+      throw ApiError.badRequest(`A ${existing.status.toLowerCase()} invoice cannot be edited`);
+    }
+
     const updateData = {};
     if (data.status !== undefined) updateData.status = data.status;
     if (data.currency !== undefined) updateData.currency = data.currency;

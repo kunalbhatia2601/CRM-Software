@@ -159,6 +159,13 @@ export async function getAiSettings(accessToken) {
   });
 }
 
+export async function getInvoiceConfigAPI(accessToken) {
+  return request("/api/settings/invoice-config", {
+    method: "GET",
+    token: accessToken,
+  });
+}
+
 /* ───────── Dashboard Endpoint ───────── */
 
 export async function getDashboardStatsAPI(accessToken, period = "month") {

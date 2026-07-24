@@ -38,5 +38,13 @@ export const updateSettingsSchema = z.object({
 
     // Attendance — weekend day-of-week numbers (0 = Sunday … 6 = Saturday)
     weekendDays: z.array(z.coerce.number().int().min(0).max(6)).optional(),
+
+    // Invoice defaults
+    invoiceBgImage: z.string().max(1000).nullable().optional(),
+    invoiceBgOpacity: z.coerce.number().min(0).max(1).optional(),
+    invoiceDefaultTaxPercent: z.coerce.number().min(0).max(100).optional(),
+    invoiceDefaultDiscount: z.coerce.number().min(0).optional(),
+    invoiceDefaultNotes: z.string().max(5000).nullable().optional(),
+    invoiceDefaultTerms: z.string().max(5000).nullable().optional(),
   }),
 });

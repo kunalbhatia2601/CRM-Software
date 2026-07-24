@@ -1,104 +1,70 @@
 "use client";
 
-import { useState, useEffect, useMemo, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Trash2, Loader2, ReceiptText, ArrowLeft } from "lucide-react";
+import { useState, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Loader2, Save, ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
-import { getProject } from "@/actions/projects.action";
-import { createInvoice, getInvoiceConfig } from "@/actions/invoices.action";
+import { updateInvoice } from "@/actions/invoices.action";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
-export default function CreateInvoiceContent({ basePath }) {
+const LOCKED = ["PAID", "CANCELLED"];
+
+export default function EditInvoiceContent({ basePath, invoice }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const projectId = searchParams.get("projectId");
   const { format, symbol } = useSite();
   const [isPending, startTransition] = useTransition();
-
-  const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  const [items, setItems] = useState([]);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [taxPercent, setTaxPercent] = useState(0);
-  const [billTo, setBillTo] = useState({ name: "", email: "", address: "" });
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
-  const [dueDate, setDueDate] = useState("");
-  const [notes, setNotes] = useState("");
-  const [terms, setTerms] = useState("");
+  const locked = LOCKED.includes(invoice.status);
+
+  const [items, setItems] = useState(
+    (invoice.items || []).map((it) => ({
+      name: it.name,
+      description: it.description || "",
+      quantity: Number(it.quantity) || 1,
+      unitPrice: Number(it.unitPrice) || 0,
+    }))
+  );
+  const [discountAmount, setDiscountAmount] = useState(Number(invoice.discountAmount) || 0);
+  const [taxPercent, setTaxPercent] = useState(Number(invoice.taxPercent) || 0);
+  const [billTo, setBillTo] = useState({
+    name: invoice.billToName || "",
+    email: invoice.billToEmail || "",
+    address: invoice.billToAddress || "",
+  });
+  const [status, setStatus] = useState(invoice.status);
+  const [issueDate, setIssueDate] = useState(invoice.issueDate ? invoice.issueDate.split("T")[0] : "");
+  const [dueDate, setDueDate] = useState(invoice.dueDate ? invoice.dueDate.split("T")[0] : "");
+  const [notes, setNotes] = useState(invoice.notes || "");
+  const [terms, setTerms] = useState(invoice.terms || "");
 
   const showToast = (type, message) => setToast({ type, message });
 
-  useEffect(() => {
-    if (!projectId) {
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      const [res, cfg] = await Promise.all([getProject(projectId), getInvoiceConfig()]);
-      if (res.success) {
-        const p = res.data;
-        setProject(p);
-        // Prefill line items from project services (price is snapshot INR)
-        const svcItems = (p.projectServices || []).map((ps) => ({
-          name: ps.service?.name || "Service",
-          description: Array.isArray(ps.service?.points) ? ps.service.points.join(", ") : "",
-          quantity: Number(ps.quantity) || 1,
-          unitPrice: Number(ps.price) || 0,
-        }));
-        setItems(svcItems.length ? svcItems : [{ name: "", description: "", quantity: 1, unitPrice: 0 }]);
-        // Prefill bill-to from client
-        setBillTo({
-          name: p.client?.companyName || "",
-          email: p.client?.email || "",
-          address: p.client?.address || "",
-        });
-      }
-      // Prefill invoice defaults from settings
-      if (cfg.success && cfg.data) {
-        if (cfg.data.invoiceDefaultTaxPercent) setTaxPercent(cfg.data.invoiceDefaultTaxPercent);
-        if (cfg.data.invoiceDefaultDiscount) setDiscountAmount(cfg.data.invoiceDefaultDiscount);
-        if (cfg.data.invoiceDefaultNotes) setNotes(cfg.data.invoiceDefaultNotes);
-        if (cfg.data.invoiceDefaultTerms) setTerms(cfg.data.invoiceDefaultTerms);
-      }
-      setLoading(false);
-    })();
-  }, [projectId]);
-
-  const updateItem = (idx, field, value) => {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-  };
-  const addItem = () => setItems((prev) => [...prev, { name: "", description: "", quantity: 1, unitPrice: 0 }]);
-  const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
+  const updateItem = (idx, field, value) => setItems((p) => p.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  const addItem = () => setItems((p) => [...p, { name: "", description: "", quantity: 1, unitPrice: 0 }]);
+  const removeItem = (idx) => setItems((p) => p.filter((_, i) => i !== idx));
 
   const totals = useMemo(() => {
     const subtotal = round2(items.reduce((s, it) => s + round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
     const disc = round2(discountAmount);
     const taxable = Math.max(0, subtotal - disc);
     const taxAmt = round2((taxable * round2(taxPercent)) / 100);
-    const total = round2(taxable + taxAmt);
-    return { subtotal, disc, taxAmt, total };
+    return { subtotal, disc, taxAmt, total: round2(taxable + taxAmt) };
   }, [items, discountAmount, taxPercent]);
 
-  const handleSave = (status) => {
-    if (!projectId) {
-      showToast("error", "No project selected");
-      return;
-    }
+  const handleSave = () => {
     const validItems = items.filter((it) => it.name?.trim());
     if (validItems.length === 0) {
       showToast("error", "Add at least one line item with a name");
       return;
     }
     startTransition(async () => {
-      const res = await createInvoice({
-        projectId,
+      const res = await updateInvoice(invoice.id, {
         status,
         billToName: billTo.name || null,
         billToEmail: billTo.email || null,
@@ -117,45 +83,40 @@ export default function CreateInvoiceContent({ basePath }) {
         terms: terms || null,
       });
       if (res.success) {
-        router.push(`${basePath}/invoices/${res.data.id}`);
+        router.push(`${basePath}/invoices/${invoice.id}`);
       } else {
-        showToast("error", res.error || "Failed to create invoice");
+        showToast("error", res.error || "Failed to update invoice");
       }
     });
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
-  }
+  const inputClass = "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none";
 
-  if (!projectId || !project) {
+  if (locked) {
     return (
-      <div className="p-6">
-        <p className="text-slate-500">No project selected. Go back and pick a project.</p>
-        <button onClick={() => router.push(`${basePath}/invoices`)} className="mt-4 text-sm text-indigo-600">← Back to invoices</button>
+      <div className="p-6 max-w-lg">
+        <button onClick={() => router.push(`${basePath}/invoices/${invoice.id}`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">
+          <p className="text-slate-600 dark:text-slate-300 font-medium">This invoice is {invoice.status.toLowerCase()} and can no longer be edited.</p>
+        </div>
       </div>
     );
   }
-
-  const inputClass = "w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none";
 
   return (
     <div className="p-6 max-w-5xl">
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
-      <button onClick={() => router.push(`${basePath}/invoices`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4">
+      <button onClick={() => router.push(`${basePath}/invoices/${invoice.id}`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4">
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      <PageHeader
-        title="New Invoice"
-        description={`For project: ${project.name}`}
-      />
+      <PageHeader title={`Edit ${invoice.invoiceNumber}`} description={invoice.project?.name ? `Project: ${invoice.project.name}` : ""} />
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left: line items + details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Bill To */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-4">Bill To</h3>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -165,7 +126,6 @@ export default function CreateInvoiceContent({ basePath }) {
             </div>
           </div>
 
-          {/* Line items */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Line Items</h3>
@@ -202,24 +162,31 @@ export default function CreateInvoiceContent({ basePath }) {
             </div>
           </div>
 
-          {/* Notes + terms */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
             <div>
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Notes</label>
-              <textarea className={`${inputClass} mt-1.5`} rows={2} placeholder="Notes visible on the invoice" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              <textarea className={`${inputClass} mt-1.5`} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Terms</label>
-              <textarea className={`${inputClass} mt-1.5`} rows={2} placeholder="Payment terms & conditions" value={terms} onChange={(e) => setTerms(e.target.value)} />
+              <textarea className={`${inputClass} mt-1.5`} rows={2} value={terms} onChange={(e) => setTerms(e.target.value)} />
             </div>
           </div>
         </div>
 
-        {/* Right: summary + dates */}
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-4">Details</h3>
             <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-slate-500">Status</label>
+                <select className={`${inputClass} mt-1`} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="DRAFT">Draft</option>
+                  <option value="SENT">Sent</option>
+                  <option value="PARTIALLY_PAID">Partially Paid</option>
+                  <option value="OVERDUE">Overdue</option>
+                </select>
+              </div>
               <div>
                 <label className="text-xs font-medium text-slate-500">Issue Date</label>
                 <input type="date" className={`${inputClass} mt-1`} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
@@ -234,9 +201,7 @@ export default function CreateInvoiceContent({ basePath }) {
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-4">Summary</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>Subtotal</span><span>{format(totals.subtotal)}</span>
-              </div>
+              <div className="flex justify-between text-slate-600 dark:text-slate-300"><span>Subtotal</span><span>{format(totals.subtotal)}</span></div>
               <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
                 <span>Discount</span>
                 <div className="relative w-28">
@@ -250,32 +215,18 @@ export default function CreateInvoiceContent({ basePath }) {
                   <input type="number" min="0" max="100" step="0.01" className={`${inputClass} text-right py-1`} value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} />
                 </div>
               </div>
-              <div className="flex justify-between text-slate-500 text-xs">
-                <span>Tax amount</span><span>{format(totals.taxAmt)}</span>
-              </div>
+              <div className="flex justify-between text-slate-500 text-xs"><span>Tax amount</span><span>{format(totals.taxAmt)}</span></div>
               <div className="border-t border-slate-200 dark:border-slate-800 pt-2 mt-2 flex justify-between font-bold text-slate-900 dark:text-slate-50">
                 <span>Total</span><span>{format(totals.total)}</span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <button
-              onClick={() => handleSave("SENT")}
-              disabled={isPending}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60"
-            >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ReceiptText className="w-4 h-4" />}
-              Create & Finalize
-            </button>
-            <button
-              onClick={() => handleSave("DRAFT")}
-              disabled={isPending}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
-            >
-              Save as Draft
-            </button>
-          </div>
+          <button onClick={handleSave} disabled={isPending}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Changes
+          </button>
         </div>
       </div>
     </div>

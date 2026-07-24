@@ -8,6 +8,7 @@ import {
   createInvoiceAPI,
   updateInvoiceAPI,
   deleteInvoiceAPI,
+  getInvoiceConfigAPI,
 } from "@/lib/api";
 
 async function getToken() {
@@ -72,6 +73,18 @@ export async function updateInvoice(id, data) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to update invoice" };
+  }
+}
+
+export async function getInvoiceConfig() {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await getInvoiceConfigAPI(token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to fetch invoice config" };
   }
 }
 

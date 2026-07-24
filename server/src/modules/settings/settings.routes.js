@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/ai", settingsController.getAiSettings);
+router.get("/invoice-config", settingsController.getInvoiceConfig);
 router.get("/", authorize("OWNER"), settingsController.getSettings);
 router.patch("/", authorize("OWNER"), validate(updateSettingsSchema), settingsController.updateSettings);
 

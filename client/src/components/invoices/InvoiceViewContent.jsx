@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, CheckCircle2, Pencil } from "lucide-react";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
-import { updateInvoice } from "@/actions/invoices.action";
+import { updateInvoice, getInvoiceConfig } from "@/actions/invoices.action";
 
 const STATUS_STYLES = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -16,8 +16,8 @@ const STATUS_STYLES = {
   CANCELLED: "bg-slate-100 text-slate-400 line-through",
 };
 
-// Background watermark image shown behind invoice body (screen + print).
-const BG_IMAGE = "/images/mask-group-1.webp";
+// A paid or cancelled invoice is locked; anything else is editable.
+const isEditable = (status) => !["PAID", "CANCELLED"].includes(status);
 
 export default function InvoiceViewContent({ basePath, invoice: initial, readOnly = false }) {
   const router = useRouter();
@@ -26,6 +26,14 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
   const [invoice, setInvoice] = useState(initial);
   const [toast, setToast] = useState(null);
   const [marking, setMarking] = useState(false);
+  const [bg, setBg] = useState({ image: null, opacity: 0.05 });
+
+  useEffect(() => {
+    (async () => {
+      const res = await getInvoiceConfig();
+      if (res.success) setBg({ image: res.data.invoiceBgImage || null, opacity: res.data.invoiceBgOpacity ?? 0.05 });
+    })();
+  }, []);
 
   const showToast = (type, message) => setToast({ type, message });
 
@@ -41,7 +49,26 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
     }
   };
 
-  const handlePrint = () => window.print();
+  // Set the PDF/print filename to INV_ID(4)-ProjectName, and collapse the
+  // browser's footer URL to just the invoice id, then restore both after.
+  const handlePrint = () => {
+    const idPart = (invoice.invoiceNumber || invoice.id || "").toString().slice(-4);
+    const projName = (invoice.project?.name || "invoice").replace(/[^\w-]+/g, "_");
+    const prevTitle = document.title;
+    const prevUrl = window.location.href;
+
+    document.title = `${idPart}-${projName}`;
+    try {
+      window.history.replaceState(null);
+    } catch {}
+
+    window.print();
+
+    setTimeout(() => {
+      document.title = prevTitle;
+      try { window.history.replaceState(null, "", prevUrl); } catch {}
+    }, 500);
+  };
 
   const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
@@ -55,6 +82,11 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <div className="flex items-center gap-2">
+          {!readOnly && isEditable(invoice.status) && (
+            <button onClick={() => router.push(`${basePath}/invoices/${invoice.id}/edit`)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl">
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
+          )}
           {!readOnly && invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
             <button onClick={markPaid} disabled={marking} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl disabled:opacity-60">
               {marking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -67,15 +99,17 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
         </div>
       </div>
 
-      {/* Invoice sheet */}
-      <div className="invoice-sheet relative mx-auto max-w-3xl bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
-        {/* Background watermark */}
-        <div
-          className="pointer-events-none absolute inset-0 bg-no-repeat bg-center bg-contain opacity-[0.04] print:opacity-[0.05]"
-          style={{ backgroundImage: `url(${BG_IMAGE})` }}
-        />
+      {/* Invoice sheet — white base; watermark only if a bg image is configured.
+          min-h keeps an A4-ish page so a `contain` background shows the whole image. */}
+      <div className="invoice-sheet relative mx-auto max-w-3xl min-h-250 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
+        {bg.image && (
+          <div
+            className="invoice-bg pointer-events-none absolute inset-0 bg-no-repeat bg-center bg-contain"
+            style={{ backgroundImage: `url(${bg.image})`, opacity: bg.opacity }}
+          />
+        )}
 
-        <div className="relative p-10">
+        <div className="relative p-12">
           {/* Header */}
           <div className="flex items-start justify-between mb-10">
             <div>
@@ -183,10 +217,12 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
 
       {/* Print styles */}
       <style jsx global>{`
+        .invoice-bg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
           .invoice-sheet, .invoice-sheet * { visibility: visible; }
           .invoice-sheet { position: absolute; left: 0; top: 0; width: 100%; max-width: none; margin: 0; }
+          .invoice-bg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { margin: 12mm; }
         }
       `}</style>
