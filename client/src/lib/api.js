@@ -1244,3 +1244,44 @@ export async function createAnnouncementAPI(data, accessToken) {
 export async function deleteAnnouncementAPI(id, accessToken) {
   return request(`/api/announcements/${id}`, { method: "DELETE", token: accessToken });
 }
+
+/* ───────── Jobs (HR-managed) ───────── */
+
+export async function getJobsAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/jobs?${query}`, { method: "GET", token: accessToken });
+}
+export async function getJobAPI(id, accessToken) {
+  return request(`/api/jobs/${id}`, { method: "GET", token: accessToken });
+}
+export async function createJobAPI(data, accessToken) {
+  return request("/api/jobs", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+export async function updateJobAPI(id, data, accessToken) {
+  return request(`/api/jobs/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+export async function deleteJobAPI(id, accessToken) {
+  return request(`/api/jobs/${id}`, { method: "DELETE", token: accessToken });
+}
+export async function getJobApplicationsAPI(id, accessToken) {
+  return request(`/api/jobs/${id}/applications`, { method: "GET", token: accessToken });
+}
+export async function updateJobApplicationAPI(id, data, accessToken) {
+  return request(`/api/jobs/applications/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+/* ───────── Jobs (public — no auth) ───────── */
+
+export async function getPublicJobsAPI() {
+  return request("/api/jobs/public", { method: "GET" });
+}
+export async function getPublicJobAPI(slug) {
+  return request(`/api/jobs/public/${slug}`, { method: "GET" });
+}
+export async function applyToJobAPI(slug, data) {
+  return request(`/api/jobs/public/${slug}/apply`, { method: "POST", body: JSON.stringify(data) });
+}
+export async function getPublicUploadConfigAPI(params) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/storage/public/upload-config?${query}`, { method: "GET" });
+}

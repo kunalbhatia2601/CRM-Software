@@ -42,6 +42,7 @@ import holidayRoutes from "./modules/holiday/holiday.routes.js";
 import calendarRoutes from "./modules/calendar/calendar.routes.js";
 import invoiceRoutes from "./modules/invoice/invoice.routes.js";
 import announcementRoutes from "./modules/announcement/announcement.routes.js";
+import jobRoutes from "./modules/job/job.routes.js";
 
 const app = express();
 
@@ -127,6 +128,7 @@ app.use("/api/holidays", holidayRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/jobs", jobRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 

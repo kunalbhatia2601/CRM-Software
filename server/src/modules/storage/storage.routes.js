@@ -14,4 +14,9 @@ router.post("/upload/local", authenticate, controller.uploadLocal);
 // Serve local files — public (no auth, files are served by their key)
 router.get("/files/*", controller.serveFile);
 
+// ── Public upload (no auth) — used by the careers/apply flow so anonymous
+//    applicants can attach a resume. Same handlers, no auth middleware. ──
+router.get("/public/upload-config", controller.getUploadConfig);
+router.post("/public/upload/local", controller.uploadLocal);
+
 export default router;
