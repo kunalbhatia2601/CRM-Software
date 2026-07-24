@@ -21,6 +21,7 @@ import Badge from "@/components/ui/Badge";
 import PlanningSection from "@/components/project/PlanningSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
+import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
 
 export default function ClientProjectDetailContent({
   initialProject,
@@ -248,6 +249,9 @@ export default function ClientProjectDetailContent({
           </div>
         </div>
       )}
+
+      {/* Invoices — read-only for clients */}
+      <ProjectInvoicesSection projectId={project.id} basePath="/client" readOnly />
     </div>
   );
 }

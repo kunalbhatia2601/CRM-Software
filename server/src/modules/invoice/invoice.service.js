@@ -1,5 +1,6 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
+import notificationService from "../notification/notification.service.js";
 
 const INVOICE_INCLUDE = {
   items: { orderBy: { position: "asc" } },
@@ -87,7 +88,7 @@ class InvoiceService {
 
     const invoiceNumber = await this.#nextInvoiceNumber();
 
-    return prisma.invoice.create({
+    const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber,
         status: data.status || "DRAFT",
@@ -111,6 +112,35 @@ class InvoiceService {
         items: { create: lineItems },
       },
       include: INVOICE_INCLUDE,
+    });
+
+    // Notify the client's portal users (in-app) — fire-and-forget.
+    this.#notifyClientOfInvoice(invoice, project).catch((err) =>
+      console.error("[InvoiceService] client notify failed:", err.message)
+    );
+
+    return invoice;
+  }
+
+  /**
+   * In-app notification to CLIENT-role users linked to the invoice's client.
+   */
+  async #notifyClientOfInvoice(invoice, project) {
+    if (!project.clientId) return;
+
+    const portalUsers = await prisma.user.findMany({
+      where: { clientId: project.clientId, role: "CLIENT", status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (portalUsers.length === 0) return;
+
+    await notificationService.sendBulk({
+      userIds: portalUsers.map((u) => u.id),
+      title: `New invoice ${invoice.invoiceNumber}`,
+      description: `An invoice for project "${project.name}" is now available to view.`,
+      type: "INFO",
+      channel: "IN_APP",
+      linkUrl: `/client/projects/${project.id}`,
     });
   }
 
@@ -147,18 +177,34 @@ class InvoiceService {
     };
   }
 
-  async getInvoiceById(id) {
+  async getInvoiceById(id, user = null) {
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: INVOICE_INCLUDE,
     });
     if (!invoice) throw ApiError.notFound("Invoice not found");
+
+    // CLIENT users may only view finalized invoices for their own client.
+    if (user?.role === "CLIENT") {
+      if (!user.clientId || invoice.clientId !== user.clientId || invoice.status === "DRAFT") {
+        throw ApiError.notFound("Invoice not found");
+      }
+    }
     return invoice;
   }
 
-  async getInvoicesByProject(projectId) {
+  async getInvoicesByProject(projectId, user = null) {
+    const where = { projectId };
+
+    // CLIENT users: restrict to their own client + hide drafts.
+    if (user?.role === "CLIENT") {
+      if (!user.clientId) return [];
+      where.clientId = user.clientId;
+      where.status = { not: "DRAFT" };
+    }
+
     return prisma.invoice.findMany({
-      where: { projectId },
+      where,
       include: INVOICE_INCLUDE,
       orderBy: { createdAt: "desc" },
     });

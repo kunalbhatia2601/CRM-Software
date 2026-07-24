@@ -37,6 +37,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
 import PlanningSection from "@/components/project/PlanningSection";
+import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
 
@@ -718,6 +719,9 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
         projectTasks={tasks}
         showToast={showToast}
       />
+
+      {/* ═══ Invoices ═══ */}
+      <ProjectInvoicesSection projectId={project.id} basePath="/accounts" />
 
       {/* Notes Section */}
       <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">

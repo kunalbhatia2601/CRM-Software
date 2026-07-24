@@ -13,12 +13,12 @@ const listInvoices = catchAsync(async (req, res) => {
 });
 
 const getInvoice = catchAsync(async (req, res) => {
-  const invoice = await invoiceService.getInvoiceById(req.params.id);
+  const invoice = await invoiceService.getInvoiceById(req.params.id, req.user);
   return ok(res, "Invoice retrieved", invoice);
 });
 
 const getInvoicesByProject = catchAsync(async (req, res) => {
-  const invoices = await invoiceService.getInvoicesByProject(req.params.projectId);
+  const invoices = await invoiceService.getInvoicesByProject(req.params.projectId, req.user);
   return ok(res, "Project invoices retrieved", invoices);
 });
 

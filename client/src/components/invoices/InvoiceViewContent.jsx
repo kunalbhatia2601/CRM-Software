@@ -19,7 +19,7 @@ const STATUS_STYLES = {
 // Background watermark image shown behind invoice body (screen + print).
 const BG_IMAGE = "/images/mask-group-1.webp";
 
-export default function InvoiceViewContent({ basePath, invoice: initial }) {
+export default function InvoiceViewContent({ basePath, invoice: initial, readOnly = false }) {
   const router = useRouter();
   const site = useSite();
   const { format } = site;
@@ -55,7 +55,7 @@ export default function InvoiceViewContent({ basePath, invoice: initial }) {
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <div className="flex items-center gap-2">
-          {invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
+          {!readOnly && invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
             <button onClick={markPaid} disabled={marking} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl disabled:opacity-60">
               {marking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               Mark Paid

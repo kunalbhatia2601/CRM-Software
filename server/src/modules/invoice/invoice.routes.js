@@ -14,13 +14,15 @@ const router = Router();
 
 router.use(authenticate);
 
-// Invoices — OWNER, SALES_MANAGER, FINANCE_MANAGER (+ ADMIN)
+// Manage — OWNER, SALES_MANAGER, FINANCE_MANAGER (+ ADMIN)
 const canManage = authorize("OWNER", "ADMIN", "SALES_MANAGER", "FINANCE_MANAGER");
+// Read — managers + CLIENT (CLIENT is scoped to their own client in the service)
+const canRead = authorize("OWNER", "ADMIN", "SALES_MANAGER", "FINANCE_MANAGER", "CLIENT");
 
 router.post("/", canManage, validate(createInvoiceSchema), controller.createInvoice);
 router.get("/", canManage, validate(listInvoicesSchema), controller.listInvoices);
-router.get("/project/:projectId", canManage, controller.getInvoicesByProject);
-router.get("/:id", canManage, validate(getInvoiceSchema), controller.getInvoice);
+router.get("/project/:projectId", canRead, controller.getInvoicesByProject);
+router.get("/:id", canRead, validate(getInvoiceSchema), controller.getInvoice);
 router.patch("/:id", canManage, validate(updateInvoiceSchema), controller.updateInvoice);
 router.delete("/:id", canManage, validate(getInvoiceSchema), controller.deleteInvoice);
 

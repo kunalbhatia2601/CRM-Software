@@ -32,6 +32,7 @@ const authenticate = async (req, _res, next) => {
         lastName: true,
         role: true,
         status: true,
+        clientId: true,
       },
     });
 
