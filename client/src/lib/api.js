@@ -1225,3 +1225,22 @@ export async function updateInvoiceAPI(id, data, accessToken) {
 export async function deleteInvoiceAPI(id, accessToken) {
   return request(`/api/invoices/${id}`, { method: "DELETE", token: accessToken });
 }
+
+/* ───────── Announcements ───────── */
+
+export async function getAnnouncementsAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/announcements?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function createAnnouncementAPI(data, accessToken) {
+  return request("/api/announcements", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deleteAnnouncementAPI(id, accessToken) {
+  return request(`/api/announcements/${id}`, { method: "DELETE", token: accessToken });
+}

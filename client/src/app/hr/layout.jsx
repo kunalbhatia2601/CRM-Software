@@ -12,11 +12,21 @@ export async function generateMetadata() {
 
 const navItems = [
   { name: "Dashboard", href: "/hr/dashboard", icon: "LayoutDashboard" },
+  { name: "Employees", href: "/hr/employees", icon: "UsersRound" },
   { name: "Attendance", href: "/hr/attendance", icon: "Clock" },
-  { name: "Leave Requests", href: "/hr/leave-requests", icon: "FileText" },
-  { name: "Leave Types", href: "/hr/leave-types", icon: "Layers" },
-  { name: "Leave Balances", href: "/hr/leave-balances", icon: "PackageCheck" },
+  {
+    name: "Leave",
+    href: "/hr/leave-requests",
+    icon: "FileText",
+    children: [
+      { name: "Requests", href: "/hr/leave-requests" },
+      { name: "Calendar", href: "/hr/leave-calendar" },
+      { name: "Types", href: "/hr/leave-types" },
+      { name: "Balances", href: "/hr/leave-balances" },
+    ],
+  },
   { name: "Holidays", href: "/hr/holidays", icon: "Calendar" },
+  { name: "Announcements", href: "/hr/announcements", icon: "Megaphone" },
   {
     name: "Teams",
     href: "/hr/teams",

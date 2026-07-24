@@ -16,21 +16,21 @@ const router = Router();
 // All routes require auth
 router.use(authenticate);
 
-// Minimal user directory for HR/OWNER/ADMIN (read-only, no sensitive fields).
-// Declared BEFORE the OWNER-only router.use() below so it keeps its own auth scope.
-router.get(
-  "/directory",
-  authorize("OWNER", "ADMIN", "HR"),
-  userController.listDirectory
-);
+// Read routes accessible to HR/OWNER/ADMIN (declared BEFORE the OWNER-only
+// router.use() below so they keep their own broader auth scope).
+const staffRead = authorize("OWNER", "ADMIN", "HR");
+
+// Minimal user directory (read-only, no sensitive fields).
+router.get("/directory", staffRead, userController.listDirectory);
+// Full user + report — HR needs these for the employee profile page.
+router.get("/:id", staffRead, validate(getUserSchema), userController.getUserById);
+router.get("/:id/report", staffRead, validate(getUserSchema), userController.getUserReport);
 
 // All remaining routes are OWNER-only
 router.use(authorize("OWNER"));
 
 router.post("/", validate(createUserSchema), userController.createUser);
 router.get("/", validate(listUsersSchema), userController.listUsers);
-router.get("/:id", validate(getUserSchema), userController.getUserById);
-router.get("/:id/report", validate(getUserSchema), userController.getUserReport);
 router.patch("/:id", validate(updateUserSchema), userController.updateUser);
 router.post("/:id/reset-password", validate(resetPasswordSchema), userController.resetPassword);
 router.delete("/:id", validate(getUserSchema), userController.deleteUser);

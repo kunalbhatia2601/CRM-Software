@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const documentTypes = ["PROPOSAL", "INVOICE", "CONTRACT", "REPORT", "OTHER"];
+const documentTypes = ["PROPOSAL", "AGREEMENT", "NDA", "INVOICE", "CONTRACT", "REPORT", "OTHER"];
 
 export const createDocumentSchema = z.object({
   body: z.object({

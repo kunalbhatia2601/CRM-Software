@@ -200,6 +200,9 @@ model User {
   // Invoices created
   createdInvoices Invoice[] @relation("InvoiceCreator")
 
+  // Announcements created
+  createdAnnouncements Announcement[] @relation("AnnouncementCreator")
+
   @@index([clientId])
   @@index([reportingManagerId])
   @@map("users")
@@ -781,6 +784,34 @@ model ProjectTeam {
   @@index([projectId])
   @@index([teamId])
   @@map("project_teams")
+}
+
+// ─── Announcement ────────────────────────────────────
+// HR/Owner broadcast to staff. Persisted for history; also fans out to
+// per-user Notifications on create.
+
+enum AnnouncementAudience {
+  ALL            // all active non-CLIENT users
+  EMPLOYEES      // EMPLOYEE role only
+  MANAGERS       // manager roles (SALES/ACCOUNT/FINANCE managers)
+  HR
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  title       String
+  body        String               @db.Text
+  audience    AnnouncementAudience @default(ALL)
+  isPinned    Boolean              @default(false) @map("is_pinned")
+
+  createdById String               @map("created_by_id")
+  createdBy   User                 @relation("AnnouncementCreator", fields: [createdById], references: [id])
+
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@map("announcements")
 }
 
 // ─── Notification ────────────────────────────────────

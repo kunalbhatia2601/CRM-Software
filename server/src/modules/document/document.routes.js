@@ -25,28 +25,28 @@ router.get("/:id", validate(getDocumentSchema), documentController.getById);
 
 router.post(
   "/",
-  authorize("OWNER", "ADMIN", "SALES_MANAGER", "ACCOUNT_MANAGER"),
+  authorize("OWNER", "ADMIN", "HR", "SALES_MANAGER", "ACCOUNT_MANAGER"),
   validate(createDocumentSchema),
   documentController.create
 );
 
 router.patch(
   "/:id",
-  authorize("OWNER", "ADMIN", "SALES_MANAGER", "ACCOUNT_MANAGER"),
+  authorize("OWNER", "ADMIN", "HR", "SALES_MANAGER", "ACCOUNT_MANAGER"),
   validate(updateDocumentSchema),
   documentController.update
 );
 
 router.delete(
   "/:id",
-  authorize("OWNER", "ADMIN"),
+  authorize("OWNER", "ADMIN", "HR"),
   validate(deleteDocumentSchema),
   documentController.delete
 );
 
 router.post(
   "/:id/send-email",
-  authorize("OWNER", "ADMIN", "SALES_MANAGER", "ACCOUNT_MANAGER"),
+  authorize("OWNER", "ADMIN", "HR", "SALES_MANAGER", "ACCOUNT_MANAGER"),
   validate(sendDocumentEmailSchema),
   documentController.sendEmail
 );
