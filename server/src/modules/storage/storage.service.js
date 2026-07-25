@@ -165,8 +165,8 @@ class StorageService {
       req.pipe(writeStream);
 
       writeStream.on("finish", () => {
-        // Build the local file URL — served by express static or a dedicated route
-        const fileUrl = `/${localPath}/${key}`;
+        // URL served by the dedicated route GET /api/storage/files/*
+        const fileUrl = `/api/storage/files/${key}`;
         resolve({ fileUrl, key });
       });
 

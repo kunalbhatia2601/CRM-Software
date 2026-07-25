@@ -5,9 +5,6 @@ import { getPublicUploadConfigAPI } from "@/lib/api";
 
 let SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4444";
 
-if(!SERVER_URL.includes("localhost"))
-  SERVER_URL = SERVER_URL + "/api";
-
 /**
  * Public (no-auth) file upload — for the careers/apply flow.
  * Mirrors useUpload but hits the /api/storage/public/* endpoints and never

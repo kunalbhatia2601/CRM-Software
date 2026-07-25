@@ -5,9 +5,6 @@ import { getUploadConfig } from "@/actions/storage.action";
 
 let SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4444";
 
-if(!SERVER_URL.includes("localhost"))
-  SERVER_URL = SERVER_URL + "/api";
-
 
 /**
  * Universal file upload hook.
