@@ -3,7 +3,10 @@
 import { useState, useCallback } from "react";
 import { getPublicUploadConfigAPI } from "@/lib/api";
 
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4444";
+let SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4444";
+
+if(!SERVER_URL.includes("localhost"))
+  SERVER_URL = SERVER_URL + "/api";
 
 /**
  * Public (no-auth) file upload — for the careers/apply flow.
