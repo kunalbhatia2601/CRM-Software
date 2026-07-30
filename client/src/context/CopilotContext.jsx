@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 import {
   getCopilotConversations,
@@ -22,6 +22,10 @@ export function CopilotProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+
+  // Always-fresh id of the current conversation (avoids stale closures in sendMessage).
+  const activeIdRef = useRef(null);
+  useEffect(() => { activeIdRef.current = activeConversation?.id || null; }, [activeConversation]);
 
   // Fetch all conversations
   const fetchConversations = useCallback(async () => {
@@ -59,7 +63,14 @@ export function CopilotProvider({ children }) {
 
     if (res.success && res.data) {
       setActiveConversation(res.data);
-      setMessages(Array.isArray(res.data.messages) ? res.data.messages : []);
+      // Flatten stored contextData (action/entities/isError) onto each message.
+      const msgs = Array.isArray(res.data.messages) ? res.data.messages : [];
+      setMessages(msgs.map((m) => ({
+        ...m,
+        action: m.contextData?.action || null,
+        entities: m.contextData?.entities || [],
+        isError: !!m.contextData?.isError,
+      })));
     }
   }, []);
 
@@ -82,74 +93,80 @@ export function CopilotProvider({ children }) {
   const deleteConversation = useCallback(async (conversationId) => {
     const res = await deleteCopilotConversation(conversationId);
     if (res.success) {
-      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
       if (activeConversation?.id === conversationId) {
         setActiveConversation(null);
         setMessages([]);
       }
+      // Refetch to keep the list in sync.
+      fetchConversations();
     }
-  }, [activeConversation]);
+  }, [activeConversation, fetchConversations]);
 
-  // Pin/archive conversation
+  // Rename / pin / archive conversation
   const updateConversation = useCallback(async (conversationId, data) => {
     const res = await updateCopilotConversation(conversationId, data);
     if (res.success && res.data) {
-      setConversations((prev) =>
-        prev.map((c) => (c.id === conversationId ? res.data : c))
-      );
       if (activeConversation?.id === conversationId) {
         setActiveConversation(res.data);
       }
+      // Refetch so pin ordering / titles / archive state refresh properly.
+      fetchConversations();
     }
-  }, [activeConversation]);
+  }, [activeConversation, fetchConversations]);
 
   // Send a message
   const sendMessage = useCallback(async (content, context = {}) => {
+    // Optimistically show the user's message right away.
+    setMessages((prev) => [
+      ...prev,
+      { id: `u-${Date.now()}`, role: "user", content, createdAt: new Date() },
+    ]);
     setIsLoading(true);
+
     const res = await sendCopilotMessage(
-      activeConversation?.id,
+      activeIdRef.current,
       content,
       context
     );
     setIsLoading(false);
 
     if (res.success && res.data) {
-      // Unwrap the server response - server returns {success, message, data}
-      // so res.data.data contains the actual copilot response
       const copilotData = res.data.data || res.data;
 
-      // Update conversation if it was created
-      if (copilotData.conversationId && !activeConversation) {
-        setActiveConversation({ id: copilotData.conversationId, title: "New Conversation" });
+      // Bind to the conversation the server used (created or existing).
+      if (copilotData.conversationId && copilotData.conversationId !== activeIdRef.current) {
+        activeIdRef.current = copilotData.conversationId;
+        setActiveConversation((prev) =>
+          prev?.id === copilotData.conversationId ? prev : { id: copilotData.conversationId, title: "New Conversation" }
+        );
         fetchConversations();
       }
 
-      // Add messages
-      const assistantContent = copilotData.assistantMessage?.content || "I'm sorry, I couldn't process that.";
-      const assistantAction = copilotData.assistantMessage?.action || null;
-      const assistantEntities = copilotData.assistantMessage?.entities || [];
+      const am = copilotData.assistantMessage || {};
+      const assistantContent = am.content || "I'm sorry, I couldn't process that.";
 
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), role: "user", content, createdAt: new Date() },
         {
-          id: Date.now() + 1,
+          id: `a-${Date.now()}`,
           role: "assistant",
           content: assistantContent,
-          action: assistantAction,
-          entities: assistantEntities,
+          action: am.action || null,
+          entities: am.entities || [],
+          isError: !!am.isError,
+          failedPrompt: am.isError ? content : undefined,
           createdAt: new Date(),
         },
       ]);
     } else {
-      // Show error message
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), role: "user", content, createdAt: new Date() },
         {
-          id: Date.now() + 1,
+          id: `e-${Date.now()}`,
           role: "assistant",
-          content: res.error || "I'm sorry, I couldn't process that. Please try again.",
+          isError: true,
+          failedPrompt: content,
+          content: res.error || "Something went wrong. Please try again.",
           createdAt: new Date(),
         },
       ]);

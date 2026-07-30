@@ -20,11 +20,14 @@ export const createConversationSchema = z.object({
 
 export const updateConversationSchema = z.object({
   body: z.object({
+    title: z.string().min(1).max(200).optional(),
     isPinned: z.boolean().optional(),
     isArchived: z.boolean().optional(),
   }),
   query: z.object({}).optional(),
-  params: z.object({}).optional(),
+  params: z.object({
+    id: z.string(),
+  }),
 });
 
 export const idParamSchema = z.object({

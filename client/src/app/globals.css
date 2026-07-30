@@ -204,3 +204,6 @@ html {
 .counter-rotate-reverse {
   animation: orbit 25s linear infinite;
 }
+/* Hide scrollbar (copilot quick-suggestions row) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

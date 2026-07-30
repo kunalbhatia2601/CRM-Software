@@ -5,7 +5,7 @@ import { useCopilot } from "@/context/CopilotContext";
 import { formatDistanceToNow } from "date-fns";
 import { MessageCircle, MoreVertical, Pin, PinOff, Archive, ArchiveRestore, Trash2, Edit2, Check, X } from "lucide-react";
 
-export function ConversationList() {
+export function ConversationList({ onSelect }) {
   const {
     conversations,
     activeConversation,
@@ -22,8 +22,9 @@ export function ConversationList() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const handleSelect = async (conversation) => {
-    if (editingId || deleteConfirmId) return;
+    if (editingId || deleteConfirmId || menuOpenId) return;
     await selectConversation(conversation.id);
+    onSelect?.();
   };
 
   const handleNew = async () => {
@@ -113,9 +114,9 @@ export function ConversationList() {
       </div>
 
       <div className="space-y-1 px-2">
-        {conversations.map((conversation) => (
+        {conversations.map((conversation, i) => (
           <div
-            key={conversation.id}
+            key={i}
             onClick={() => handleSelect(conversation)}
             className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
               activeConversation?.id === conversation.id

@@ -67,6 +67,17 @@ class CopilotService {
   }
 
   /**
+   * Build a short chat title from the first user message.
+   */
+  #titleFromMessage(content) {
+    const text = String(content || "").replace(/\s+/g, " ").trim();
+    if (!text) return "New Conversation";
+    const words = text.split(" ").slice(0, 8).join(" ");
+    const title = words.length > 60 ? words.slice(0, 60).trim() + "…" : words;
+    return title.charAt(0).toUpperCase() + title.slice(1);
+  }
+
+  /**
    * Update a conversation (pin/archive)
    */
   async updateConversation(conversationId, userId, data) {
@@ -146,9 +157,18 @@ class CopilotService {
     }
 
     if (!conversation) {
-      // Create a new conversation
-      conversation = await this.createConversation(userId, "New Conversation");
+      // New conversation — title it from the first message.
+      conversation = await this.createConversation(userId, this.#titleFromMessage(content));
       conversationId = conversation.id;
+    } else if (
+      (conversation.title === "New Conversation" || !conversation.title) &&
+      (await prisma.copilotMessage.count({ where: { conversationId } })) === 0
+    ) {
+      // Existing but empty conversation still on the default title — set it now.
+      await prisma.copilotConversation.update({
+        where: { id: conversationId },
+        data: { title: this.#titleFromMessage(content) },
+      });
     }
 
     // Get conversation history (for context)
@@ -177,7 +197,7 @@ class CopilotService {
       const aiResponse = await aiService.generateWithTools({
         systemPromptSlug: "crm-copilot-assistant",
         userPrompt,
-        maxTurns: 2, // Allow nested tool calls up to 2 times
+        maxTurns: 3, // tool rounds before a forced final text answer
       });
 
       // Parse AI response
@@ -186,10 +206,14 @@ class CopilotService {
       let entities = [];
 
       if (typeof aiResponse === "string") {
-        // Raw text response - use as-is
         responseText = aiResponse;
-      } else if (aiResponse.raw) {
-        // Try to parse JSON from raw response (might be wrapped in ```json ```)
+      } else if (aiResponse && (aiResponse.text || aiResponse.answer)) {
+        // Structured JSON result
+        responseText = aiResponse.text || aiResponse.answer;
+        action = aiResponse.action || null;
+        entities = aiResponse.entities || aiResponse.items || [];
+      } else if (aiResponse && aiResponse.raw) {
+        // Raw text — may be JSON wrapped in ```json fences
         try {
           const cleaned = aiResponse.raw.replace(/```json\n?/g, "").replace(/```\n?$/g, "").trim();
           const parsed = JSON.parse(cleaned);
@@ -199,10 +223,11 @@ class CopilotService {
         } catch {
           responseText = aiResponse.raw;
         }
-      } else if (aiResponse.text || aiResponse.answer) {
-        responseText = aiResponse.text || aiResponse.answer;
-        action = aiResponse.action || null;
-        entities = aiResponse.entities || aiResponse.items || [];
+      }
+
+      // Never store a blank reply.
+      if (!responseText || !responseText.trim()) {
+        responseText = "I couldn't find an answer for that. Try rephrasing your question.";
       }
 
       // Store user message
@@ -243,19 +268,44 @@ class CopilotService {
         conversationId,
       };
     } catch (error) {
-      console.error("[CopilotService] AI error:", error);
-
-      // Store user message even if AI fails
-      await prisma.copilotMessage.create({
-        data: {
-          conversationId,
-          role: "user",
-          content,
-          contextData: context,
-        },
+      console.error("[CopilotService] AI error:", {
+        message: error?.message,
+        status: error?.status || error?.statusCode,
+        stack: error?.stack,
       });
 
-      throw ApiError.badRequest(error.message || "Failed to get AI response");
+      const errorText = error?.message || "The AI request failed. Please try again.";
+
+      // Persist the exchange so the error stays in the conversation history.
+      await prisma.copilotMessage.create({
+        data: { conversationId, role: "user", content, contextData: context },
+      });
+      const assistantMessage = await prisma.copilotMessage.create({
+        data: {
+          conversationId,
+          role: "assistant",
+          content: errorText,
+          contextData: { isError: true },
+        },
+      });
+      await prisma.copilotConversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      // Return (don't throw) so the client renders it as a normal error bubble.
+      return {
+        userMessage: { role: "user", content },
+        assistantMessage: {
+          id: assistantMessage.id,
+          role: "assistant",
+          content: errorText,
+          action: null,
+          entities: [],
+          isError: true,
+        },
+        conversationId,
+      };
     }
   }
 

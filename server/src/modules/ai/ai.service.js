@@ -54,6 +54,30 @@ class AiService {
       }
     },
     {
+      name: "list_entities",
+      description: "List records of ONE entity type — leads, deals, clients, projects, users, teams, or services. Use this for 'show my leads', 'all deals', 'list clients', 'projects in progress'. Prefer this over global_search when the user wants a LIST of an entity type (global_search is only for name/keyword lookups).",
+      parameters: {
+        type: "object",
+        properties: {
+          entity: {
+            type: "string",
+            enum: ["leads", "deals", "clients", "projects", "users", "teams", "services"],
+            description: "Which entity type to list."
+          },
+          status: {
+            type: "string",
+            description: "Optional filter. Leads: NEW|CONTACTED|QUALIFIED|UNQUALIFIED|CONVERTED|LOST. Deals stage: DISCOVERY|PROPOSAL|NEGOTIATION|WON|LOST. Clients: ACTIVE|INACTIVE|CHURNED. Projects: DUE_SIGNING|NOT_STARTED|IN_PROGRESS|ON_HOLD|COMPLETED|CANCELLED."
+          },
+          limit: {
+            type: "integer",
+            description: "Max records (default 25, max 100).",
+            default: 25
+          }
+        },
+        required: ["entity"]
+      }
+    },
+    {
       name: "get_lead_details",
       description: "Get detailed information about a specific lead by ID. Use this when user wants to see full details of a lead.",
       parameters: {
@@ -107,6 +131,25 @@ class AiService {
           }
         },
         required: ["id"]
+      }
+    },
+    {
+      name: "list_project_tasks",
+      description: "List all tasks for a specific project by project ID. Use this when the user asks about tasks, to-dos, or work items in a project. If you only have the project name, first call global_search or list_entities to find its ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          projectId: {
+            type: "string",
+            description: "The project ID (cuid)."
+          },
+          status: {
+            type: "string",
+            enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"],
+            description: "Optional status filter."
+          }
+        },
+        required: ["projectId"]
       }
     }
   ];
@@ -448,6 +491,9 @@ class AiService {
       case "get_overall_stats":
         return await this.#getOverallStats();
 
+      case "list_entities":
+        return await this.#listEntities(args.entity, args.status, args.limit);
+
       case "get_lead_details":
         return await prisma.lead.findUnique({
           where: { id: args.id },
@@ -471,6 +517,21 @@ class AiService {
           where: { id: args.id },
           include: { client: true, accountManager: true }
         });
+
+      case "list_project_tasks": {
+        const where = { projectId: args.projectId };
+        if (args.status) where.status = args.status;
+        const tasks = await prisma.task.findMany({
+          where,
+          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true, title: true, status: true, priority: true, dueDate: true,
+            assignee: { select: { firstName: true, lastName: true } },
+            milestone: { select: { title: true } },
+          },
+        });
+        return { projectId: args.projectId, count: tasks.length, tasks };
+      }
 
       default:
         throw new Error(`Unknown tool: ${toolName}`);
@@ -505,6 +566,73 @@ class AiService {
     };
   }
 
+  /**
+   * List records of one entity type, optionally filtered by status/stage.
+   * Returns compact rows suitable for the AI to summarize.
+   */
+  async #listEntities(entity, status, limit) {
+    const take = Math.min(Math.max(Number(limit) || 25, 1), 100);
+    const orderBy = { createdAt: "desc" };
+
+    switch (entity) {
+      case "leads": {
+        const where = status ? { status } : {};
+        const rows = await prisma.lead.findMany({
+          where, take, orderBy,
+          select: { id: true, companyName: true, contactName: true, status: true, priority: true, estimatedValue: true, source: true },
+        });
+        return { entity: "leads", count: rows.length, items: rows };
+      }
+      case "deals": {
+        const where = status ? { stage: status } : {};
+        const rows = await prisma.deal.findMany({
+          where, take, orderBy,
+          select: { id: true, title: true, stage: true, value: true, lead: { select: { companyName: true } } },
+        });
+        return { entity: "deals", count: rows.length, items: rows };
+      }
+      case "clients": {
+        const where = status ? { status } : {};
+        const rows = await prisma.client.findMany({
+          where, take, orderBy,
+          select: { id: true, companyName: true, contactName: true, status: true, industry: true },
+        });
+        return { entity: "clients", count: rows.length, items: rows };
+      }
+      case "projects": {
+        const where = status ? { status } : {};
+        const rows = await prisma.project.findMany({
+          where, take, orderBy,
+          select: { id: true, name: true, status: true, budget: true, client: { select: { companyName: true } } },
+        });
+        return { entity: "projects", count: rows.length, items: rows };
+      }
+      case "users": {
+        const rows = await prisma.user.findMany({
+          where: { role: { not: "CLIENT" } }, take, orderBy,
+          select: { id: true, firstName: true, lastName: true, email: true, role: true, status: true },
+        });
+        return { entity: "users", count: rows.length, items: rows };
+      }
+      case "teams": {
+        const rows = await prisma.team.findMany({
+          take, orderBy,
+          select: { id: true, name: true, _count: { select: { members: true } } },
+        });
+        return { entity: "teams", count: rows.length, items: rows };
+      }
+      case "services": {
+        const rows = await prisma.service.findMany({
+          take, orderBy,
+          select: { id: true, name: true, price: true, isActive: true },
+        });
+        return { entity: "services", count: rows.length, items: rows };
+      }
+      default:
+        return { entity, count: 0, items: [], error: "Unknown entity type" };
+    }
+  }
+
   // ─── Tool-Calling Implementations ─────────────────────
 
   /**
@@ -529,69 +657,114 @@ class AiService {
         { role: "user", parts: [{ text: `${systemMessage}\n\n---\n\nUser Request:\n${userPrompt}` }] }
       ];
 
-      let turns = 0;
-
-      while (turns < maxTurns) {
+      // Allow a couple of tool rounds, then force a final text answer.
+      for (let turn = 0; turn <= maxTurns; turn++) {
+        const lastTurn = turn === maxTurns;
         const response = await ai.models.generateContent({
           model,
           contents: messages,
           config: {
             temperature: config.aiTemperature ?? 0.7,
             maxOutputTokens: config.aiMaxTokens ?? 4096,
-            tools,
+            // On the final turn drop tools so the model must reply with text.
+            ...(lastTurn ? {} : { tools }),
           },
         });
 
-        // Check if model wants to call a function
         const functionCalls = response.functionCalls;
-        if (functionCalls && functionCalls.length > 0) {
-          turns++;
+        if (!lastTurn && functionCalls && functionCalls.length > 0) {
+          // 1. Record the model's function-call turn.
+          const callParts = functionCalls.map((c) => ({
+            functionCall: { name: c.name, args: c.args },
+          }));
+          messages.push({ role: "model", parts: callParts });
 
-          // Execute each tool call
-          const toolResults = [];
+          // 2. Execute + record the results as a user(function) turn.
+          const respParts = [];
           for (const call of functionCalls) {
+            let result;
             try {
-              const result = await this.#executeTool(call.name, call.args);
-              toolResults.push({
-                name: call.name,
-                result
-              });
+              result = await this.#executeTool(call.name, call.args);
             } catch (error) {
-              toolResults.push({
-                name: call.name,
-                error: error.message
-              });
+              result = { error: error.message };
             }
-          }
-
-          // Add function responses to messages
-          for (const toolResult of toolResults) {
-            messages.push({
-              role: "model",
-              parts: [{
-                functionResponse: {
-                  name: toolResult.name,
-                  response: toolResult.result
-                }
-              }]
+            respParts.push({
+              functionResponse: { name: call.name, response: this.#wrapFnResponse(result) },
             });
           }
-        } else {
-          // No function calls, return the response
-          const text = response.text || "";
-          try {
-            return JSON.parse(text);
-          } catch {
-            return { raw: text };
-          }
+          messages.push({ role: "user", parts: respParts });
+          continue;
         }
+
+        // No (more) tool calls → final text answer.
+        const text = response.text || "";
+        return this.#parseAiText(text);
       }
 
-      // Max turns reached, return last response
-      return { error: "Max tool call iterations reached" };
+      return { raw: "" };
     } catch (error) {
-      console.error("[AiService:GeminiTools] Error:", error.message);
-      throw ApiError.badRequest(error.message || "Gemini tool calling failed");
+      throw this.#aiError(error, "GeminiTools");
+    }
+  }
+
+  // Gemini requires functionResponse.response to be an object.
+  #wrapFnResponse(result) {
+    if (result && typeof result === "object" && !Array.isArray(result)) return result;
+    return { result };
+  }
+
+  // Normalize provider errors into a clean, user-safe ApiError.
+  #aiError(error, providerLabel) {
+    const raw = error?.message || "";
+    const status = error?.status || error?.code || error?.response?.status;
+
+    // Rate limit / quota exhausted (Gemini 429 RESOURCE_EXHAUSTED, OpenAI 429).
+    const isRate =
+      status === 429 ||
+      /quota|rate.?limit|RESOURCE_EXHAUSTED|exceeded your current quota/i.test(raw);
+    if (isRate) {
+      // Try to surface the suggested retry delay if present.
+      const m = raw.match(/retry in ([\d.]+)s|retryDelay"?:\s*"?(\d+)s/i);
+      const secs = m ? Math.ceil(Number(m[1] || m[2])) : null;
+      const wait = secs ? ` Please try again in about ${secs}s.` : " Please try again in a moment.";
+      console.warn(`[AiService:${providerLabel}] Rate limited (status=${status}, retry=${secs ?? "?"}s):`, raw);
+      return ApiError.tooManyRequests
+        ? ApiError.tooManyRequests(`The AI is temporarily rate-limited.${wait}`)
+        : new ApiError(429, `The AI is temporarily rate-limited.${wait}`);
+    }
+
+    // Auth / key issues.
+    if (status === 401 || status === 403 || /api key|unauthorized|permission/i.test(raw)) {
+      console.error(`[AiService:${providerLabel}] Auth error (status=${status}):`, raw);
+      return ApiError.badRequest("AI authentication failed. Please check the API key in Settings.");
+    }
+
+    console.error(`[AiService:${providerLabel}] Unhandled AI error:`, {
+      status,
+      message: raw,
+      name: error?.name,
+      responseData: error?.response?.data || error?.data,
+      stack: error?.stack,
+    });
+    return ApiError.badRequest("The AI request failed. Please try again.");
+  }
+
+  // Wrap the internal tool defs into OpenAI/Custom function-calling format.
+  #openAiTools() {
+    return this.#tools.map((t) => ({
+      type: "function",
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    }));
+  }
+
+  // Parse a model text reply that may be JSON (possibly fenced) or plain text.
+  #parseAiText(text) {
+    if (!text) return { raw: "" };
+    const cleaned = String(text).replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return { raw: text };
     }
   }
 
@@ -605,8 +778,8 @@ class AiService {
     try {
       const client = this.#getOpenAIClient(config.aiApiKey, baseURL);
 
-      // Convert tools to OpenAI format
-      const tools = this.#tools;
+      // OpenAI function-calling format: { type:"function", function:{...} }
+      const tools = this.#openAiTools();
 
       let messages = [
         { role: "system", content: systemMessage },
@@ -667,8 +840,7 @@ class AiService {
       // Max turns reached
       return { error: "Max tool call iterations reached" };
     } catch (error) {
-      console.error("[AiService:OpenAITools] Error:", error.message);
-      throw ApiError.badRequest(error.message || "OpenAI tool calling failed");
+      throw this.#aiError(error, "OpenAITools");
     }
   }
 
@@ -683,8 +855,8 @@ class AiService {
 
     const model = config.aiModel || "default";
 
-    // Convert tools to OpenAI-compatible format
-    const tools = this.#tools;
+    // Convert tools to OpenAI-compatible function-calling format
+    const tools = this.#openAiTools();
 
     let messages = [
       { role: "system", content: systemMessage },
@@ -715,8 +887,9 @@ class AiService {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error("[AiService:CustomTools] Error:", JSON.stringify(data));
-        throw ApiError.badRequest(data.error?.message || "Custom AI tool calling failed");
+        const err = new Error(data.error?.message || JSON.stringify(data));
+        err.status = res.status;
+        throw this.#aiError(err, "CustomTools");
       }
 
       const choice = data.choices[0];

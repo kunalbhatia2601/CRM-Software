@@ -38,7 +38,6 @@ router.get(
 // PATCH /api/copilot/conversations/:id - Update conversation (pin/archive)
 router.patch(
   "/conversations/:id",
-  validate(idParamSchema),
   validate(updateConversationSchema),
   copilotController.updateConversation
 );
