@@ -5,6 +5,7 @@ import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 import systemPromptService from "../system-prompt/system-prompt.service.js";
 import searchService from "../search/search.service.js";
+import dbQueryService from "./dbQuery.service.js";
 
 /**
  * AI Service — unified interface for Gemini, OpenAI, and Custom providers.
@@ -55,18 +56,18 @@ class AiService {
     },
     {
       name: "list_entities",
-      description: "List records of ONE entity type — leads, deals, clients, projects, users, teams, or services. Use this for 'show my leads', 'all deals', 'list clients', 'projects in progress'. Prefer this over global_search when the user wants a LIST of an entity type (global_search is only for name/keyword lookups).",
+      description: "List records of ONE entity type. Use for 'show my leads', 'all deals', 'list clients', 'projects in progress', 'list invoices', 'my tasks', 'upcoming meetings', etc. Prefer over global_search when the user wants a LIST. IMPORTANT: only use one of the exact entity values below. If the user asks for an entity NOT in this list, use query_database instead — NEVER substitute a different entity.",
       parameters: {
         type: "object",
         properties: {
           entity: {
             type: "string",
-            enum: ["leads", "deals", "clients", "projects", "users", "teams", "services"],
-            description: "Which entity type to list."
+            enum: ["leads", "deals", "clients", "projects", "users", "teams", "services", "invoices", "tasks", "meetings", "followups", "jobs", "holidays", "leaverequests", "announcements"],
+            description: "Which entity type to list. Must be exactly one of these."
           },
           status: {
             type: "string",
-            description: "Optional filter. Leads: NEW|CONTACTED|QUALIFIED|UNQUALIFIED|CONVERTED|LOST. Deals stage: DISCOVERY|PROPOSAL|NEGOTIATION|WON|LOST. Clients: ACTIVE|INACTIVE|CHURNED. Projects: DUE_SIGNING|NOT_STARTED|IN_PROGRESS|ON_HOLD|COMPLETED|CANCELLED."
+            description: "Optional status/stage filter. Leads: NEW|CONTACTED|QUALIFIED|UNQUALIFIED|CONVERTED|LOST. Deals stage: DISCOVERY|PROPOSAL|NEGOTIATION|WON|LOST. Clients: ACTIVE|INACTIVE|CHURNED. Projects: DUE_SIGNING|NOT_STARTED|IN_PROGRESS|ON_HOLD|COMPLETED|CANCELLED. Invoices: DRAFT|SENT|PAID|PARTIALLY_PAID|OVERDUE|CANCELLED. Tasks: TODO|IN_PROGRESS|IN_REVIEW|COMPLETED|REVIEWED. Meetings: SCHEDULED|COMPLETED|CANCELLED|NO_SHOW. LeaveRequests: PENDING|APPROVED|REJECTED|CANCELLED. Jobs: DRAFT|OPEN|CLOSED|ARCHIVED."
           },
           limit: {
             type: "integer",
@@ -150,6 +151,34 @@ class AiService {
           }
         },
         required: ["projectId"]
+      }
+    },
+    {
+      name: "describe_schema",
+      description: "Returns the database schema: all queryable models with their fields, field types, enum values, and relations. Call this FIRST whenever you need to run a custom database query with query_database and are unsure of the exact model or field names. Read-only.",
+      parameters: { type: "object", properties: {} }
+    },
+    {
+      name: "query_database",
+      description: "Run a READ-ONLY database query against any model in the CRM. Use for anything the simpler tools can't do — filtering by any field, date ranges, sorting, counts, grouping, joins via relations. ALWAYS call describe_schema first if unsure of model/field names; never assume field names. READ-ONLY — cannot create/update/delete. IMPORTANT: to rank a parent by how many children it has (e.g. clients with the most projects), do NOT use groupBy with _count on a relation. Instead query the CHILD model and groupBy the foreign key — e.g. query Project groupBy ['clientId'] with _count, then look up the client names. groupBy._count only counts rows, not relations.",
+      parameters: {
+        type: "object",
+        properties: {
+          model: {
+            type: "string",
+            description: "PascalCase model name from describe_schema, e.g. 'Lead', 'Deal', 'Task', 'Attendance', 'Invoice'."
+          },
+          operation: {
+            type: "string",
+            enum: ["findMany", "findFirst", "findUnique", "count", "groupBy", "aggregate"],
+            description: "Read operation. Default findMany."
+          },
+          args: {
+            type: "object",
+            description: "Prisma query args as an object: { where, select, include, orderBy, take, skip, by, _count, _sum, _avg, _min, _max }. Use camelCase field names. 'take' is capped at 100. Example: { where: { status: 'CONVERTED' }, orderBy: { createdAt: 'desc' }, take: 10 }. For groupBy: { by: ['status'], _count: true }."
+          }
+        },
+        required: ["model"]
       }
     }
   ];
@@ -481,9 +510,27 @@ class AiService {
   // ─── Tool Execution ─────────────────────────────────────
 
   /**
-   * Execute a tool by name with given arguments.
+   * Execute a tool by name with given arguments (logs the call + result).
    */
   async #executeTool(toolName, args = {}) {
+    const started = Date.now();
+    console.log(`[Copilot Tool →] ${toolName}`, JSON.stringify(args));
+    try {
+      const result = await this.#runTool(toolName, args);
+      const ms = Date.now() - started;
+      let size = "";
+      if (Array.isArray(result?.rows)) size = ` rows=${result.rows.length}`;
+      else if (typeof result?.count === "number") size = ` count=${result.count}`;
+      else if (result?.result !== undefined) size = ` result=1`;
+      console.log(`[Copilot Tool ✓] ${toolName} (${ms}ms)${size}`);
+      return result;
+    } catch (err) {
+      console.error(`[Copilot Tool ✗] ${toolName} (${Date.now() - started}ms): ${err.message}`);
+      throw err;
+    }
+  }
+
+  async #runTool(toolName, args = {}) {
     switch (toolName) {
       case "global_search":
         return await searchService.globalSearch(args.query || "", args.limit || 10);
@@ -531,6 +578,22 @@ class AiService {
           },
         });
         return { projectId: args.projectId, count: tasks.length, tasks };
+      }
+
+      case "describe_schema":
+        return dbQueryService.describeSchema();
+
+      case "query_database": {
+        // args.args may arrive as a JSON string from some providers.
+        let queryArgs = args.args;
+        if (typeof queryArgs === "string") {
+          try { queryArgs = JSON.parse(queryArgs); } catch { queryArgs = {}; }
+        }
+        return dbQueryService.query({
+          model: args.model,
+          operation: args.operation || "findMany",
+          args: queryArgs || {},
+        });
       }
 
       default:
@@ -628,8 +691,85 @@ class AiService {
         });
         return { entity: "services", count: rows.length, items: rows };
       }
+      case "invoices": {
+        const where = status ? { status } : {};
+        const rows = await prisma.invoice.findMany({
+          where, take, orderBy,
+          select: {
+            id: true, invoiceNumber: true, status: true, total: true, amountPaid: true,
+            dueDate: true, issueDate: true,
+            project: { select: { name: true } }, client: { select: { companyName: true } },
+          },
+        });
+        return { entity: "invoices", count: rows.length, items: rows };
+      }
+      case "tasks": {
+        const where = status ? { status } : {};
+        const rows = await prisma.task.findMany({
+          where, take, orderBy,
+          select: {
+            id: true, title: true, status: true, priority: true, dueDate: true,
+            project: { select: { name: true } },
+            assignee: { select: { firstName: true, lastName: true } },
+          },
+        });
+        return { entity: "tasks", count: rows.length, items: rows };
+      }
+      case "meetings": {
+        const where = status ? { status } : {};
+        const rows = await prisma.meeting.findMany({
+          where, take, orderBy: { scheduledAt: "desc" },
+          select: { id: true, title: true, status: true, mode: true, scheduledAt: true },
+        });
+        return { entity: "meetings", count: rows.length, items: rows };
+      }
+      case "followups": {
+        const where = status ? { status } : {};
+        const rows = await prisma.followUp.findMany({
+          where, take, orderBy: { dueAt: "desc" },
+          select: {
+            id: true, title: true, type: true, status: true, dueAt: true,
+            lead: { select: { companyName: true } },
+          },
+        });
+        return { entity: "followups", count: rows.length, items: rows };
+      }
+      case "jobs": {
+        const where = status ? { status } : {};
+        const rows = await prisma.job.findMany({
+          where, take, orderBy,
+          select: { id: true, title: true, department: true, status: true, type: true, _count: { select: { applications: true } } },
+        });
+        return { entity: "jobs", count: rows.length, items: rows };
+      }
+      case "holidays": {
+        const rows = await prisma.holiday.findMany({
+          take, orderBy: { date: "desc" },
+          select: { id: true, name: true, date: true, isOptional: true },
+        });
+        return { entity: "holidays", count: rows.length, items: rows };
+      }
+      case "leaverequests": {
+        const where = status ? { status } : {};
+        const rows = await prisma.leaveRequest.findMany({
+          where, take, orderBy,
+          select: {
+            id: true, status: true, fromDate: true, toDate: true, totalDays: true, reason: true,
+            user: { select: { firstName: true, lastName: true } },
+            leaveType: { select: { name: true } },
+          },
+        });
+        return { entity: "leaverequests", count: rows.length, items: rows };
+      }
+      case "announcements": {
+        const rows = await prisma.announcement.findMany({
+          take, orderBy,
+          select: { id: true, title: true, audience: true, isPinned: true, createdAt: true },
+        });
+        return { entity: "announcements", count: rows.length, items: rows };
+      }
       default:
-        return { entity, count: 0, items: [], error: "Unknown entity type" };
+        return { entity, count: 0, items: [], error: "Unknown entity type. Use query_database for this entity." };
     }
   }
 

@@ -65,11 +65,14 @@ function splitBlocks(text) {
       continue;
     }
 
-    // ordered list
-    if (/^\s*\d+\.\s+/.test(line)) {
+    // ordered list — remember the first item's number so numbering continues
+    // even when items are separated by sub-bullets / blank lines.
+    const olm = line.match(/^\s*(\d+)\.\s+/);
+    if (olm) {
+      const start = parseInt(olm[1], 10) || 1;
       const buf = [];
       while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { buf.push(lines[i].replace(/^\s*\d+\.\s+/, "")); i++; }
-      blocks.push({ type: "ol", items: buf });
+      blocks.push({ type: "ol", items: buf, start });
       continue;
     }
 
@@ -109,7 +112,7 @@ function renderBlock(b, key, onEntityClick) {
       );
     case "ol":
       return (
-        <ol key={key} className="list-decimal pl-5 space-y-0.5">
+        <ol key={key} start={b.start || 1} className="list-decimal pl-5 space-y-0.5">
           {b.items.map((it, j) => <li key={j}>{renderInline(it, onEntityClick)}</li>)}
         </ol>
       );

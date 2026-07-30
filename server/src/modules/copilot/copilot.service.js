@@ -78,6 +78,38 @@ class CopilotService {
   }
 
   /**
+   * Pull a { text, action, entities } object out of a raw AI reply that may be
+   * plain JSON, fenced ```json, or prose mixed with a JSON block.
+   */
+  #extractStructured(raw) {
+    if (!raw) return null;
+    const text = String(raw);
+
+    // 1. Fenced ```json ... ``` block.
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenced) {
+      try { return JSON.parse(fenced[1].trim()); } catch { /* fall through */ }
+    }
+
+    // 2. Whole thing is JSON.
+    try {
+      const p = JSON.parse(text.trim());
+      if (p && typeof p === "object") return p;
+    } catch { /* fall through */ }
+
+    // 3. First balanced {...} that parses and has a "text" field.
+    const first = text.indexOf("{");
+    const last = text.lastIndexOf("}");
+    if (first !== -1 && last > first) {
+      try {
+        const p = JSON.parse(text.slice(first, last + 1));
+        if (p && (p.text || p.answer)) return p;
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+
+  /**
    * Update a conversation (pin/archive)
    */
   async updateConversation(conversationId, userId, data) {
@@ -197,7 +229,7 @@ class CopilotService {
       const aiResponse = await aiService.generateWithTools({
         systemPromptSlug: "crm-copilot-assistant",
         userPrompt,
-        maxTurns: 3, // tool rounds before a forced final text answer
+        maxTurns: 5, // tool rounds before a forced final text answer
       });
 
       // Parse AI response
@@ -213,15 +245,16 @@ class CopilotService {
         action = aiResponse.action || null;
         entities = aiResponse.entities || aiResponse.items || [];
       } else if (aiResponse && aiResponse.raw) {
-        // Raw text — may be JSON wrapped in ```json fences
-        try {
-          const cleaned = aiResponse.raw.replace(/```json\n?/g, "").replace(/```\n?$/g, "").trim();
-          const parsed = JSON.parse(cleaned);
-          responseText = parsed.text || parsed.answer || cleaned;
+        const parsed = this.#extractStructured(aiResponse.raw);
+        if (parsed) {
+          responseText = parsed.text || parsed.answer || "";
           action = parsed.action || null;
           entities = parsed.entities || parsed.items || [];
-        } catch {
-          responseText = aiResponse.raw;
+        }
+        // If no structured object (or it had no text), fall back to the raw text,
+        // but strip any ```json ... ``` block so it never leaks into the chat.
+        if (!responseText || !responseText.trim()) {
+          responseText = String(aiResponse.raw).replace(/```(?:json)?[\s\S]*?```/g, "").trim();
         }
       }
 
