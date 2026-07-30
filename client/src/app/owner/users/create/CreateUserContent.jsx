@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2, Camera, Loader2, ImageIcon, X, Fingerprint } from "lucide-react";
+import { User, Mail, Phone, Shield, Lock, Eye, EyeOff, Building2, Camera, Loader2, ImageIcon, X, Fingerprint, Wallet } from "lucide-react";
 
 import { createUser, getClientsDropdown, getUserDirectory } from "@/actions/users.action";
 import { useUpload } from "@/hooks/useUpload";
@@ -64,6 +64,7 @@ export default function CreateUserContent() {
     employeeTypeOther: "",
     reportingManagerId: "",
     biometricCode: "",
+    basePay: "",
   });
 
   // Fetch clients for dropdown when role is CLIENT
@@ -114,6 +115,12 @@ export default function CreateUserContent() {
         delete payload.biometricCode;
       } else {
         payload.biometricCode = Number(payload.biometricCode);
+      }
+      // basePay — number for non-clients, omit when blank
+      if (payload.role === "CLIENT" || payload.basePay === "" || payload.basePay == null) {
+        delete payload.basePay;
+      } else {
+        payload.basePay = Number(payload.basePay);
       }
       if (payload.role === "CLIENT") {
         delete payload.employeeType;
@@ -278,6 +285,16 @@ export default function CreateUserContent() {
               value={form.biometricCode}
               onChange={(e) => update("biometricCode", e.target.value)}
               placeholder="Device enroll number (e.g. 5)"
+            />
+          )}
+          {form.role !== "CLIENT" && (
+            <SettingsInput
+              label="Base Pay (monthly)"
+              type="number"
+              icon={Wallet}
+              value={form.basePay}
+              onChange={(e) => update("basePay", e.target.value)}
+              placeholder="Monthly base salary (₹)"
             />
           )}
         </div>

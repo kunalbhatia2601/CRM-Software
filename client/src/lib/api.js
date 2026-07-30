@@ -1285,3 +1285,38 @@ export async function getPublicUploadConfigAPI(params) {
   const query = new URLSearchParams(params).toString();
   return request(`/api/storage/public/upload-config?${query}`, { method: "GET" });
 }
+
+/* ───────── Payroll & KPI ───────── */
+
+export async function getKpiConfigAPI(accessToken) {
+  return request("/api/payroll/config", { method: "GET", token: accessToken });
+}
+export async function updateKpiConfigAPI(data, accessToken) {
+  return request("/api/payroll/config", { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+export async function generatePayrollAPI(data, accessToken) {
+  return request("/api/payroll/generate", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+export async function getPayrollAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/payroll?${query}`, { method: "GET", token: accessToken });
+}
+export async function getPayrollRecordAPI(id, accessToken) {
+  return request(`/api/payroll/${id}`, { method: "GET", token: accessToken });
+}
+export async function previewPayrollAPI(userId, params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/payroll/preview/${userId}?${query}`, { method: "GET", token: accessToken });
+}
+export async function setUserBasePayAPI(userId, basePay, accessToken) {
+  return request(`/api/payroll/base-pay/${userId}`, { method: "PATCH", body: JSON.stringify({ basePay }), token: accessToken });
+}
+export async function getPayrollHistoryAPI(userId, accessToken) {
+  return request(`/api/payroll/history/${userId}`, { method: "GET", token: accessToken });
+}
+export async function updatePayrollRecordAPI(id, data, accessToken) {
+  return request(`/api/payroll/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+export async function deletePayrollRecordAPI(id, accessToken) {
+  return request(`/api/payroll/${id}`, { method: "DELETE", token: accessToken });
+}

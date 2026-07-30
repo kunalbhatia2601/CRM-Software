@@ -118,6 +118,8 @@ model User {
   employeeTypeOther String?   @map("employee_type_other")
   // Biometric device enroll number (maps device punches → this user)
   biometricCode   Int?       @unique @map("biometric_code")
+  // Monthly base pay (payroll). In INR (base currency).
+  basePay         Decimal?   @map("base_pay") @db.Decimal(12, 2)
   isEmailVerified Boolean    @default(false) @map("is_email_verified")
   lastLoginAt     DateTime?  @map("last_login_at")
   createdAt       DateTime   @default(now()) @map("created_at")
@@ -205,6 +207,9 @@ model User {
 
   // Jobs created
   createdJobs Job[] @relation("JobCreator")
+
+  // Payroll records
+  payrollRecords PayrollRecord[] @relation("PayrollUser")
 
   @@index([clientId])
   @@index([reportingManagerId])
@@ -1596,4 +1601,68 @@ model JobApplication {
   @@index([status])
   @@index([createdAt])
   @@map("job_applications")
+}
+
+// ─── Payroll & KPI ───────────────────────────────────────
+
+enum PayrollStatus {
+  DRAFT       // auto-computed, editable
+  FINALIZED   // locked, ready to pay
+  PAID        // disbursed
+}
+
+// Single-row config (id = "default"). Weights + bonus slabs + attendance policy.
+model KpiConfig {
+  id                String  @id @default("default")
+
+  // Metric weights (relative; normalized at compute). Non-negative.
+  weightAttendance  Float   @default(30) @map("weight_attendance")
+  weightCompletion  Float   @default(25) @map("weight_completion")
+  weightOnTime      Float   @default(20) @map("weight_on_time")
+  weightReviewPass  Float   @default(15) @map("weight_review_pass")
+  weightRework      Float   @default(10) @map("weight_rework")
+
+  // Bonus slabs: Array<{ minScore, maxScore, bonusAmount }> — bonus in INR.
+  bonusSlabs        Json    @default("[]") @map("bonus_slabs")
+
+  // Attendance statuses that count as a full "present" day for the ratio.
+  presentStatuses   String[] @default(["PRESENT", "WORK_FROM_HOME", "ON_DUTY"]) @map("present_statuses")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("kpi_config")
+}
+
+model PayrollRecord {
+  id              String        @id @default(cuid())
+
+  userId          String        @map("user_id")
+  user            User          @relation("PayrollUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  year            Int
+  month           Int           // 1-12
+
+  // Snapshots at generation time
+  basePay         Decimal       @default(0) @db.Decimal(12, 2) @map("base_pay")
+  kpiScore        Float         @default(0) @map("kpi_score")   // 0-100
+
+  // Per-metric breakdown: { attendance, completion, onTime, reviewPass, rework, raw:{...} }
+  breakdown       Json?
+
+  computedBonus   Decimal       @default(0) @db.Decimal(12, 2) @map("computed_bonus")
+  manualAdjustment Decimal      @default(0) @db.Decimal(12, 2) @map("manual_adjustment")
+  netPay          Decimal       @default(0) @db.Decimal(12, 2) @map("net_pay")
+
+  status          PayrollStatus @default(DRAFT)
+  notes           String?       @db.Text
+  paidAt          DateTime?     @map("paid_at")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@unique([userId, year, month])
+  @@index([year, month])
+  @@index([status])
+  @@map("payroll_records")
 }

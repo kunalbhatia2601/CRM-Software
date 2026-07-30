@@ -26,6 +26,7 @@ const navItems = [
     ],
   },
   { name: "Holidays", href: "/hr/holidays", icon: "Calendar" },
+  { name: "Payroll", href: "/hr/payroll", icon: "Wallet" },
   { name: "Announcements", href: "/hr/announcements", icon: "Megaphone" },
   { name: "Jobs", href: "/hr/jobs", icon: "Briefcase" },
   {

@@ -63,6 +63,7 @@ export default function EditUserContent({ user }) {
     employeeTypeOther: user.employeeTypeOther || "",
     reportingManagerId: user.reportingManagerId || "",
     biometricCode: user.biometricCode || "",
+    basePay: user.basePay ?? "",
   });
 
   // Fetch clients for dropdown when role is CLIENT
@@ -122,6 +123,11 @@ export default function EditUserContent({ user }) {
         payload.biometricCode = null;
       } else {
         payload.biometricCode = Number(payload.biometricCode);
+      }
+      if (payload.basePay === "" || payload.basePay == null) {
+        payload.basePay = null;
+      } else {
+        payload.basePay = Number(payload.basePay);
       }
       if (!payload.emergencyContactNumber) payload.emergencyContactNumber = null;
       if (!payload.address) payload.address = null;
@@ -299,6 +305,14 @@ export default function EditUserContent({ user }) {
               value={form.biometricCode}
               onChange={(e) => update("biometricCode", e.target.value)}
               placeholder="Device enroll number"
+            />
+            <SettingsInput
+              label="Base Pay (monthly)"
+              type="number"
+              icon={Shield}
+              value={form.basePay}
+              onChange={(e) => update("basePay", e.target.value)}
+              placeholder="Monthly base salary (₹)"
             />
           </div>
         </SettingsCard>

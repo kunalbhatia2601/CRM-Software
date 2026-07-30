@@ -18,6 +18,7 @@ const USER_SELECT = {
   employeeType: true,
   employeeTypeOther: true,
   biometricCode: true,
+  basePay: true,
   isEmailVerified: true,
   lastLoginAt: true,
   clientId: true,
@@ -114,6 +115,7 @@ class UserService {
         employeeType: isInternalUser ? (data.employeeType || "FULL_TIME") : "FULL_TIME",
         employeeTypeOther: data.employeeType === "OTHER" ? (data.employeeTypeOther || null) : null,
         biometricCode: data.biometricCode ?? null,
+        basePay: isInternalUser ? (data.basePay ?? null) : null,
       },
       select: USER_SELECT,
     });
@@ -267,9 +269,11 @@ class UserService {
       data.reportingManagerId = null;
       data.employeeType = "FULL_TIME";
       data.employeeTypeOther = null;
+      data.basePay = null;
     } else if (data.employeeType && data.employeeType !== "OTHER") {
       data.employeeTypeOther = null;
     }
+    if (data.basePay === "" ) data.basePay = null;
 
     if (data.emergencyContactNumber === "") data.emergencyContactNumber = null;
     if (data.address === "") data.address = null;

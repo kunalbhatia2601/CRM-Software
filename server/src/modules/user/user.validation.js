@@ -34,6 +34,7 @@ export const createUserSchema = z.object({
     employeeType: z.enum(employeeTypes).optional().default("FULL_TIME"),
     employeeTypeOther: z.string().max(100).nullable().optional(),
     biometricCode: z.coerce.number().int().positive().nullable().optional(),
+    basePay: z.coerce.number().min(0).nullable().optional(),
   }),
 });
 
@@ -56,6 +57,7 @@ export const updateUserSchema = z.object({
     employeeType: z.enum(employeeTypes).optional(),
     employeeTypeOther: z.string().max(100).nullable().optional(),
     biometricCode: z.coerce.number().int().positive().nullable().optional(),
+    basePay: z.coerce.number().min(0).nullable().optional(),
   }),
 });
 
