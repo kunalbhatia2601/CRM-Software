@@ -58,9 +58,6 @@ class PayrollService {
   async generate(year, month) {
     const config = await getKpiConfig();
 
-    console.log(`Generating payroll for ${year}-${month}...`);
-    console.log(`KPI config:`, config);
-
     const users = await prisma.user.findMany({
       where: { status: "ACTIVE", role: { not: "CLIENT" } },
       select: { id: true, basePay: true },
