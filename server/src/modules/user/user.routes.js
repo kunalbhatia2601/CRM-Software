@@ -20,6 +20,10 @@ router.use(authenticate);
 // router.use() below so they keep their own broader auth scope).
 const staffRead = authorize("OWNER", "ADMIN", "HR");
 
+// Assignee picker source — every internal role needs it, clients never do.
+const staffAny = authorize("OWNER", "ADMIN", "SALES_MANAGER", "ACCOUNT_MANAGER", "FINANCE_MANAGER", "HR", "EMPLOYEE");
+router.get("/assignable", staffAny, userController.listDirectory);
+
 // Minimal user directory (read-only, no sensitive fields).
 router.get("/directory", staffRead, userController.listDirectory);
 // Full user + report — HR needs these for the employee profile page.

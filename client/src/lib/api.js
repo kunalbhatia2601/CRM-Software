@@ -1142,6 +1142,12 @@ export async function deleteHolidayAPI(id, accessToken) {
   return request(`/api/holidays/${id}`, { method: "DELETE", token: accessToken });
 }
 
+/* ───────── Assignable Staff (any internal role) ───────── */
+
+export async function getAssignableStaffAPI(accessToken) {
+  return request("/api/users/assignable", { method: "GET", token: accessToken });
+}
+
 /* ───────── User Directory (HR/OWNER/ADMIN) ───────── */
 
 export async function getUserDirectoryAPI(accessToken) {

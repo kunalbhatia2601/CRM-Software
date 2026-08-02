@@ -83,8 +83,8 @@ class DealService {
     if (data.assigneeId) {
       const assignee = await prisma.user.findUnique({ where: { id: data.assigneeId } });
       if (!assignee) throw ApiError.badRequest("Assigned user not found");
-      if (!["OWNER", "ADMIN", "SALES_MANAGER"].includes(assignee.role)) {
-        throw ApiError.badRequest("Deals can only be assigned to Owner, Admin, or Sales Manager");
+      if (assignee.role === "CLIENT") {
+        throw ApiError.badRequest("Deals cannot be assigned to a client");
       }
     }
 
@@ -179,8 +179,8 @@ class DealService {
     if (data.assigneeId) {
       const assignee = await prisma.user.findUnique({ where: { id: data.assigneeId } });
       if (!assignee) throw ApiError.badRequest("Assigned user not found");
-      if (!["OWNER", "ADMIN", "SALES_MANAGER"].includes(assignee.role)) {
-        throw ApiError.badRequest("Deals can only be assigned to Owner, Admin, or Sales Manager");
+      if (assignee.role === "CLIENT") {
+        throw ApiError.badRequest("Deals cannot be assigned to a client");
       }
     }
 
@@ -220,8 +220,8 @@ class DealService {
       if (accountManagerId) {
         const am = await prisma.user.findUnique({ where: { id: accountManagerId } });
         if (!am) throw ApiError.badRequest("Account manager not found");
-        if (!["OWNER", "ADMIN", "ACCOUNT_MANAGER"].includes(am.role)) {
-          throw ApiError.badRequest("Account manager must have Owner, Admin, or Account Manager role");
+        if (am.role === "CLIENT") {
+          throw ApiError.badRequest("Account manager cannot be a client");
         }
       }
 

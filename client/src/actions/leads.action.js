@@ -10,6 +10,7 @@ import {
   deleteLeadAPI,
   getUsersAPI,
 } from "@/lib/api";
+import { getAssignableStaff } from "./users.action";
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -113,25 +114,5 @@ export async function deleteLead(id) {
 // ─── Get Assignable Users (for dropdown) ─────────────────
 
 export async function getAssignableUsers() {
-  const token = await getToken();
-  if (!token) return [];
-
-  try {
-    const res = await getUsersAPI({ limit: 100, role: "SALES_MANAGER" }, token);
-    // We also need OWNER and ADMIN, so let's get all and filter
-    const allRes = await getUsersAPI({ limit: 100 }, token);
-    if (allRes.success) {
-      return allRes.data.users
-        .filter((u) => ["OWNER", "ADMIN", "SALES_MANAGER"].includes(u.role))
-        .map((u) => ({
-          id: u.id,
-          name: `${u.firstName} ${u.lastName}`,
-          role: u.role,
-          email: u.email,
-        }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
+  return getAssignableStaff();
 }

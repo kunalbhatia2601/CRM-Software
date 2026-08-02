@@ -10,6 +10,7 @@ import {
   getClientsDropdownAPI,
   getUsersAPI,
 } from "@/lib/api";
+import { getAssignableStaff } from "./users.action";
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -111,23 +112,5 @@ export async function getClientsDropdown() {
 // ─── Get Account Managers (for dropdown) ────────────────
 
 export async function getAccountManagers() {
-  const token = await getToken();
-  if (!token) return [];
-
-  try {
-    const allRes = await getUsersAPI({ limit: 100 }, token);
-    if (allRes.success) {
-      return allRes.data.users
-        .filter((u) => ["OWNER", "ADMIN", "ACCOUNT_MANAGER"].includes(u.role))
-        .map((u) => ({
-          id: u.id,
-          name: `${u.firstName} ${u.lastName}`,
-          role: u.role,
-          email: u.email,
-        }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
+  return getAssignableStaff();
 }

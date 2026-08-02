@@ -49,8 +49,8 @@ class LeadService {
       if (!assignee) {
         throw ApiError.badRequest("Assigned user not found");
       }
-      if (!["OWNER", "ADMIN", "SALES_MANAGER"].includes(assignee.role)) {
-        throw ApiError.badRequest("Leads can only be assigned to Owner, Admin, or Sales Manager");
+      if (assignee.role === "CLIENT") {
+        throw ApiError.badRequest("Leads cannot be assigned to a client");
       }
     }
 
@@ -145,8 +145,8 @@ class LeadService {
       if (!assignee) {
         throw ApiError.badRequest("Assigned user not found");
       }
-      if (!["OWNER", "ADMIN", "SALES_MANAGER"].includes(assignee.role)) {
-        throw ApiError.badRequest("Leads can only be assigned to Owner, Admin, or Sales Manager");
+      if (assignee.role === "CLIENT") {
+        throw ApiError.badRequest("Leads cannot be assigned to a client");
       }
     }
 

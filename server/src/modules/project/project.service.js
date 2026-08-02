@@ -79,8 +79,8 @@ class ProjectService {
     if (data.accountManagerId) {
       const am = await prisma.user.findUnique({ where: { id: data.accountManagerId } });
       if (!am) throw ApiError.badRequest("Account manager not found");
-      if (!["OWNER", "ADMIN", "ACCOUNT_MANAGER"].includes(am.role)) {
-        throw ApiError.badRequest("Must be Owner, Admin, or Account Manager role");
+      if (am.role === "CLIENT") {
+        throw ApiError.badRequest("Account manager cannot be a client");
       }
     }
 
@@ -235,8 +235,8 @@ class ProjectService {
     if (data.accountManagerId) {
       const am = await prisma.user.findUnique({ where: { id: data.accountManagerId } });
       if (!am) throw ApiError.badRequest("Account manager not found");
-      if (!["OWNER", "ADMIN", "ACCOUNT_MANAGER"].includes(am.role)) {
-        throw ApiError.badRequest("Must be Owner, Admin, or Account Manager role");
+      if (am.role === "CLIENT") {
+        throw ApiError.badRequest("Account manager cannot be a client");
       }
     }
 

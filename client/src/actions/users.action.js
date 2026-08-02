@@ -11,6 +11,7 @@ import {
   resetPasswordAPI,
   getClientsDropdownAPI,
   getUserDirectoryAPI,
+  getAssignableStaffAPI,
 } from "@/lib/api";
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -152,5 +153,31 @@ export async function getUserDirectory() {
     return { success: false, data: [], error: res.message };
   } catch (err) {
     return { success: false, data: [], error: err.message };
+  }
+}
+
+// ─── Assignable Staff ────────────────────────────────────
+
+/**
+ * Everyone who can own a lead / deal / project — all active internal users,
+ * clients excluded. Readable by every internal role, unlike getUsers().
+ *
+ * @returns {Promise<Array<{id, name, role, email}>>}
+ */
+export async function getAssignableStaff() {
+  const token = await getToken();
+  if (!token) return [];
+
+  try {
+    const res = await getAssignableStaffAPI(token);
+    if (!res.success) return [];
+    return (res.data || []).map((u) => ({
+      id: u.id,
+      name: `${u.firstName} ${u.lastName}`,
+      role: u.role,
+      email: u.email,
+    }));
+  } catch {
+    return [];
   }
 }

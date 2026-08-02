@@ -13,6 +13,7 @@ import {
   getUsersAPI,
   getLeadsAPI,
 } from "@/lib/api";
+import { getAssignableStaff } from "./users.action";
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -173,37 +174,11 @@ export async function getQualifiedLeads() {
 // ─── Get Assignable Users ────────────────────────────────
 
 export async function getDealAssignableUsers() {
-  const token = await getToken();
-  if (!token) return [];
-
-  try {
-    const res = await getUsersAPI({ limit: 100 }, token);
-    if (res.success) {
-      return res.data.users
-        .filter((u) => ["OWNER", "ADMIN", "SALES_MANAGER"].includes(u.role))
-        .map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`, role: u.role }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
+  return getAssignableStaff();
 }
 
 // ─── Get Account Managers (for WON stage) ────────────────
 
 export async function getAccountManagers() {
-  const token = await getToken();
-  if (!token) return [];
-
-  try {
-    const res = await getUsersAPI({ limit: 100 }, token);
-    if (res.success) {
-      return res.data.users
-        .filter((u) => ["OWNER", "ADMIN", "ACCOUNT_MANAGER"].includes(u.role))
-        .map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`, role: u.role }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
+  return getAssignableStaff();
 }
