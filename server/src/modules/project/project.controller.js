@@ -51,7 +51,7 @@ class ProjectController {
   });
 
   getProjectById = catchAsync(async (req, res) => {
-    const project = await projectService.getProjectById(req.params.id);
+    const project = await projectService.getProjectById(req.params.id, req.user);
 
     // CLIENT users can only view their own company's projects
     if (req.user.role === "CLIENT") {

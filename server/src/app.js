@@ -44,6 +44,7 @@ import invoiceRoutes from "./modules/invoice/invoice.routes.js";
 import announcementRoutes from "./modules/announcement/announcement.routes.js";
 import jobRoutes from "./modules/job/job.routes.js";
 import payrollRoutes from "./modules/payroll/payroll.routes.js";
+import deliverableRoutes from "./modules/deliverable/deliverable.routes.js";
 
 const app = express();
 
@@ -131,6 +132,7 @@ app.use("/api/invoices", invoiceRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/deliverables", deliverableRoutes);
 
 app.get("/pullAndDeploy", async (_req, res) => {
 

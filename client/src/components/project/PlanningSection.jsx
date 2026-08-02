@@ -112,7 +112,7 @@ export default function PlanningSection({
 
   const getTeamName = (user) => {
     if (!user?.teams?.length) return null;
-    return user.teams[0].name;
+    return user.teams.map((t) => t.name).join(", ");
   };
 
   const toggleComments = (type, id) => {
@@ -893,7 +893,7 @@ function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, ass
 
   const getTeamLabel = (user) => {
     if (!user?.teams?.length) return "";
-    return ` (${user.teams[0].name})`;
+    return ` (${user.teams.map((t) => t.name).join(", ")})`;
   };
 
   const addReference = () => {

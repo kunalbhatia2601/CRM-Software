@@ -51,7 +51,7 @@ export default function WeekendDaysSettings() {
 
   return (
     <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       <div className="flex items-center gap-2 mb-1">
         <CalendarDays className="w-4 h-4 text-[#5542F6]" />

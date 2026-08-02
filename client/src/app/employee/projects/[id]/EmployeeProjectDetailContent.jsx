@@ -57,7 +57,7 @@ export default function EmployeeProjectDetailContent({
 
   return (
     <div className="p-6 space-y-6">
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {/* Header */}
       <div className="flex items-center gap-4">

@@ -1347,3 +1347,24 @@ export async function updatePayrollRecordAPI(id, data, accessToken) {
 export async function deletePayrollRecordAPI(id, accessToken) {
   return request(`/api/payroll/${id}`, { method: "DELETE", token: accessToken });
 }
+
+/* ───────── Deliverables ───────── */
+
+export async function getProjectDeliverablesAPI(projectId, accessToken) {
+  return request(`/api/deliverables/project/${projectId}`, { method: "GET", token: accessToken });
+}
+export async function getDeliverableAPI(id, accessToken) {
+  return request(`/api/deliverables/${id}`, { method: "GET", token: accessToken });
+}
+export async function createDeliverableAPI(data, accessToken) {
+  return request("/api/deliverables", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+export async function updateDeliverableAPI(id, data, accessToken) {
+  return request(`/api/deliverables/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+export async function deleteDeliverableAPI(id, accessToken) {
+  return request(`/api/deliverables/${id}`, { method: "DELETE", token: accessToken });
+}
+export async function addDeliverableFeedbackAPI(id, data, accessToken) {
+  return request(`/api/deliverables/${id}/feedback`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}

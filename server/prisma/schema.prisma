@@ -211,6 +211,10 @@ model User {
   // Payroll records
   payrollRecords PayrollRecord[] @relation("PayrollUser")
 
+  // Deliverables
+  createdDeliverables Deliverable[] @relation("DeliverableCreator")
+  deliverableFeedbacks DeliverableFeedback[] @relation("DeliverableFeedbackAuthor")
+
   @@index([clientId])
   @@index([reportingManagerId])
   @@map("users")
@@ -445,6 +449,9 @@ model Project {
 
   // Invoices
   invoices        Invoice[]
+
+  // Deliverables
+  deliverables    Deliverable[]
 
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -1163,6 +1170,7 @@ model PlanningStep {
   createdBy   User               @relation("PlanningStepCreator", fields: [createdById], references: [id])
 
   tasks       Task[]
+  deliverables DeliverablePlanningStep[]
 
   createdAt   DateTime           @default(now()) @map("created_at")
   updatedAt   DateTime           @updatedAt @map("updated_at")
@@ -1249,6 +1257,7 @@ model Task {
   meetingTasks MeetingTask[]
 
   feedbacks   TaskFeedback[]
+  linkedDeliverables DeliverableTask[]
 
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
@@ -1309,6 +1318,9 @@ model Milestone {
 
   // Tasks linked to this milestone
   tasks       Task[]
+
+  // Deliverables linked to this milestone
+  deliverables DeliverableMilestone[]
 
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
@@ -1665,4 +1677,119 @@ model PayrollRecord {
   @@index([year, month])
   @@index([status])
   @@map("payroll_records")
+}
+
+// ─── Deliverables ────────────────────────────────────────
+// Client-facing outputs of a project: files, links, or plain text.
+// Optionally linked to a milestone / planning step / task.
+
+enum DeliverableStatus {
+  IN_PROGRESS
+  IN_REVIEW
+  CHANGES_REQUESTED
+  COMPLETED
+}
+
+enum DeliverableFeedbackType {
+  APPROVED
+  CHANGES_REQUESTED
+  COMMENT
+}
+
+model Deliverable {
+  id              String            @id @default(cuid())
+  title           String
+  description     String?           @db.Text
+
+  // Free-form text body (used when the deliverable is just written content)
+  content         String?           @db.Text
+  // Attachments: Array<{ name, url, key?, mimeType?, size? }>
+  files           Json?
+  // External links: Array<{ label, url }>
+  links           Json?
+
+  status          DeliverableStatus @default(IN_PROGRESS)
+  // When true the client is expected to review + respond
+  requiresFeedback Boolean          @default(false) @map("requires_feedback")
+  // Hidden from the client portal until published
+  isPublished     Boolean           @default(false) @map("is_published")
+  publishedAt     DateTime?         @map("published_at")
+
+  projectId       String            @map("project_id")
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Optional links into the plan (many-to-many)
+  milestones      DeliverableMilestone[]
+  planningSteps   DeliverablePlanningStep[]
+  tasks           DeliverableTask[]
+
+  createdById     String            @map("created_by_id")
+  createdBy       User              @relation("DeliverableCreator", fields: [createdById], references: [id])
+
+  feedbacks       DeliverableFeedback[]
+
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([status])
+  @@map("deliverables")
+}
+
+model DeliverableFeedback {
+  id            String                  @id @default(cuid())
+  deliverableId String                  @map("deliverable_id")
+  deliverable   Deliverable             @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  type          DeliverableFeedbackType @default(COMMENT)
+  message       String?                 @db.Text
+
+  givenById     String                  @map("given_by_id")
+  givenBy       User                    @relation("DeliverableFeedbackAuthor", fields: [givenById], references: [id])
+
+  createdAt     DateTime                @default(now()) @map("created_at")
+
+  @@index([deliverableId])
+  @@map("deliverable_feedbacks")
+}
+
+// ─── Deliverable ↔ plan links (many-to-many) ─────────────
+
+model DeliverableMilestone {
+  id            String      @id @default(cuid())
+  deliverableId String      @map("deliverable_id")
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  milestoneId   String      @map("milestone_id")
+  milestone     Milestone   @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@unique([deliverableId, milestoneId])
+  @@index([deliverableId])
+  @@index([milestoneId])
+  @@map("deliverable_milestones")
+}
+
+model DeliverablePlanningStep {
+  id             String       @id @default(cuid())
+  deliverableId  String       @map("deliverable_id")
+  deliverable    Deliverable  @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  planningStepId String       @map("planning_step_id")
+  planningStep   PlanningStep @relation(fields: [planningStepId], references: [id], onDelete: Cascade)
+
+  @@unique([deliverableId, planningStepId])
+  @@index([deliverableId])
+  @@index([planningStepId])
+  @@map("deliverable_planning_steps")
+}
+
+model DeliverableTask {
+  id            String      @id @default(cuid())
+  deliverableId String      @map("deliverable_id")
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  taskId        String      @map("task_id")
+  task          Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([deliverableId, taskId])
+  @@index([deliverableId])
+  @@index([taskId])
+  @@map("deliverable_tasks")
 }

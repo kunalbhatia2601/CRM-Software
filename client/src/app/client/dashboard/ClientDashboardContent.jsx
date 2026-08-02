@@ -136,8 +136,8 @@ export default function ClientDashboardContent({ stats }) {
             <p className="text-sm text-slate-400 text-center py-6">No projects yet.</p>
           )}
         </div>
-
-        {/* Upcoming Milestones */}
+{/* 
+        Upcoming Milestones
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
             <Target className="w-5 h-5 text-[#5542F6]" /> Upcoming Milestones
@@ -169,7 +169,7 @@ export default function ClientDashboardContent({ stats }) {
           )}
         </div>
 
-        {/* Recent Documents */}
+        Recent Documents
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
@@ -216,7 +216,7 @@ export default function ClientDashboardContent({ stats }) {
           ) : (
             <p className="text-sm text-slate-400 text-center py-6">No documents yet.</p>
           )}
-        </div>
+        </div> */}
 
         {/* Upcoming Meetings */}
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">

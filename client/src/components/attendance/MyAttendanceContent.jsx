@@ -68,7 +68,7 @@ export default function MyAttendanceContent({ initialRecords = [], initialBalanc
 
   return (
     <div className="p-6 space-y-6">
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Attendance</h1>

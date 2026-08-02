@@ -38,6 +38,7 @@ import Badge from "@/components/ui/Badge";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
 import PlanningSection from "@/components/project/PlanningSection";
 import ProjectServicesSection from "@/components/project/ProjectServicesSection";
+import DeliverablesSection from "@/components/project/DeliverablesSection";
 import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
@@ -446,6 +447,15 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
         initialServices={project.projectServices || []}
         basePath="/admin"
         canManage
+      />
+
+      {/* Deliverables */}
+      <DeliverablesSection
+        projectId={project.id}
+        canManage
+        milestones={milestones}
+        steps={steps}
+        tasks={tasks}
       />
 
       {/* Assigned Teams Section */}

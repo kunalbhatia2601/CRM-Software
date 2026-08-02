@@ -194,13 +194,30 @@ class ProjectService {
   /**
    * Get single project
    */
-  async getProjectById(id) {
+  async getProjectById(id, user = null) {
     const project = await prisma.project.findUnique({
       where: { id },
       include: PROJECT_INCLUDE,
     });
 
     if (!project) throw ApiError.notFound("Project not found");
+
+    // CLIENT users only see the price they were quoted — never internal
+    // catalog pricing, sale prices, or the original (pre-discount) price.
+    if (user?.role === "CLIENT") {
+      return {
+        ...project,
+        projectServices: (project.projectServices || []).map((ps) => ({
+          id: ps.id,
+          quantity: ps.quantity,
+          price: ps.price,
+          service: ps.service
+            ? { id: ps.service.id, name: ps.service.name, points: ps.service.points }
+            : null,
+        })),
+      };
+    }
+
     return project;
   }
 

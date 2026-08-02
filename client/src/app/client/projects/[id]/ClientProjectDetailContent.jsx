@@ -16,12 +16,15 @@ import {
   Clock,
   LayoutList,
   Kanban,
+  CheckCircle2,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import PlanningSection from "@/components/project/PlanningSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
+import { useSite } from "@/context/SiteContext";
 import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
+import DeliverablesSection from "@/components/project/DeliverablesSection";
 
 export default function ClientProjectDetailContent({
   initialProject,
@@ -32,6 +35,7 @@ export default function ClientProjectDetailContent({
   initialMilestones = [],
   assignableUsers = [],
 }) {
+  const { format } = useSite();
   const [project] = useState(initialProject);
   const [tasks, setTasks] = useState(initialTasks);
   const [planningView, setPlanningView] = useState("list");
@@ -59,7 +63,7 @@ export default function ClientProjectDetailContent({
 
   return (
     <div className="p-6 space-y-6">
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -120,14 +124,26 @@ export default function ClientProjectDetailContent({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4">Services</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {project.projectServices.map((ps) => (
-              <div key={ps.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50">{ps.service?.name}</h4>
-                {ps.service?.description && (
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ps.service.description}</p>
+              <div key={ps.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50">{ps.service?.name}</h4>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
+                      {format(Number(ps.price), { decimals: 0 })}
+                    </span>
+                    {ps.quantity > 1 && <p className="text-xs text-slate-400">x{ps.quantity}</p>}
+                  </div>
+                </div>
+                {Array.isArray(ps.service?.points) && ps.service.points.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {ps.service.points.map((point, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 rounded text-xs font-medium border border-emerald-100 dark:border-emerald-900/30">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {point}
+                      </span>
+                    ))}
+                  </div>
                 )}
-                {
-                  JSON.stringify(ps.service.points)
-                }
               </div>
             ))}
           </div>
@@ -252,6 +268,9 @@ export default function ClientProjectDetailContent({
           </div>
         </div>
       )}
+
+      {/* Deliverables — client can review + give feedback */}
+      <DeliverablesSection projectId={project.id} canReview isClient={true} />
 
       {/* Invoices — read-only for clients */}
       <ProjectInvoicesSection projectId={project.id} basePath="/client" readOnly />

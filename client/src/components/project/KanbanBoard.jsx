@@ -236,7 +236,7 @@ export default function KanbanBoard({
                               </div>
                               <span>{assignee.firstName} {assignee.lastName}</span>
                               {assignee.teams?.[0]?.name && (
-                                <span className="text-[10px] text-slate-400">· {assignee.teams[0].name}</span>
+                                <span className="text-[10px] text-slate-400">· {assignee.teams.map((t) => t.name).join(", ")}</span>
                               )}
                             </div>
                           ) : (

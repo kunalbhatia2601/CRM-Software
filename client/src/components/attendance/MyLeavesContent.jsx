@@ -63,7 +63,7 @@ export default function MyLeavesContent({ initialRequests = [], initialTypes = [
 
   return (
     <div className="p-6 space-y-6">
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       <div className="flex items-start justify-between gap-4">
         <div>
