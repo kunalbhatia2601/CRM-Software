@@ -8,6 +8,9 @@ import {
   updateProjectSchema,
   listProjectsSchema,
   getProjectSchema,
+  addProjectServicesSchema,
+  updateProjectServiceSchema,
+  projectServiceParamSchema,
 } from "./project.validation.js";
 
 const router = Router();
@@ -21,5 +24,12 @@ router.get("/", projectAccess, validate(listProjectsSchema), projectController.l
 router.get("/:id", projectAccess, validate(getProjectSchema), projectController.getProjectById);
 router.patch("/:id", authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER"), validate(updateProjectSchema), projectController.updateProject);
 router.delete("/:id", authorize("OWNER"), validate(getProjectSchema), projectController.deleteProject);
+
+// ─── Project Services (manage) ───
+const manageServices = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER");
+
+router.post("/:id/services", manageServices, validate(addProjectServicesSchema), projectController.addServices);
+router.patch("/:id/services/:serviceId", manageServices, validate(updateProjectServiceSchema), projectController.updateService);
+router.delete("/:id/services/:serviceId", manageServices, validate(projectServiceParamSchema), projectController.removeService);
 
 export default router;

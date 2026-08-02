@@ -91,6 +91,27 @@ class ProjectController {
     await projectService.deleteProject(req.params.id);
     return ok(res, "Project deleted successfully");
   });
+
+  // ─── Project Services ──────────────────────────────────
+
+  addServices = catchAsync(async (req, res) => {
+    const services = await projectService.addServicesToProject(req.params.id, req.body.services);
+    return created(res, "Services added to project", services);
+  });
+
+  updateService = catchAsync(async (req, res) => {
+    const service = await projectService.updateProjectService(
+      req.params.id,
+      req.params.serviceId,
+      req.body
+    );
+    return ok(res, "Service updated", service);
+  });
+
+  removeService = catchAsync(async (req, res) => {
+    await projectService.removeServiceFromProject(req.params.id, req.params.serviceId);
+    return ok(res, "Service removed from project");
+  });
 }
 
 export default new ProjectController();

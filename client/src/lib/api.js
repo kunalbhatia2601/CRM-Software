@@ -270,6 +270,29 @@ export async function deleteProjectAPI(id, accessToken) {
   return request(`/api/projects/${id}`, { method: "DELETE", token: accessToken });
 }
 
+export async function addProjectServicesAPI(projectId, services, accessToken) {
+  return request(`/api/projects/${projectId}/services`, {
+    method: "POST",
+    body: JSON.stringify({ services }),
+    token: accessToken,
+  });
+}
+
+export async function updateProjectServiceAPI(projectId, serviceId, data, accessToken) {
+  return request(`/api/projects/${projectId}/services/${serviceId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function removeProjectServiceAPI(projectId, serviceId, accessToken) {
+  return request(`/api/projects/${projectId}/services/${serviceId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
 /* ───────── User Endpoints ───────── */
 
 export async function getUsersAPI(params, accessToken) {
@@ -1200,6 +1223,10 @@ export async function getInvoicesAPI(params, accessToken) {
 
 export async function getInvoiceAPI(id, accessToken) {
   return request(`/api/invoices/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function getMyInvoicesAPI(accessToken) {
+  return request("/api/invoices/my", { method: "GET", token: accessToken });
 }
 
 export async function getInvoicesByProjectAPI(projectId, accessToken) {

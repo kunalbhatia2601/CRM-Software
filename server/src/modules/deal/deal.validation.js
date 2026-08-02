@@ -32,6 +32,8 @@ export const updateDealStageSchema = z.object({
     stage: z.enum(stages, { required_error: "Stage is required" }),
     lostReason: z.string().max(500).optional().nullable(),
     accountManagerId: z.string().optional().nullable(),
+    // Client portal login email — required when converting to WON if the lead has no email.
+    clientEmail: z.string().email("Enter a valid client email").optional().nullable(),
     // Full project configuration for WON conversion
     projectConfig: z.object({
       name: z.string().min(1).max(200).optional(),

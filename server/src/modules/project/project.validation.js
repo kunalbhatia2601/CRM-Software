@@ -63,3 +63,38 @@ export const listProjectsSchema = z.object({
 export const getProjectSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
+
+// ─── Project Services ──────────────────────────────────
+
+export const addProjectServicesSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    services: z
+      .array(
+        z.object({
+          serviceId: z.string().min(1, "Service ID is required"),
+          quantity: z.coerce.number().int().min(1).optional().default(1),
+          price: z.coerce.number().min(0).optional(),
+        })
+      )
+      .min(1, "At least one service is required"),
+  }),
+});
+
+export const updateProjectServiceSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+    serviceId: z.string().min(1),
+  }),
+  body: z.object({
+    quantity: z.coerce.number().int().min(1).optional(),
+    price: z.coerce.number().min(0).optional(),
+  }),
+});
+
+export const projectServiceParamSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+    serviceId: z.string().min(1),
+  }),
+});

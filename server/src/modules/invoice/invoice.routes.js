@@ -21,6 +21,8 @@ const canRead = authorize("OWNER", "ADMIN", "SALES_MANAGER", "FINANCE_MANAGER", 
 
 router.post("/", canManage, validate(createInvoiceSchema), controller.createInvoice);
 router.get("/", canManage, validate(listInvoicesSchema), controller.listInvoices);
+// Client portal — invoices for the logged-in client's own company
+router.get("/my", authorize("CLIENT"), controller.listMyInvoices);
 router.get("/project/:projectId", canRead, controller.getInvoicesByProject);
 router.get("/:id", canRead, validate(getInvoiceSchema), controller.getInvoice);
 router.patch("/:id", canManage, validate(updateInvoiceSchema), controller.updateInvoice);

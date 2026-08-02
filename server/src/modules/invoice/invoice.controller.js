@@ -17,6 +17,11 @@ const getInvoice = catchAsync(async (req, res) => {
   return ok(res, "Invoice retrieved", invoice);
 });
 
+const listMyInvoices = catchAsync(async (req, res) => {
+  const result = await invoiceService.listMyInvoices(req.user);
+  return ok(res, "My invoices", result);
+});
+
 const getInvoicesByProject = catchAsync(async (req, res) => {
   const invoices = await invoiceService.getInvoicesByProject(req.params.projectId, req.user);
   return ok(res, "Project invoices retrieved", invoices);
@@ -36,6 +41,7 @@ export default {
   createInvoice,
   listInvoices,
   getInvoice,
+  listMyInvoices,
   getInvoicesByProject,
   updateInvoice,
   deleteInvoice,

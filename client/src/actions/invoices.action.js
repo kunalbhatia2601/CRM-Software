@@ -5,6 +5,7 @@ import {
   getInvoicesAPI,
   getInvoiceAPI,
   getInvoicesByProjectAPI,
+  getMyInvoicesAPI,
   createInvoiceAPI,
   updateInvoiceAPI,
   deleteInvoiceAPI,
@@ -97,5 +98,17 @@ export async function deleteInvoice(id) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to delete invoice" };
+  }
+}
+
+export async function getMyInvoices() {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await getMyInvoicesAPI(token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to fetch invoices" };
   }
 }

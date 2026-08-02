@@ -8,6 +8,9 @@ import {
   updateProjectAPI,
   deleteProjectAPI,
   getUsersAPI,
+  addProjectServicesAPI,
+  updateProjectServiceAPI,
+  removeProjectServiceAPI,
 } from "@/lib/api";
 import { getClientsDropdown } from "./clients.action";
 import { getTeamsDropdownAPI } from "@/lib/api";
@@ -135,5 +138,43 @@ export async function getProjectTeams() {
     return [];
   } catch {
     return [];
+  }
+}
+
+// ─── Project Services ────────────────────────────────────
+
+export async function addProjectServices(projectId, services) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await addProjectServicesAPI(projectId, services, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to add services" };
+  }
+}
+
+export async function updateProjectService(projectId, serviceId, data) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await updateProjectServiceAPI(projectId, serviceId, data, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to update service" };
+  }
+}
+
+export async function removeProjectService(projectId, serviceId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await removeProjectServiceAPI(projectId, serviceId, token);
+    if (res.success) return { success: true };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to remove service" };
   }
 }

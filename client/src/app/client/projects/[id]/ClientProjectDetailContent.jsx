@@ -125,6 +125,9 @@ export default function ClientProjectDetailContent({
                 {ps.service?.description && (
                   <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ps.service.description}</p>
                 )}
+                {
+                  JSON.stringify(ps.service.points)
+                }
               </div>
             ))}
           </div>
@@ -132,7 +135,7 @@ export default function ClientProjectDetailContent({
       )}
 
       {/* Planning & Tasks */}
-      <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+      {/* <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Planning & Tasks</h2>
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
@@ -177,7 +180,7 @@ export default function ClientProjectDetailContent({
             showToast={showToast}
           />
         )}
-      </div>
+      </div> */}
 
       {/* Documents */}
       {initialDocuments.length > 0 && (

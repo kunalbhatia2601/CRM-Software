@@ -25,6 +25,7 @@ import {
   Trash2,
   Loader2,
   Eye,
+  Mail,
 } from "lucide-react";
 
 import { updateDealStage } from "@/actions/deals.action";
@@ -71,6 +72,7 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
     nextBillingDate: "",
     accountManagerId: "",
     notes: "",
+    clientEmail: deal.lead?.email || "",
   });
 
   const update = (field, value) => setForm((p) => ({ ...p, [field]: value }));
@@ -253,6 +255,16 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
       return;
     }
 
+    const portalEmail = form.clientEmail.trim();
+    if (!portalEmail) {
+      showToast("error", "Client email is required — it creates the client's portal login");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(portalEmail)) {
+      showToast("error", "Enter a valid client email");
+      return;
+    }
+
     startTransition(async () => {
       const projectConfig = {
         name: form.name.trim(),
@@ -296,7 +308,8 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
         null,
         form.accountManagerId || null,
         projectConfig,
-        documentsPayload
+        documentsPayload,
+        portalEmail
       );
 
       if (result.success) {
@@ -580,6 +593,24 @@ export default function ConvertDealContent({ initialDeal, accountManagers, avail
             Leave next billing date empty to auto-calculate from the start date.
           </p>
         )}
+      </SettingsCard>
+
+      {/* ─── Client Portal Access ─── */}
+      <SettingsCard
+        title="Client Portal Access"
+        description="The client signs in to their portal with this email. A login is created automatically."
+      >
+        <SettingsInput
+          label="Client Email *"
+          type="email"
+          icon={Mail}
+          value={form.clientEmail}
+          onChange={(e) => update("clientEmail", e.target.value)}
+          placeholder="client@company.com"
+        />
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+          Default password is <span className="font-mono font-medium text-slate-700 dark:text-slate-300">Client@123</span> — the client can change it after signing in, or you can reset it from the client&apos;s edit page.
+        </p>
       </SettingsCard>
 
       {/* ─── Account Manager ─── */}

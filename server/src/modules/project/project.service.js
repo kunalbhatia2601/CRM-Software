@@ -288,6 +288,90 @@ class ProjectService {
 
     await prisma.project.delete({ where: { id } });
   }
+
+  // ─── Project Services ────────────────────────────────────
+
+  /**
+   * Add (or update, if already linked) services on a project.
+   * @param {string} projectId
+   * @param {Array<{serviceId:string, quantity?:number, price?:number}>} services
+   */
+  async addServicesToProject(projectId, services) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    const results = [];
+    for (const item of services) {
+      const service = await prisma.service.findUnique({ where: { id: item.serviceId } });
+      if (!service) throw ApiError.badRequest(`Service ${item.serviceId} not found`);
+
+      // Original price = service's current effective price (salePrice or price)
+      const originalPrice = service.salePrice ?? service.price;
+      // Snapshot price = user-provided custom price, or the original price
+      const price = item.price ?? originalPrice;
+
+      const projectService = await prisma.projectService.upsert({
+        where: { projectId_serviceId: { projectId, serviceId: item.serviceId } },
+        create: {
+          projectId,
+          serviceId: item.serviceId,
+          quantity: item.quantity || 1,
+          price,
+          originalPrice,
+        },
+        update: {
+          quantity: item.quantity || 1,
+          price,
+        },
+        include: {
+          service: {
+            select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
+          },
+        },
+      });
+      results.push(projectService);
+    }
+
+    return results;
+  }
+
+  /**
+   * Update quantity / price of one linked service.
+   */
+  async updateProjectService(projectId, serviceId, { quantity, price }) {
+    const existing = await prisma.projectService.findUnique({
+      where: { projectId_serviceId: { projectId, serviceId } },
+    });
+    if (!existing) throw ApiError.notFound("Service not linked to this project");
+
+    const data = {};
+    if (quantity !== undefined) data.quantity = quantity;
+    if (price !== undefined) data.price = price;
+
+    return prisma.projectService.update({
+      where: { projectId_serviceId: { projectId, serviceId } },
+      data,
+      include: {
+        service: {
+          select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove a service from a project.
+   */
+  async removeServiceFromProject(projectId, serviceId) {
+    const existing = await prisma.projectService.findUnique({
+      where: { projectId_serviceId: { projectId, serviceId } },
+    });
+    if (!existing) throw ApiError.notFound("Service not linked to this project");
+
+    await prisma.projectService.delete({
+      where: { projectId_serviceId: { projectId, serviceId } },
+    });
+  }
 }
 
 export default new ProjectService();

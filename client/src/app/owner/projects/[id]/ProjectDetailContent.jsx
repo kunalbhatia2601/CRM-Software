@@ -37,6 +37,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
 import PlanningSection from "@/components/project/PlanningSection";
+import ProjectServicesSection from "@/components/project/ProjectServicesSection";
 import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
@@ -440,67 +441,12 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
       </div>
 
       {/* Services Section */}
-      {project.projectServices && project.projectServices.length > 0 && (
-        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-center">
-              <PackageCheck className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Services</h3>
-              <p className="text-xs text-slate-400">Services delivered in this project</p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {project.projectServices.map((ps) => {
-              const priceChanged = ps.originalPrice && Number(ps.price) !== Number(ps.originalPrice);
-              return (
-                <div key={ps.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                      {ps.service?.name?.[0]?.toUpperCase() || "S"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/owner/services/${ps.service?.id}`} className="text-sm font-semibold text-slate-900 dark:text-slate-50 hover:text-indigo-600 transition-colors">
-                        {ps.service?.name}
-                      </Link>
-                      {ps.service?.points && ps.service.points.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {ps.service.points.slice(0, 4).map((point, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 rounded text-xs font-medium border border-emerald-100 dark:border-emerald-900/30">
-                              <CheckCircle2 className="w-3 h-3" />
-                              {point}
-                            </span>
-                          ))}
-                          {ps.service.points.length > 4 && (
-                            <span className="text-xs text-slate-400 px-2 py-0.5">+{ps.service.points.length - 4} more</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 ml-4">
-                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>{format(Number(ps.price), { decimals: 0 })}</span>
-                    {priceChanged && (
-                      <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
-                        was {format(Number(ps.originalPrice), { decimals: 0 })}
-                      </p>
-                    )}
-                    {ps.quantity > 1 && <p className="text-xs text-slate-400">x{ps.quantity}</p>}
-                  </div>
-                </div>
-              );
-            })}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700 mt-3">
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Services Value</span>
-              <span className="text-lg font-bold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
-                {format(project.projectServices.reduce((sum, ps) => sum + Number(ps.price) * (ps.quantity || 1), 0), { decimals: 0 })}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProjectServicesSection
+        projectId={project.id}
+        initialServices={project.projectServices || []}
+        basePath="/owner"
+        canManage
+      />
 
       {/* Assigned Teams Section */}
       {project.projectTeams && project.projectTeams.length > 0 && (

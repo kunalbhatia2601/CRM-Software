@@ -193,6 +193,34 @@ class InvoiceService {
     return invoice;
   }
 
+  /**
+   * All invoices for the logged-in CLIENT user's company (drafts hidden).
+   */
+  async listMyInvoices(user) {
+    if (user?.role !== "CLIENT" || !user.clientId) return { invoices: [], totals: { total: 0, paid: 0, due: 0 } };
+
+    const invoices = await prisma.invoice.findMany({
+      where: { clientId: user.clientId, status: { not: "DRAFT" } },
+      include: INVOICE_INCLUDE,
+      orderBy: { issueDate: "desc" },
+    });
+
+    const totals = invoices.reduce(
+      (acc, i) => {
+        if (i.status === "CANCELLED") return acc;
+        acc.total += Number(i.total);
+        acc.paid += Number(i.amountPaid);
+        return acc;
+      },
+      { total: 0, paid: 0 }
+    );
+    totals.due = round2(totals.total - totals.paid);
+    totals.total = round2(totals.total);
+    totals.paid = round2(totals.paid);
+
+    return { invoices, totals };
+  }
+
   async getInvoicesByProject(projectId, user = null) {
     const where = { projectId };
 

@@ -5,6 +5,10 @@ import config from "../../config/index.js";
 import sampleService from "../sample/sample.service.js";
 import notificationService from "../notification/notification.service.js";
 
+// Default password given to a client's portal login when it is auto-created
+// during deal → project conversion. The client should change it after first login.
+const DEFAULT_CLIENT_PASSWORD = "Client@123";
+
 const STAGE_TRANSITIONS = {
   DISCOVERY: ["PROPOSAL", "LOST"],
   PROPOSAL: ["NEGOTIATION", "LOST"],
@@ -191,7 +195,7 @@ class DealService {
    * Update deal stage with transition validation
    * WON triggers: auto-create Client + Project with user-provided config
    */
-  async updateDealStage(id, stage, { lostReason, accountManagerId, projectConfig, documents } = {}) {
+  async updateDealStage(id, stage, { lostReason, accountManagerId, projectConfig, documents, clientEmail } = {}) {
     const deal = await prisma.deal.findUnique({
       where: { id },
       include: { lead: true, dealServices: true },
@@ -225,14 +229,17 @@ class DealService {
       // billingCycle, nextBillingDate, notes, services (with custom prices)
       const cfg = projectConfig || {};
 
+      // Resolve the client email: the one entered on the convert screen wins,
+      // otherwise fall back to the lead's. A portal login can't exist without it.
+      const portalEmail = (clientEmail || deal.lead.email || "").trim().toLowerCase();
+      if (!portalEmail) {
+        throw ApiError.badRequest("A client email is required to create the client portal login");
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         // Check if client already exists with this email
-        let client = null;
-        let isExistingClient = false;
-        if (deal.lead.email) {
-          client = await tx.client.findUnique({ where: { email: deal.lead.email } });
-          if (client) isExistingClient = true;
-        }
+        let client = await tx.client.findUnique({ where: { email: portalEmail } });
+        let isExistingClient = Boolean(client);
 
         // Create client if doesn't exist
         if (!client) {
@@ -240,7 +247,7 @@ class DealService {
             data: {
               companyName: deal.lead.companyName,
               contactName: deal.lead.contactName,
-              email: deal.lead.email,
+              email: portalEmail,
               phone: deal.lead.phone,
               dealId: deal.id,
               accountManagerId: accountManagerId || null,
@@ -248,42 +255,36 @@ class DealService {
           });
         }
 
-        // Auto-create CLIENT-role user if one doesn't already exist
-        let clientUser = null;
-        if (deal.lead.email) {
-          const existingUser = await tx.user.findUnique({
-            where: { email: deal.lead.email },
-          });
+        // Always ensure a CLIENT-role portal login exists for this client
+        let clientUser = await tx.user.findUnique({ where: { email: portalEmail } });
 
-          if (existingUser) {
-            if (!existingUser.clientId && existingUser.role === "CLIENT") {
-              await tx.user.update({
-                where: { id: existingUser.id },
-                data: { clientId: client.id },
-              });
-            }
-            clientUser = existingUser;
-          } else {
-            const defaultPassword = `${deal.lead.companyName.replace(/\s+/g, "")}@123`;
-            const hashedPassword = await bcrypt.hash(defaultPassword, config.bcrypt.saltRounds);
-
-            const nameParts = deal.lead.contactName.trim().split(/\s+/);
-            const firstName = nameParts[0] || "Client";
-            const lastName = nameParts.slice(1).join(" ") || deal.lead.companyName;
-
-            clientUser = await tx.user.create({
-              data: {
-                email: deal.lead.email,
-                password: hashedPassword,
-                firstName,
-                lastName,
-                phone: deal.lead.phone || null,
-                role: "CLIENT",
-                status: "ACTIVE",
-                clientId: client.id,
-              },
+        if (clientUser) {
+          // Link an existing client account to this company if it isn't linked yet
+          if (!clientUser.clientId && clientUser.role === "CLIENT") {
+            clientUser = await tx.user.update({
+              where: { id: clientUser.id },
+              data: { clientId: client.id },
             });
           }
+        } else {
+          const hashedPassword = await bcrypt.hash(DEFAULT_CLIENT_PASSWORD, config.bcrypt.saltRounds);
+
+          const nameParts = (deal.lead.contactName || "").trim().split(/\s+/);
+          const firstName = nameParts[0] || "Client";
+          const lastName = nameParts.slice(1).join(" ") || deal.lead.companyName;
+
+          clientUser = await tx.user.create({
+            data: {
+              email: portalEmail,
+              password: hashedPassword,
+              firstName,
+              lastName,
+              phone: deal.lead.phone || null,
+              role: "CLIENT",
+              status: "ACTIVE",
+              clientId: client.id,
+            },
+          });
         }
 
         // Determine if project should start in DUE_SIGNING status
