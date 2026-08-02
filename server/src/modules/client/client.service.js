@@ -12,6 +12,11 @@ const CLIENT_INCLUDE = {
     select: { id: true, name: true, status: true, startDate: true, endDate: true },
     orderBy: { createdAt: "desc" },
   },
+  // CLIENT-role login accounts linked to this company (client portal users)
+  portalUsers: {
+    select: { id: true, firstName: true, lastName: true, email: true, status: true, lastLoginAt: true },
+    orderBy: { createdAt: "asc" },
+  },
 };
 
 class ClientService {

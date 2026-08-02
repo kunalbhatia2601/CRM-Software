@@ -27,132 +27,132 @@ class AiService {
    * Each tool corresponds to a function the AI can call.
    */
   #tools = [
-    {
-      name: "global_search",
-      description: "Search the CRM database for leads, deals, clients, projects, teams, users, and services. BE VERY SPECIFIC with your query for best results. Examples: 'leads', 'recent leads', 'active clients', 'negotiation deals', 'Kunal Bhatia', 'ABC Corp', 'completed projects', 'high priority leads'.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "SPECIFIC search query. Use entity names, statuses, or keywords. E.g., 'leads' (all leads), 'active clients', 'Kunal' (person name), 'ABC Corp' (company name)"
-          },
-          limit: {
-            type: "integer",
-            description: "Maximum results per category (default: 10, max: 20)",
-            default: 10
-          }
-        },
-        required: ["query"]
-      }
-    },
-    {
-      name: "get_overall_stats",
-      description: "Get overall statistics/counts for the CRM. Use this when user asks for general stats like 'how many leads', 'total deals', 'active projects count', etc.",
-      parameters: {
-        type: "object",
-        properties: {}
-      }
-    },
-    {
-      name: "list_entities",
-      description: "List records of ONE entity type. Use for 'show my leads', 'all deals', 'list clients', 'projects in progress', 'list invoices', 'my tasks', 'upcoming meetings', etc. Prefer over global_search when the user wants a LIST. IMPORTANT: only use one of the exact entity values below. If the user asks for an entity NOT in this list, use query_database instead — NEVER substitute a different entity.",
-      parameters: {
-        type: "object",
-        properties: {
-          entity: {
-            type: "string",
-            enum: ["leads", "deals", "clients", "projects", "users", "teams", "services", "invoices", "tasks", "meetings", "followups", "jobs", "holidays", "leaverequests", "announcements"],
-            description: "Which entity type to list. Must be exactly one of these."
-          },
-          status: {
-            type: "string",
-            description: "Optional status/stage filter. Leads: NEW|CONTACTED|QUALIFIED|UNQUALIFIED|CONVERTED|LOST. Deals stage: DISCOVERY|PROPOSAL|NEGOTIATION|WON|LOST. Clients: ACTIVE|INACTIVE|CHURNED. Projects: DUE_SIGNING|NOT_STARTED|IN_PROGRESS|ON_HOLD|COMPLETED|CANCELLED. Invoices: DRAFT|SENT|PAID|PARTIALLY_PAID|OVERDUE|CANCELLED. Tasks: TODO|IN_PROGRESS|IN_REVIEW|COMPLETED|REVIEWED. Meetings: SCHEDULED|COMPLETED|CANCELLED|NO_SHOW. LeaveRequests: PENDING|APPROVED|REJECTED|CANCELLED. Jobs: DRAFT|OPEN|CLOSED|ARCHIVED."
-          },
-          limit: {
-            type: "integer",
-            description: "Max records (default 25, max 100).",
-            default: 25
-          }
-        },
-        required: ["entity"]
-      }
-    },
-    {
-      name: "get_lead_details",
-      description: "Get detailed information about a specific lead by ID. Use this when user wants to see full details of a lead.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "The lead ID"
-          }
-        },
-        required: ["id"]
-      }
-    },
-    {
-      name: "get_deal_details",
-      description: "Get detailed information about a specific deal by ID. Use this when user wants to see full details of a deal including value and stage.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "The deal ID"
-          }
-        },
-        required: ["id"]
-      }
-    },
-    {
-      name: "get_client_details",
-      description: "Get detailed information about a specific client by ID. Use this when user wants to see full details of a client.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "The client ID"
-          }
-        },
-        required: ["id"]
-      }
-    },
-    {
-      name: "get_project_details",
-      description: "Get detailed information about a specific project by ID. Use this when user wants to see full details of a project.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "The project ID"
-          }
-        },
-        required: ["id"]
-      }
-    },
-    {
-      name: "list_project_tasks",
-      description: "List all tasks for a specific project by project ID. Use this when the user asks about tasks, to-dos, or work items in a project. If you only have the project name, first call global_search or list_entities to find its ID.",
-      parameters: {
-        type: "object",
-        properties: {
-          projectId: {
-            type: "string",
-            description: "The project ID (cuid)."
-          },
-          status: {
-            type: "string",
-            enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"],
-            description: "Optional status filter."
-          }
-        },
-        required: ["projectId"]
-      }
-    },
+    // {
+    //   name: "global_search",
+    //   description: "Search the CRM database for leads, deals, clients, projects, teams, users, and services. BE VERY SPECIFIC with your query for best results. Examples: 'leads', 'recent leads', 'active clients', 'negotiation deals', 'Kunal Bhatia', 'ABC Corp', 'completed projects', 'high priority leads'.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       query: {
+    //         type: "string",
+    //         description: "SPECIFIC search query. Use entity names, statuses, or keywords. E.g., 'leads' (all leads), 'active clients', 'Kunal' (person name), 'ABC Corp' (company name)"
+    //       },
+    //       limit: {
+    //         type: "integer",
+    //         description: "Maximum results per category (default: 10, max: 20)",
+    //         default: 10
+    //       }
+    //     },
+    //     required: ["query"]
+    //   }
+    // },
+    // {
+    //   name: "get_overall_stats",
+    //   description: "Get overall statistics/counts for the CRM. Use this when user asks for general stats like 'how many leads', 'total deals', 'active projects count', etc.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {}
+    //   }
+    // },
+    // {
+    //   name: "list_entities",
+    //   description: "List records of ONE entity type. Use for 'show my leads', 'all deals', 'list clients', 'projects in progress', 'list invoices', 'my tasks', 'upcoming meetings', etc. Prefer over global_search when the user wants a LIST. IMPORTANT: only use one of the exact entity values below. If the user asks for an entity NOT in this list, use query_database instead — NEVER substitute a different entity.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       entity: {
+    //         type: "string",
+    //         enum: ["leads", "deals", "clients", "projects", "users", "teams", "services", "invoices", "tasks", "meetings", "followups", "jobs", "holidays", "leaverequests", "announcements"],
+    //         description: "Which entity type to list. Must be exactly one of these."
+    //       },
+    //       status: {
+    //         type: "string",
+    //         description: "Optional status/stage filter. Leads: NEW|CONTACTED|QUALIFIED|UNQUALIFIED|CONVERTED|LOST. Deals stage: DISCOVERY|PROPOSAL|NEGOTIATION|WON|LOST. Clients: ACTIVE|INACTIVE|CHURNED. Projects: DUE_SIGNING|NOT_STARTED|IN_PROGRESS|ON_HOLD|COMPLETED|CANCELLED. Invoices: DRAFT|SENT|PAID|PARTIALLY_PAID|OVERDUE|CANCELLED. Tasks: TODO|IN_PROGRESS|IN_REVIEW|COMPLETED|REVIEWED. Meetings: SCHEDULED|COMPLETED|CANCELLED|NO_SHOW. LeaveRequests: PENDING|APPROVED|REJECTED|CANCELLED. Jobs: DRAFT|OPEN|CLOSED|ARCHIVED."
+    //       },
+    //       limit: {
+    //         type: "integer",
+    //         description: "Max records (default 25, max 100).",
+    //         default: 25
+    //       }
+    //     },
+    //     required: ["entity"]
+    //   }
+    // },
+    // {
+    //   name: "get_lead_details",
+    //   description: "Get detailed information about a specific lead by ID. Use this when user wants to see full details of a lead.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       id: {
+    //         type: "string",
+    //         description: "The lead ID"
+    //       }
+    //     },
+    //     required: ["id"]
+    //   }
+    // },
+    // {
+    //   name: "get_deal_details",
+    //   description: "Get detailed information about a specific deal by ID. Use this when user wants to see full details of a deal including value and stage.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       id: {
+    //         type: "string",
+    //         description: "The deal ID"
+    //       }
+    //     },
+    //     required: ["id"]
+    //   }
+    // },
+    // {
+    //   name: "get_client_details",
+    //   description: "Get detailed information about a specific client by ID. Use this when user wants to see full details of a client.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       id: {
+    //         type: "string",
+    //         description: "The client ID"
+    //       }
+    //     },
+    //     required: ["id"]
+    //   }
+    // },
+    // {
+    //   name: "get_project_details",
+    //   description: "Get detailed information about a specific project by ID. Use this when user wants to see full details of a project.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       id: {
+    //         type: "string",
+    //         description: "The project ID"
+    //       }
+    //     },
+    //     required: ["id"]
+    //   }
+    // },
+    // {
+    //   name: "list_project_tasks",
+    //   description: "List all tasks for a specific project by project ID. Use this when the user asks about tasks, to-dos, or work items in a project. If you only have the project name, first call global_search or list_entities to find its ID.",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       projectId: {
+    //         type: "string",
+    //         description: "The project ID (cuid)."
+    //       },
+    //       status: {
+    //         type: "string",
+    //         enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"],
+    //         description: "Optional status filter."
+    //       }
+    //     },
+    //     required: ["projectId"]
+    //   }
+    // },
     {
       name: "describe_schema",
       description: "Returns the database schema: all queryable models with their fields, field types, enum values, and relations. Call this FIRST whenever you need to run a custom database query with query_database and are unsure of the exact model or field names. Read-only.",

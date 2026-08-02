@@ -111,8 +111,8 @@ class DbQueryService {
     for (const [k, v] of Object.entries(node)) {
       if (DENY_FIELDS.has(k)) continue;
       if (v && typeof v === "object" && (v.select || v.include || v.where || v.orderBy || v.take !== undefined)) {
-        // nested relation query object
-        out[k] = this.#sanitizeArgs(v, true);
+        // nested relation query object — allow take but don't force a default.
+        out[k] = this.#sanitizeArgs(v, { allowTake: true, defaultTake: undefined });
       } else {
         out[k] = v;
       }
@@ -123,17 +123,20 @@ class DbQueryService {
   /**
    * Sanitize an args object: enforce take cap, sanitize select/include, keep read-safe keys only.
    */
-  #sanitizeArgs(args = {}, nested = false) {
+  #sanitizeArgs(args = {}, { allowTake = true, defaultTake = 25 } = {}) {
     const allowedKeys = new Set(["where", "select", "include", "orderBy", "take", "skip", "distinct", "by", "_count", "_sum", "_avg", "_min", "_max", "cursor"]);
     const out = {};
     for (const [k, v] of Object.entries(args)) {
       if (!allowedKeys.has(k)) continue;
-      if (k === "take") { out.take = Math.min(Math.max(Number(v) || 25, 1), MAX_TAKE); continue; }
+      if (k === "take") {
+        // Only findMany may take. findFirst/findUnique/count/etc must not.
+        if (allowTake) out.take = Math.min(Math.max(Number(v) || 25, 1), MAX_TAKE);
+        continue;
+      }
       if (k === "select" || k === "include") { out[k] = this.#sanitizeSelection(v); continue; }
       out[k] = v;
     }
-    // Always cap top-level list reads.
-    if (!nested && out.take === undefined) out.take = 25;
+    if (allowTake && typeof defaultTake === "number" && out.take === undefined) out.take = defaultTake;
     return out;
   }
 
@@ -175,9 +178,11 @@ class DbQueryService {
       throw new Error(`Cannot run ${operation} on ${model}.`);
     }
 
-    // Only findMany/findFirst get a default take cap; count/groupBy/aggregate/findUnique don't.
-    const wantsTake = operation === "findMany" || operation === "findFirst";
-    const safeArgs = this.#sanitizeArgs(args, !wantsTake);
+    // Only findMany may carry `take`. findFirst/findUnique/count/groupBy/aggregate must not.
+    const opts = operation === "findMany"
+      ? { allowTake: true, defaultTake: 25 }
+      : { allowTake: false };
+    const safeArgs = this.#sanitizeArgs(args, opts);
     const result = await delegate[operation](safeArgs);
     const clean = this.#sanitizeResult(result);
 

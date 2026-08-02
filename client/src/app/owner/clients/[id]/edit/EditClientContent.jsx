@@ -11,8 +11,13 @@ import {
   Globe,
   Briefcase,
   UserCheck,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 import { updateClient, getAccountManagers } from "@/actions/clients.action";
+import { resetUserPassword } from "@/actions/users.action";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import SettingsCard from "@/components/settings/SettingsCard";
@@ -25,6 +30,13 @@ export default function EditClientContent({ client }) {
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState(null);
   const [managers, setManagers] = useState([]);
+
+  // Portal user password reset
+  const portalUsers = client.portalUsers || [];
+  const [resetTargetId, setResetTargetId] = useState(portalUsers[0]?.id || "");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const [form, setForm] = useState({
     companyName: client.companyName || "",
@@ -73,6 +85,27 @@ export default function EditClientContent({ client }) {
         showToast("error", result.error || "Failed to update client");
       }
     });
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTargetId) {
+      showToast("error", "No portal login exists for this client yet");
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      showToast("error", "Password must be at least 8 characters");
+      return;
+    }
+
+    setIsResetting(true);
+    const result = await resetUserPassword(resetTargetId, newPassword);
+    setIsResetting(false);
+    if (result.success) {
+      showToast("success", "Portal password reset successfully");
+      setNewPassword("");
+    } else {
+      showToast("error", result.error || "Failed to reset password");
+    }
   };
 
   return (
@@ -197,6 +230,71 @@ export default function EditClientContent({ client }) {
             )}
           </div>
         </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Client Portal Login"
+        description="Reset the password for this client's portal account."
+      >
+        {portalUsers.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No portal login exists for this client yet. A login is created automatically when a deal is converted to a project, or can be added manually from the Users page.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {portalUsers.length > 1 ? (
+              <SettingsSelect
+                label="Portal Account"
+                icon={UserCheck}
+                value={resetTargetId}
+                onChange={(e) => setResetTargetId(e.target.value)}
+                options={portalUsers.map((u) => ({
+                  value: u.id,
+                  label: `${u.firstName} ${u.lastName} (${u.email})`,
+                }))}
+              />
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Mail className="w-4 h-4" />
+                <span>
+                  Logging in as <span className="font-medium text-slate-800 dark:text-slate-200">{portalUsers[0].email}</span>
+                  {portalUsers[0].status !== "ACTIVE" && (
+                    <span className="ml-2 text-xs font-medium text-amber-600 dark:text-amber-400">({portalUsers[0].status})</span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <SettingsInput
+                label="New Password"
+                type={showPassword ? "text" : "password"}
+                icon={KeyRound}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((p) => !p)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+              />
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={isResetting || !newPassword}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                Reset Password
+              </button>
+            </div>
+          </div>
+        )}
       </SettingsCard>
 
       <SettingsCard
