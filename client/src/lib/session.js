@@ -8,7 +8,7 @@
  * rolling session that lasts as long as the refresh token stays valid.
  */
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { refreshTokenAPI } from "./api";
 
 // Refresh this many seconds before the token actually expires, so a request
@@ -137,6 +137,32 @@ async function refreshTokens(refreshToken) {
   return task;
 }
 
+/** Access token handed down by the middleware for this request, if any. */
+async function readForwardedToken() {
+  try {
+    const h = await headers();
+    return h.get("x-access-token") || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True in a Server Action / Route Handler, false while rendering a Server
+ * Component. Probing is the only reliable test — Next throws on write.
+ */
+async function canWriteCookies() {
+  try {
+    const store = await cookies();
+    const existing = store.get(ACCESS_COOKIE);
+    if (!existing) return false;
+    store.set(ACCESS_COOKIE, existing.value, baseCookieOptions());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Current access token, refreshed on the fly when stale.
  * Returns undefined when there is no usable session.
@@ -154,12 +180,22 @@ export async function getToken() {
     return undefined;
   }
 
-  const access = store.get(ACCESS_COOKIE)?.value;
+  // The middleware refreshes before the render and forwards the new token on
+  // this header — the request cookies still hold the old one at this point.
+  const forwarded = await readForwardedToken();
+  if (forwarded) return forwarded;
 
+  const access = store.get(ACCESS_COOKIE)?.value;
   if (!isStale(access)) return access;
 
   const refresh = store.get(REFRESH_COOKIE)?.value;
   if (!refresh) return access; // nothing to refresh with
+
+  // Refreshing is only safe where the new pair can actually be persisted.
+  // Rotation is destructive server-side, so refreshing in a Server Component —
+  // which cannot write cookies — would delete the stored token and leave the
+  // browser holding a dead one. Middleware covers that case instead.
+  if (!(await canWriteCookies())) return access;
 
   const tokens = await refreshTokens(refresh);
   return tokens?.accessToken ?? undefined;

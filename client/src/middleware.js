@@ -42,6 +42,8 @@ const PROTECTED_PREFIXES = Object.keys(ROLE_ACCESS);
 // only reads it and ends the session once it goes stale.
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_COOKIE = "lastActivity";
+const ACCESS_COOKIE = "accessToken";
+const REFRESH_COOKIE = "refreshToken";
 
 function isIdleExpired(stamp) {
   if (!stamp) return false; // no stamp yet (fresh login) — not idle
@@ -50,15 +52,72 @@ function isIdleExpired(stamp) {
   return Date.now() - last > IDLE_TIMEOUT_MS;
 }
 
-/** Redirect to login and wipe the session. */
-function forceLogin(request, reason) {
-  const url = new URL("/login", request.url);
+/**
+ * Wipe the session. Clears cookies on the way out so a dead refresh token can
+ * never be replayed — that is what turns a failed refresh into a redirect loop.
+ */
+function forceLogin(request, reason, targetUrl) {
+  const url = targetUrl || new URL("/login", request.url);
   if (reason) url.searchParams.set("reason", reason);
-  const response = NextResponse.redirect(url);
-  response.cookies.delete("accessToken");
-  response.cookies.delete("refreshToken");
-  response.cookies.delete("user");
-  response.cookies.delete(ACTIVITY_COOKIE);
+
+  // Already on /login: clear cookies in place instead of redirecting to
+  // ourselves, otherwise the browser loops.
+  const response =
+    request.nextUrl.pathname === "/login"
+      ? NextResponse.next()
+      : NextResponse.redirect(url);
+  for (const name of ["accessToken", "refreshToken", "user", ACTIVITY_COOKIE]) {
+    response.cookies.set(name, "", { path: "/", maxAge: 0 });
+  }
+  return response;
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4444";
+
+const TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  path: "/",
+  maxAge: 60 * 60 * 24 * 7, // 7 days — validity comes from the JWT's own exp
+};
+
+// The server rotates destructively (old refresh row deleted before the new
+// pair is issued), so two concurrent refreshes with the same token would make
+// the second fail and kill the session. Collapse them into one call.
+const inflightRefresh = new Map();
+
+/**
+ * Exchange a refresh token for a new pair.
+ * @returns {Promise<{accessToken: string, refreshToken: string}|null>} null when the token is dead
+ */
+async function refreshPair(refreshToken) {
+  if (inflightRefresh.has(refreshToken)) return inflightRefresh.get(refreshToken);
+
+  const task = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/refresh-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return null;
+      const body = await res.json();
+      return body?.data?.accessToken ? body.data : null;
+    } catch {
+      return null;
+    } finally {
+      inflightRefresh.delete(refreshToken);
+    }
+  })();
+
+  inflightRefresh.set(refreshToken, task);
+  return task;
+}
+
+function applyTokens(response, tokens) {
+  response.cookies.set("accessToken", tokens.accessToken, TOKEN_COOKIE_OPTIONS);
+  response.cookies.set("refreshToken", tokens.refreshToken, TOKEN_COOKIE_OPTIONS);
   return response;
 }
 
@@ -75,12 +134,13 @@ function isTokenExpired(token) {
   return false;
 }
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const userCookie = request.cookies.get("user")?.value;
-  const accessToken = request.cookies.get("accessToken")?.value;
-  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   const lastActivity = request.cookies.get(ACTIVITY_COOKIE)?.value;
+
+  let accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
 
   let user = null;
   try {
@@ -89,32 +149,54 @@ export function middleware(request) {
     // malformed cookie
   }
 
-  // Check token expiration before deciding if authenticated
-  const isExpired = isTokenExpired(accessToken);
-
-  // An expired access token is recoverable while a refresh token is still
-  // around — the layout's getAuthUser() mints a new pair during render. Only
-  // force re-login once there is nothing left to refresh with.
-  if (accessToken && isExpired && !refreshToken) {
-    return forceLogin(request);
-  }
-
-  const hasSession = (!!accessToken && !isExpired) || !!refreshToken;
-
-  // Idle timeout beats a still-valid refresh token.
-  if (hasSession && isIdleExpired(lastActivity)) {
+  // Idle timeout is checked first — it outranks any still-valid token.
+  if ((accessToken || refreshToken) && isIdleExpired(lastActivity)) {
     return forceLogin(request, "idle");
   }
 
-  const isAuthenticated = hasSession && !!user;
+  // ── Token renewal ────────────────────────────────────────
+  // This is the only place a refresh may happen. Server Components cannot
+  // write cookies, so refreshing during render would rotate the token
+  // server-side with no way to persist the new one — the next request would
+  // then present a token the server has already deleted.
+  let renewed = null;
+  if (isTokenExpired(accessToken)) {
+    if (!refreshToken) {
+      // Nothing left to renew with.
+      return accessToken || user ? forceLogin(request) : continueUnauthenticated(request, pathname);
+    }
+
+    renewed = await refreshPair(refreshToken);
+    if (!renewed) {
+      // Refresh token is expired, revoked, or already rotated away.
+      return forceLogin(request, "expired");
+    }
+    accessToken = renewed.accessToken;
+  }
+
+  const isAuthenticated = !!accessToken && !isTokenExpired(accessToken) && !!user;
+
+  // Hand the freshly minted token to the render pass, which sees the *request*
+  // cookies (the response cookies above only reach the browser).
+  const forward = () => {
+    const headers = new Headers(request.headers);
+    if (renewed) headers.set("x-access-token", renewed.accessToken);
+    const response = NextResponse.next({ request: { headers } });
+    return renewed ? applyTokens(response, renewed) : response;
+  };
+
+  const redirectTo = (url) => {
+    const response = NextResponse.redirect(url);
+    return renewed ? applyTokens(response, renewed) : response;
+  };
 
   // ── Login page: redirect authenticated users to their dashboard ──
   if (pathname === "/login") {
     if (isAuthenticated) {
       const dashPath = ROLE_DASHBOARD_MAP[user.role] || "/admin/dashboard";
-      return NextResponse.redirect(new URL(dashPath, request.url));
+      return redirectTo(new URL(dashPath, request.url));
     }
-    return NextResponse.next();
+    return forward();
   }
 
   // ── Protected routes: require authentication ──
@@ -126,21 +208,30 @@ export function middleware(request) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      return forceLogin(request, null, loginUrl);
     }
 
-    // Role-based access check
     const allowedRoles = ROLE_ACCESS[matchedPrefix];
     if (allowedRoles && !allowedRoles.includes(user.role)) {
-      // Redirect to their correct dashboard
       const correctPath = ROLE_DASHBOARD_MAP[user.role] || "/owner/dashboard";
-      return NextResponse.redirect(new URL(correctPath, request.url));
+      return redirectTo(new URL(correctPath, request.url));
     }
 
-    return NextResponse.next();
+    return forward();
   }
 
-  return NextResponse.next();
+  return forward();
+}
+
+/** No session at all — let /login through, bounce protected routes. */
+function continueUnauthenticated(request, pathname) {
+  const matched = PROTECTED_PREFIXES.find(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+  );
+  if (!matched) return NextResponse.next();
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("redirect", pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

@@ -157,12 +157,10 @@ export async function getAuthUser() {
     return res.data;
   } catch (error) {
     checkForMaintenance(error);
-    // A 401 here means the access token was rejected outright — retry once
-    // with a freshly minted one before giving up on the session.
-    if (error?.status === 401) {
-      const retried = await refreshSession();
-      if (retried) return retried;
-    }
+    // No refresh retry here on purpose: this runs while rendering a Server
+    // Component, which cannot persist cookies. Rotating the refresh token
+    // from here would delete it server-side with no way to store the
+    // replacement. The middleware has already refreshed before this point.
     return null;
   }
 }
