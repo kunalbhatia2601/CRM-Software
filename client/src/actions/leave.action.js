@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   listLeaveTypesAPI,
   createLeaveTypeAPI,
@@ -18,11 +17,8 @@ import {
   rejectLeaveRequestAPI,
   cancelLeaveRequestAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 // ── Types ──
 export async function listLeaveTypes() {

@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getProjectsAPI,
   getProjectAPI,
@@ -15,13 +14,10 @@ import {
 import { getAssignableStaff } from "./users.action";
 import { getClientsDropdown } from "./clients.action";
 import { getTeamsDropdownAPI } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
 // ─── Helpers ─────────────────────────────────────────────
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 // ─── List Projects ───────────────────────────────────────
 

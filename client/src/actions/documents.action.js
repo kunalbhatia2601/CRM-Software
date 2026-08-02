@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getDocumentsAPI,
   getDocumentAPI,
@@ -12,11 +11,8 @@ import {
   deleteDocumentAPI,
   sendDocumentEmailAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getDocuments(params = {}) {
   const token = await getToken();

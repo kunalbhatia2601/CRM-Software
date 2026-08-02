@@ -1,12 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { aiGenerateAPI, aiSearchAPI } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 /**
  * Generate AI content using a system prompt.

@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getMeetingsAPI,
   getMeetingAPI,
@@ -12,11 +11,8 @@ import {
   deleteMeetingAPI,
   completePostProductionMeetingAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getMeetings(params = {}) {
   const token = await getToken();

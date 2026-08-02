@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getUsersAPI,
   getUserAPI,
@@ -13,13 +12,10 @@ import {
   getUserDirectoryAPI,
   getAssignableStaffAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
 // ─── Helpers ─────────────────────────────────────────────
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 // ─── List Users ──────────────────────────────────────────
 

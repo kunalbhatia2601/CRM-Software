@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getSystemPromptsAPI,
   getSystemPromptAPI,
@@ -8,11 +7,8 @@ import {
   updateSystemPromptAPI,
   deleteSystemPromptAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getSystemPrompts() {
   const token = await getToken();

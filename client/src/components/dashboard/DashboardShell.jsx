@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { ThemeProvider } from "../providers/ThemeProvider";
+import IdleTracker from "@/components/auth/IdleTracker";
 
 export default function DashboardShell({ title, children, navItems }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -22,6 +23,7 @@ export default function DashboardShell({ title, children, navItems }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <IdleTracker />
       <div className="flex h-screen w-full bg-[#F8FAFC] dark:bg-slate-950 overflow-hidden">
 
         {/* ── Dark Overlay (mobile only, shown when drawer is open) ── */}

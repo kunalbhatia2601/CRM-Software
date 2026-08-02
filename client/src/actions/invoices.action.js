@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getInvoicesAPI,
   getInvoiceAPI,
@@ -11,11 +10,8 @@ import {
   deleteInvoiceAPI,
   getInvoiceConfigAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getInvoices(params = {}) {
   const token = await getToken();

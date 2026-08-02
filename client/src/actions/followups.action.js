@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getFollowUpsAPI,
   getFollowUpAPI,
@@ -9,11 +8,8 @@ import {
   updateFollowUpAPI,
   deleteFollowUpAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getFollowUps(params = {}) {
   const token = await getToken();

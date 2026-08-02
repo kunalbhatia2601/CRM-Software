@@ -1,16 +1,12 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getJobsAPI, getJobAPI, createJobAPI, updateJobAPI, deleteJobAPI,
   getJobApplicationsAPI, updateJobApplicationAPI,
   getPublicJobsAPI, getPublicJobAPI, applyToJobAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 /* ── HR-managed ── */
 

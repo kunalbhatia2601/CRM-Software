@@ -1,16 +1,12 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   createCommentAPI,
   getCommentsAPI,
   deleteCommentAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function createComment(data) {
   const token = await getToken();

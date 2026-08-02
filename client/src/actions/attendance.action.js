@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   checkInAPI,
   checkOutAPI,
@@ -12,11 +11,8 @@ import {
   updateAttendanceAPI,
   deleteAttendanceAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function checkIn(notes) {
   const token = await getToken();

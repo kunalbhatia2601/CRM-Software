@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getDealsAPI,
   getDealAPI,
@@ -14,13 +13,10 @@ import {
   getLeadsAPI,
 } from "@/lib/api";
 import { getAssignableStaff } from "./users.action";
+import { getToken } from "@/lib/session";
 
 // ─── Helpers ─────────────────────────────────────────────
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 // ─── List Deals ──────────────────────────────────────────
 

@@ -36,6 +36,32 @@ const ROLE_ACCESS = {
 // All protected route prefixes
 const PROTECTED_PREFIXES = Object.keys(ROLE_ACCESS);
 
+// Sliding idle window. The cookie is stamped client-side by <IdleTracker /> on
+// real user interaction only — stamping it here would let background polling
+// (notifications refresh every 10s) keep a session alive forever. Middleware
+// only reads it and ends the session once it goes stale.
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const ACTIVITY_COOKIE = "lastActivity";
+
+function isIdleExpired(stamp) {
+  if (!stamp) return false; // no stamp yet (fresh login) — not idle
+  const last = Number(stamp);
+  if (!Number.isFinite(last)) return false;
+  return Date.now() - last > IDLE_TIMEOUT_MS;
+}
+
+/** Redirect to login and wipe the session. */
+function forceLogin(request, reason) {
+  const url = new URL("/login", request.url);
+  if (reason) url.searchParams.set("reason", reason);
+  const response = NextResponse.redirect(url);
+  response.cookies.delete("accessToken");
+  response.cookies.delete("refreshToken");
+  response.cookies.delete("user");
+  response.cookies.delete(ACTIVITY_COOKIE);
+  return response;
+}
+
 function isTokenExpired(token) {
   if (!token) return true;
   try {
@@ -53,6 +79,8 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
   const userCookie = request.cookies.get("user")?.value;
   const accessToken = request.cookies.get("accessToken")?.value;
+  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const lastActivity = request.cookies.get(ACTIVITY_COOKIE)?.value;
 
   let user = null;
   try {
@@ -64,16 +92,21 @@ export function middleware(request) {
   // Check token expiration before deciding if authenticated
   const isExpired = isTokenExpired(accessToken);
 
-  // If token is explicitly expired, clear cookies and force re-login
-  if (accessToken && isExpired) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("accessToken");
-    response.cookies.delete("refreshToken");
-    response.cookies.delete("user");
-    return response;
+  // An expired access token is recoverable while a refresh token is still
+  // around — the layout's getAuthUser() mints a new pair during render. Only
+  // force re-login once there is nothing left to refresh with.
+  if (accessToken && isExpired && !refreshToken) {
+    return forceLogin(request);
   }
 
-  const isAuthenticated = !!accessToken && !!user && !isExpired;
+  const hasSession = (!!accessToken && !isExpired) || !!refreshToken;
+
+  // Idle timeout beats a still-valid refresh token.
+  if (hasSession && isIdleExpired(lastActivity)) {
+    return forceLogin(request, "idle");
+  }
+
+  const isAuthenticated = hasSession && !!user;
 
   // ── Login page: redirect authenticated users to their dashboard ──
   if (pathname === "/login") {

@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getMilestonesByProjectAPI,
   getMilestoneAPI,
@@ -9,11 +8,8 @@ import {
   deleteMilestoneAPI,
   reorderMilestonesAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getMilestonesByProject(projectId) {
   const token = await getToken();

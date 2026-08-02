@@ -1,16 +1,12 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getKpiConfigAPI, updateKpiConfigAPI,
   generatePayrollAPI, getPayrollAPI, getPayrollRecordAPI,
   previewPayrollAPI, getPayrollHistoryAPI, setUserBasePayAPI, updatePayrollRecordAPI, deletePayrollRecordAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getKpiConfig() {
   const token = await getToken();

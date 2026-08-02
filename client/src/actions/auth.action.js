@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { loginAPI, refreshTokenAPI, getMeAPI, logoutAPI, verifyOtpAPI, resendOtpAPI, forgotPasswordAPI, resetPasswordAPI_OTP } from "@/lib/api";
 import { checkForMaintenance } from "@/lib/checkForMaintainence";
+import { getToken, writeAuthCookies, clearAuthCookies as clearSessionCookies } from "@/lib/session";
 
 /* ───────── Role → Dashboard Path Map ───────── */
 
@@ -25,50 +26,11 @@ function getDashboardPath(role) {
 /* ───────── Cookie Helpers ───────── */
 
 async function setAuthCookies(tokens, user) {
-  const cookieStore = await cookies();
-
-  cookieStore.set("accessToken", tokens.accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60, // 1 hour (access token)
-  });
-
-  cookieStore.set("refreshToken", tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
-
-  // Non-httpOnly cookie for client-side role-based UI rendering
-  cookieStore.set(
-    "user",
-    JSON.stringify({
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar || null,
-    }),
-    {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    }
-  );
+  await writeAuthCookies(tokens, user);
 }
 
 async function clearAuthCookies() {
-  const cookieStore = await cookies();
-  cookieStore.delete("accessToken");
-  cookieStore.delete("refreshToken");
-  cookieStore.delete("user");
+  await clearSessionCookies();
 }
 
 /* ───────── Server Actions ───────── */
@@ -182,8 +144,9 @@ export async function logoutAction() {
  * Get the current authenticated user from cookies.
  */
 export async function getAuthUser() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("accessToken")?.value;
+  // getToken() renews the access token from the refresh token when it has
+  // expired, so an idle session survives instead of silently logging out.
+  const accessToken = await getToken();
 
   if (!accessToken) {
     return null;
@@ -194,6 +157,12 @@ export async function getAuthUser() {
     return res.data;
   } catch (error) {
     checkForMaintenance(error);
+    // A 401 here means the access token was rejected outright — retry once
+    // with a freshly minted one before giving up on the session.
+    if (error?.status === 401) {
+      const retried = await refreshSession();
+      if (retried) return retried;
+    }
     return null;
   }
 }

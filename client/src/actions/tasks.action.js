@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   getTasksByProjectAPI,
   getTaskAPI,
@@ -13,11 +12,8 @@ import {
   getChildTasksAPI,
   getMyTasksAPI,
 } from "@/lib/api";
+import { getToken } from "@/lib/session";
 
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("accessToken")?.value;
-}
 
 export async function getTasksByProject(projectId, filters = {}) {
   const token = await getToken();
