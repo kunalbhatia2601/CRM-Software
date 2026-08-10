@@ -7,11 +7,12 @@ import { completePostProductionMeeting } from "@/actions/meetings.action";
 
 const TASK_STATUS_OPTIONS = [
   { value: "", label: "Keep current status" },
-  { value: "TODO", label: "To Do" },
+  { value: "NEW", label: "New" },
+  { value: "ACKNOWLEDGED", label: "Acknowledged" },
   { value: "IN_PROGRESS", label: "In Progress" },
   { value: "IN_REVIEW", label: "In Review" },
   { value: "COMPLETED", label: "Completed" },
-  { value: "REVIEWED", label: "Reviewed (Approved)" },
+  { value: "CLIENT_REVIEW", label: "Client Review" },
 ];
 
 /**

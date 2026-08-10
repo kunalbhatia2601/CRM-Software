@@ -45,9 +45,10 @@ const VARIANTS = {
   CHURNED: "bg-red-50 text-red-600 border-red-200",
 
   // Task statuses
-  TODO: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  NEW: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+  ACKNOWLEDGED: "bg-sky-50 dark:bg-sky-900/20 text-sky-600 border-sky-200",
   IN_REVIEW: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
-  REVIEWED: "bg-purple-50 dark:bg-purple-900/20 text-purple-600 border-purple-200",
+  CLIENT_REVIEW: "bg-purple-50 dark:bg-purple-900/20 text-purple-600 border-purple-200",
 
   // Milestone / Step statuses
   PENDING: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
@@ -79,9 +80,10 @@ const LABELS = {
   ON_HOLD: "On Hold",
   ONE_TIME: "One Time",
   SEMI_ANNUAL: "Semi Annual",
-  TODO: "Todo",
+  NEW: "New",
+  ACKNOWLEDGED: "Acknowledged",
   IN_REVIEW: "In Review",
-  REVIEWED: "Reviewed",
+  CLIENT_REVIEW: "Client Review",
   EMAIL_CAMPAIGN: "Email Campaign",
   SOCIAL_MEDIA: "Social Media",
   COLD_CALL: "Cold Call",

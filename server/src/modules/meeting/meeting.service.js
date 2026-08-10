@@ -356,10 +356,10 @@ class MeetingService {
             updateData.completedAt = null;
           }
 
-          if (statusAfter === "REVIEWED" && task.status !== "REVIEWED") {
+          if (statusAfter === "COMPLETED" && task.status !== "COMPLETED") {
             updateData.reviewedAt = new Date();
             updateData.reviewedById = userId;
-          } else if (statusAfter !== "REVIEWED" && task.status === "REVIEWED") {
+          } else if (statusAfter !== "COMPLETED" && task.status === "COMPLETED") {
             updateData.reviewedAt = null;
             updateData.reviewedById = null;
           }

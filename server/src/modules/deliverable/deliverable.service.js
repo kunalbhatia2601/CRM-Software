@@ -234,14 +234,14 @@ class DeliverableService {
       if (type === "APPROVED" && linkedTaskIds.length > 0) {
         await prisma.task.updateMany({
           where: { id: { in: linkedTaskIds } },
-          data: { status: "REVIEWED", reviewedAt: new Date(), reviewedById: user.id },
+          data: { status: "COMPLETED", completedAt: new Date(), reviewedAt: new Date(), reviewedById: user.id },
         });
         await prisma.taskFeedback.createMany({
           data: linkedTaskIds.map((taskId) => ({
             taskId,
             feedback: message || `Client approved deliverable "${deliverable.title}"`,
             nextStep: "Approved by client",
-            statusAfter: "REVIEWED",
+            statusAfter: "COMPLETED",
             givenById: user.id,
           })),
         });

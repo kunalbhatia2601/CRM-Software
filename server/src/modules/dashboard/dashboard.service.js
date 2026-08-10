@@ -409,10 +409,10 @@ export async function getEmployeeDashboardStats(userId, projectIds) {
 
     // Tasks assigned to this user
     prisma.task.count({ where: { assigneeId: userId } }),
-    prisma.task.count({ where: { assigneeId: userId, status: "TODO" } }),
+    prisma.task.count({ where: { assigneeId: userId, status: { in: ["NEW", "ACKNOWLEDGED"] } } }),
     prisma.task.count({ where: { assigneeId: userId, status: "IN_PROGRESS" } }),
     prisma.task.count({ where: { assigneeId: userId, status: "IN_REVIEW" } }),
-    prisma.task.count({ where: { assigneeId: userId, status: { in: ["COMPLETED", "REVIEWED"] } } }),
+    prisma.task.count({ where: { assigneeId: userId, status: "COMPLETED" } }),
 
     // Upcoming milestones from assigned projects
     prisma.milestone.findMany({
@@ -670,7 +670,7 @@ export async function getAccountDashboardStats(userId) {
     prisma.project.count({ where: { accountManagerId: userId, status: "IN_PROGRESS" } }),
 
     prisma.task.count({ where: { projectId: { in: pIds } } }),
-    prisma.task.count({ where: { projectId: { in: pIds }, status: { in: ["COMPLETED", "REVIEWED"] } } }),
+    prisma.task.count({ where: { projectId: { in: pIds }, status: "COMPLETED" } }),
     prisma.task.count({ where: { projectId: { in: pIds }, status: "IN_REVIEW" } }),
 
     prisma.milestone.findMany({

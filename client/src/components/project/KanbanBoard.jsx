@@ -18,11 +18,12 @@ import Badge from "@/components/ui/Badge";
 import { updateTask } from "@/actions/tasks.action";
 
 const COLUMN_STATUSES = [
-  { id: "TODO", label: "TODO", headerColor: "bg-slate-100 dark:bg-slate-800" },
+  { id: "NEW", label: "New", headerColor: "bg-slate-100 dark:bg-slate-800" },
+  { id: "ACKNOWLEDGED", label: "Acknowledged", headerColor: "bg-sky-100 dark:bg-sky-900" },
   { id: "IN_PROGRESS", label: "In Progress", headerColor: "bg-blue-100 dark:bg-blue-900" },
   { id: "IN_REVIEW", label: "In Review", headerColor: "bg-amber-100 dark:bg-amber-900" },
+  { id: "CLIENT_REVIEW", label: "Client Review", headerColor: "bg-purple-100 dark:bg-purple-900" },
   { id: "COMPLETED", label: "Completed", headerColor: "bg-emerald-100 dark:bg-emerald-900" },
-  { id: "REVIEWED", label: "Reviewed", headerColor: "bg-purple-100 dark:bg-purple-900" },
 ];
 
 export default function KanbanBoard({
@@ -40,7 +41,7 @@ export default function KanbanBoard({
   const [localTasks, setLocalTasks] = useState(tasks);
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
 
-  // Feedback modal for REVIEWED transitions
+  // Feedback modal for sign-off transitions
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, task: null, targetStatus: null });
   const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "" });
   const [savingFeedback, setSavingFeedback] = useState(false);
@@ -101,9 +102,9 @@ export default function KanbanBoard({
         return;
       }
 
-      // If dropping into REVIEWED, require feedback
-      if (columnStatus === "REVIEWED") {
-        setFeedbackModal({ isOpen: true, task: draggedTask, targetStatus: "REVIEWED" });
+      // Signing a task off should carry a note, so ask for feedback first
+      if (columnStatus === "COMPLETED") {
+        setFeedbackModal({ isOpen: true, task: draggedTask, targetStatus: "COMPLETED" });
         setFeedbackForm({ feedback: "", nextStep: "" });
         setDraggedTask(null);
         return;
@@ -295,7 +296,7 @@ export default function KanbanBoard({
         </div>
       </div>
 
-      {/* Feedback Modal for REVIEWED drops */}
+      {/* Feedback Modal for sign-off drops */}
       {feedbackModal.isOpen && (
         <>
           <div onClick={() => setFeedbackModal({ isOpen: false, task: null, targetStatus: null })} className="fixed inset-0 bg-black/50 z-40" />

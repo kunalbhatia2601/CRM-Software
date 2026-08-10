@@ -22,7 +22,7 @@ const STATUS_STYLE = {
 const STATUSES = ["IN_PROGRESS", "IN_REVIEW", "CHANGES_REQUESTED", "COMPLETED"];
 
 // Deliverables track live work, so only open tasks are offered.
-const TASK_LINKABLE = ["TODO", "IN_PROGRESS", "IN_REVIEW"];
+const TASK_LINKABLE = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
 
 /** Eligible tasks, plus anything already linked so existing links stay editable. */
 function linkableTasks(list, selected) {

@@ -4,7 +4,7 @@ const meetingModes = ["VIRTUAL", "IN_PERSON", "PHONE_CALL"];
 const meetingStatuses = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"];
 const meetingPhases = ["REGULAR", "KICKOFF", "PRE_PRODUCTION", "POST_PRODUCTION", "REVIEW"];
 const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
-const taskStatuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"];
+const taskStatuses = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW", "CLIENT_REVIEW", "COMPLETED"];
 
 const requirementSchema = z.object({
   title: z.string().min(1).max(200),

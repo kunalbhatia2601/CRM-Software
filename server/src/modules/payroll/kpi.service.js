@@ -1,7 +1,7 @@
 import prisma from "../../utils/prisma.js";
 
 // Status ordering — used to detect "backward" (redo/rework) transitions.
-const STATUS_ORDER = { TODO: 0, IN_PROGRESS: 1, IN_REVIEW: 2, COMPLETED: 3, REVIEWED: 4 };
+const STATUS_ORDER = { NEW: 0, ACKNOWLEDGED: 1, IN_PROGRESS: 2, IN_REVIEW: 3, CLIENT_REVIEW: 4, COMPLETED: 5 };
 
 function clamp(n, lo = 0, hi = 100) {
   return Math.max(lo, Math.min(hi, n));

@@ -24,15 +24,25 @@ import {
   ClipboardList,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
-import { getMyTasks } from "@/actions/tasks.action";
+import { getMyTasks, updateTask } from "@/actions/tasks.action";
+import Toast from "@/components/ui/Toast";
+
+// What the assignee can do next, by current status. Anything past IN_REVIEW
+// belongs to a reviewer.
+const ASSIGNEE_NEXT = {
+  NEW: { status: "ACKNOWLEDGED", label: "Acknowledge" },
+  ACKNOWLEDGED: { status: "IN_PROGRESS", label: "Start work" },
+  IN_PROGRESS: { status: "IN_REVIEW", label: "Submit for review" },
+};
 
 const STATUSES = [
   { id: "ALL", label: "All" },
-  { id: "TODO", label: "Todo" },
+  { id: "NEW", label: "New" },
+  { id: "ACKNOWLEDGED", label: "Acknowledged" },
   { id: "IN_PROGRESS", label: "In Progress" },
   { id: "IN_REVIEW", label: "In Review" },
   { id: "COMPLETED", label: "Completed" },
-  { id: "REVIEWED", label: "Reviewed" },
+  { id: "CLIENT_REVIEW", label: "Client Review" },
 ];
 
 const PRIORITIES = [
@@ -47,6 +57,8 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [toast, setToast] = useState(null);
+  const [advancingId, setAdvancingId] = useState(null);
   const [priorityFilter, setPriorityFilter] = useState("");
   const [expandedId, setExpandedId] = useState(null);
 
@@ -74,6 +86,21 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
     return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   };
 
+  /** Move one of my tasks along. Status-only payload: that is all I may change. */
+  const advance = async (task) => {
+    const next = ASSIGNEE_NEXT[task.status];
+    if (!next) return;
+    setAdvancingId(task.id);
+    const res = await updateTask(task.id, { status: next.status });
+    setAdvancingId(null);
+    if (res.success) {
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...res.data } : t)));
+      setToast({ type: "success", message: `Moved to ${next.label === "Acknowledge" ? "Acknowledged" : next.status.replace(/_/g, " ")}` });
+    } else {
+      setToast({ type: "error", message: res.error || "Failed to update task" });
+    }
+  };
+
   // Group tasks by status
   const groupedTasks = STATUSES.filter((s) => s.id !== "ALL").reduce((acc, status) => {
     acc[status.id] = tasks.filter((t) => t.status === status.id);
@@ -84,6 +111,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
 
   return (
     <div className="p-6 space-y-6">
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Tasks</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">All tasks assigned to you across all projects.</p>
@@ -154,6 +182,15 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       <Badge value={task.status} />
                       <Badge value={task.priority} />
+                      {ASSIGNEE_NEXT[task.status] && (
+                        <button
+                          onClick={() => advance(task)}
+                          disabled={advancingId === task.id}
+                          className="px-2.5 py-1 text-xs font-semibold text-white bg-[#5542F6] hover:bg-[#4636d4] rounded-lg transition-colors disabled:opacity-60"
+                        >
+                          {advancingId === task.id ? "Saving…" : ASSIGNEE_NEXT[task.status].label}
+                        </button>
+                      )}
                       {task.project && (
                         <Link
                           href={`/employee/projects/${task.project.id}`}

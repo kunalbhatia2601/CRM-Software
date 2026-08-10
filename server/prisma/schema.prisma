@@ -1194,11 +1194,12 @@ enum TaskCostType {
 // ─── Tasks ───────────────────────────────────────────
 
 enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  COMPLETED
-  REVIEWED
+  NEW           // created, assignee has not looked at it
+  ACKNOWLEDGED  // assignee has seen it
+  IN_PROGRESS   // assignee is working on it
+  IN_REVIEW     // handed in, waiting on manager / team lead
+  CLIENT_REVIEW // approved internally, waiting on the client
+  COMPLETED     // signed off
 }
 
 enum TaskPriority {
@@ -1218,7 +1219,7 @@ model Task {
   deliverables String?     @db.Text
   // References: array of { label: string, url: string } — mood boards, examples, briefs
   references  Json?
-  status      TaskStatus   @default(TODO)
+  status      TaskStatus   @default(NEW)
   priority    TaskPriority @default(MEDIUM)
   position    Int          @default(0)
   internalCostAmount Decimal? @map("internal_cost_amount") @db.Decimal(12, 2)

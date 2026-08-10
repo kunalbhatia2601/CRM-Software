@@ -59,16 +59,27 @@ const TASK_INCLUDE = {
 };
 
 const STATUS_LABELS = {
-  TODO: "Todo",
+  NEW: "New",
+  ACKNOWLEDGED: "Acknowledged",
   IN_PROGRESS: "In Progress",
   IN_REVIEW: "In Review",
+  CLIENT_REVIEW: "Client Review",
   COMPLETED: "Completed",
-  REVIEWED: "Reviewed",
 };
 
 /**
- * Check if user is OWNER, ADMIN, or the CLIENT linked to the project.
- * Only these roles can move tasks to REVIEWED.
+ * Statuses the assignee may set on their own task with no extra permission —
+ * they own the "I've seen it / I'm on it / I'm done" part of the flow.
+ */
+const ASSIGNEE_SELF_STATUSES = ["ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
+
+/** Statuses only a reviewer may set: the sign-off end of the flow. */
+const REVIEWER_STATUSES = ["CLIENT_REVIEW", "COMPLETED"];
+
+/**
+ * Reviewers: owner, admin, the project's client, the project account manager,
+ * and the lead of any team on the project. Only they can move a task out of
+ * IN_REVIEW — to CLIENT_REVIEW, to COMPLETED, or back for rework.
  */
 async function canReviewTask(userId, projectId) {
   const user = await prisma.user.findUnique({
@@ -87,6 +98,12 @@ async function canReviewTask(userId, projectId) {
     if (project && project.clientId === user.clientId) return true;
   }
 
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { accountManagerId: true },
+  });
+  if (project?.accountManagerId === userId) return true;
+
   // A team lead owns the work their team delivers, so they can sign it off.
   const led = await prisma.projectTeam.findFirst({
     where: { projectId, team: { leadId: userId } },
@@ -95,6 +112,39 @@ async function canReviewTask(userId, projectId) {
   if (led) return true;
 
   return false;
+}
+
+/**
+ * Authorize a status change.
+ *
+ * @param {object} task    the task being moved
+ * @param {string} next    target status
+ * @param {string} userId
+ */
+async function authorizeStatusChange(task, next, userId) {
+  const isAssignee = task.assigneeId === userId;
+
+  // The assignee drives their own work forward without needing task edit rights.
+  if (isAssignee && ASSIGNEE_SELF_STATUSES.includes(next)) return;
+
+  if (REVIEWER_STATUSES.includes(next)) {
+    const allowed = await canReviewTask(userId, task.projectId);
+    if (!allowed) {
+      throw ApiError.forbidden(
+        `Only a manager, team lead, account manager or the client can move a task to ${STATUS_LABELS[next] || next}`
+      );
+    }
+    return;
+  }
+
+  // Rework: pulling finished work back for changes is a reviewer's call.
+  if (["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status) && !isAssignee) {
+    const allowed = await canReviewTask(userId, task.projectId);
+    if (allowed) return;
+  }
+
+  // Everything else needs ordinary task edit rights.
+  await requireProjectPermission(userId, task.projectId, "tasks", "edit");
 }
 
 class TaskService {
@@ -138,7 +188,7 @@ class TaskService {
         objectives: data.objectives || null,
         deliverables: data.deliverables || null,
         references: data.references ?? null,
-        status: data.status || "TODO",
+        status: data.status || "NEW",
         priority: data.priority || "MEDIUM",
         position,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
@@ -194,15 +244,15 @@ class TaskService {
     const statusChanged = data.status !== undefined && data.status !== task.status;
 
     // ── Permission checks ──
+    const statusOnly =
+      statusChanged &&
+      Object.keys(data).every((k) => ["status", "feedback", "nextStep"].includes(k));
+
     if (statusChanged) {
-      if (data.status === "REVIEWED") {
-        const allowed = await canReviewTask(userId, task.projectId);
-        if (!allowed) {
-          throw ApiError.forbidden("Only the project client, owner, or admin can review tasks");
-        }
-      } else if (data.status === "IN_REVIEW") {
-        await requireProjectPermission(userId, task.projectId, "tasks", "review");
-      } else {
+      await authorizeStatusChange(task, data.status, userId);
+      // Touching any other field alongside the status still needs edit rights —
+      // the assignee's free pass covers the status column only.
+      if (!statusOnly) {
         await requireProjectPermission(userId, task.projectId, "tasks", "edit");
       }
     } else {
@@ -235,16 +285,14 @@ class TaskService {
     if (statusChanged) {
       updateData.status = data.status;
 
+      // COMPLETED is the sign-off, so it stamps both the completion time and
+      // who approved it. Reopening the task clears them.
       if (data.status === "COMPLETED" && task.status !== "COMPLETED") {
         updateData.completedAt = new Date();
-      } else if (data.status !== "COMPLETED" && task.status === "COMPLETED") {
-        updateData.completedAt = null;
-      }
-
-      if (data.status === "REVIEWED" && task.status !== "REVIEWED") {
         updateData.reviewedAt = new Date();
         updateData.reviewedById = userId;
-      } else if (data.status !== "REVIEWED" && task.status === "REVIEWED") {
+      } else if (data.status !== "COMPLETED" && task.status === "COMPLETED") {
+        updateData.completedAt = null;
         updateData.reviewedAt = null;
         updateData.reviewedById = null;
       }
@@ -356,7 +404,7 @@ class TaskService {
 
     const tasks = await prisma.task.findMany({
       where: { id: { in: taskIds } },
-      select: { id: true, projectId: true, status: true },
+      select: { id: true, projectId: true, status: true, assigneeId: true },
     });
 
     if (tasks.length !== taskIds.length) throw ApiError.badRequest("Some tasks not found");
@@ -366,20 +414,14 @@ class TaskService {
 
     const projectId = projectIds[0];
 
-    if (status === "REVIEWED") {
-      const allowed = await canReviewTask(userId, projectId);
-      if (!allowed) {
-        throw ApiError.forbidden("Only the project client, owner, or admin can review tasks");
-      }
-    } else if (status === "IN_REVIEW") {
-      await requireProjectPermission(userId, projectId, "tasks", "review");
-    } else {
-      await requireProjectPermission(userId, projectId, "tasks", "edit");
+    // Same rules as a single update, applied to every task in the batch.
+    for (const t of tasks) {
+      await authorizeStatusChange(t, status, userId);
     }
 
     const updateData = { status };
-    if (status === "COMPLETED") updateData.completedAt = new Date();
-    if (status === "REVIEWED") {
+    if (status === "COMPLETED") {
+      updateData.completedAt = new Date();
       updateData.reviewedAt = new Date();
       updateData.reviewedById = userId;
     }

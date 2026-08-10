@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const statuses = ["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED", "REVIEWED"];
+const statuses = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW", "CLIENT_REVIEW", "COMPLETED"];
 const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 const costTypes = ["HOUR", "DAY", "MONTH", "NONE"];
 
@@ -46,7 +46,7 @@ export const updateTaskSchema = z.object({
     planningStepId: z.string().optional().nullable(),
     milestoneId: z.string().optional().nullable(),
     assigneeId: z.string().optional().nullable(),
-    // Feedback fields — required when moving to REVIEWED
+    // Feedback fields — recorded on any status change
     feedback: z.string().max(5000).optional(),
     internalCostAmount: z.coerce.number().min(0).optional().nullable(),
     internalCostType: z.enum(costTypes).optional(),

@@ -20,6 +20,23 @@ import {
 import CommentThread from "@/components/project/CommentThread";
 import { useAuth } from "@/context/AuthContext";
 
+// What the assignee can do next, by current status. Mirrors the server's
+// ASSIGNEE_SELF_STATUSES — anything past IN_REVIEW is a reviewer's call.
+const ASSIGNEE_NEXT = {
+  NEW: { status: "ACKNOWLEDGED", label: "Acknowledge" },
+  ACKNOWLEDGED: { status: "IN_PROGRESS", label: "Start work" },
+  IN_PROGRESS: { status: "IN_REVIEW", label: "Submit for review" },
+};
+
+const STATUS_FLOW_LABELS = {
+  NEW: "New",
+  ACKNOWLEDGED: "Acknowledged",
+  IN_PROGRESS: "In Progress",
+  IN_REVIEW: "In Review",
+  CLIENT_REVIEW: "Client Review",
+  COMPLETED: "Completed",
+};
+
 export default function PlanningSection({
   projectId,
   initialSteps = [],
@@ -31,6 +48,7 @@ export default function PlanningSection({
   showMilestones = true,
   showSteps = true,
 }) {
+  const { user: currentUser } = useAuth();
   const [steps, setSteps] = useState(initialSteps);
   const [milestones, setMilestones] = useState(initialMilestones);
   const [tasks, setTasks] = useState(initialTasks);
@@ -61,7 +79,7 @@ export default function PlanningSection({
 
   // Feedback modal — for review actions
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, taskId: null, taskTitle: "" });
-  const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "", statusAfter: "REVIEWED" });
+  const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
   const [savingFeedback, setSavingFeedback] = useState(false);
 
   // Task detail/feedbacks view
@@ -139,7 +157,7 @@ export default function PlanningSection({
       data: {
         title: "",
         description: "",
-        status: "TODO",
+        status: "NEW",
         priority: parentTask.priority || "MEDIUM",
         assigneeId: parentTask.assigneeId || "",
         dueDate: "",
@@ -284,8 +302,23 @@ export default function PlanningSection({
     setTasksModal({
       isOpen: true,
       mode: task ? "edit" : "create",
-      data: task || { title: "", description: "", status: "TODO", priority: "MEDIUM", assigneeId: "", dueDate: "", planningStepId: "", milestoneId: "" },
+      data: task || { title: "", description: "", status: "NEW", priority: "MEDIUM", assigneeId: "", dueDate: "", planningStepId: "", milestoneId: "" },
     });
+  };
+
+  /**
+   * Move a task one step along the flow. Sends only `status`, because the
+   * assignee's permission covers the status column and nothing else — bundling
+   * other fields would trip the server's edit check.
+   */
+  const advanceTask = async (task, status) => {
+    const result = await updateTask(task.id, { status });
+    if (result.success) {
+      setTasks(tasks.map((t) => (t.id === result.data.id ? result.data : t)));
+      showToast("success", `Moved to ${STATUS_FLOW_LABELS[status] || status}`);
+    } else {
+      showToast("error", result.error || "Failed to update task");
+    }
   };
 
   const duplicateTask = (task) =>
@@ -299,7 +332,7 @@ export default function PlanningSection({
           "priority", "assigneeId", "planningStepId", "milestoneId",
           "internalCostAmount", "internalCostType",
         ],
-        "TODO"
+        "NEW"
       ),
     });
 
@@ -354,12 +387,12 @@ export default function PlanningSection({
   // ============ FEEDBACK / REVIEW HANDLERS ============
   const openFeedbackModal = (task) => {
     setFeedbackModal({ isOpen: true, taskId: task.id, taskTitle: task.title });
-    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "REVIEWED" });
+    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
   };
 
   const closeFeedbackModal = () => {
     setFeedbackModal({ isOpen: false, taskId: null, taskTitle: "" });
-    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "REVIEWED" });
+    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
   };
 
   const handleSubmitFeedback = async () => {
@@ -512,13 +545,21 @@ export default function PlanningSection({
             >
               <GitBranch className="w-4 h-4 text-emerald-600" />
             </button>
-            {task.status === "COMPLETED" && (
+            {["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status) && (
               <button
                 onClick={() => openFeedbackModal(task)}
                 className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
                 title="Review with feedback"
               >
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
+              </button>
+            )}
+            {task.assigneeId === currentUser?.id && ASSIGNEE_NEXT[task.status] && (
+              <button
+                onClick={() => advanceTask(task, ASSIGNEE_NEXT[task.status].status)}
+                className="px-2.5 py-1.5 text-xs font-semibold text-white bg-[#5542F6] hover:bg-[#4636d4] rounded-lg transition-colors"
+              >
+                {ASSIGNEE_NEXT[task.status].label}
               </button>
             )}
             <button
@@ -862,15 +903,14 @@ export default function PlanningSection({
                   onChange={(e) => setFeedbackForm({ ...feedbackForm, statusAfter: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none"
                 >
-                  <option value="REVIEWED">Reviewed (Approved)</option>
-                  <option value="TODO">Back to Todo</option>
-                  <option value="IN_PROGRESS">Back to In Progress</option>
-                  <option value="IN_REVIEW">Back to In Review</option>
-                  <option value="COMPLETED">Keep Completed</option>
+                  <option value="COMPLETED">Approve — mark Completed</option>
+                  <option value="CLIENT_REVIEW">Send to Client Review</option>
+                  <option value="IN_PROGRESS">Send back — rework needed</option>
+                  <option value="IN_REVIEW">Keep In Review</option>
                 </select>
               </div>
               <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 font-medium">
-                Only the project Client, Owner, or Admin can submit reviews. Feedback is required.
+                Only a manager, team lead, account manager or the client can sign off. Feedback is required.
               </p>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">
@@ -1122,8 +1162,8 @@ function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, ass
         )}
 
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-4">
-          <FormField label="Status" type="select" value={formData.status || "TODO"} onChange={(e) => setFormData({ ...formData, status: e.target.value })} options={[
-            { value: "TODO", label: "To Do" }, { value: "IN_PROGRESS", label: "In Progress" }, { value: "IN_REVIEW", label: "In Review" }, { value: "COMPLETED", label: "Completed" }, { value: "REVIEWED", label: "Reviewed" },
+          <FormField label="Status" type="select" value={formData.status || "NEW"} onChange={(e) => setFormData({ ...formData, status: e.target.value })} options={[
+            { value: "NEW", label: "New" }, { value: "ACKNOWLEDGED", label: "Acknowledged" }, { value: "IN_PROGRESS", label: "In Progress" }, { value: "IN_REVIEW", label: "In Review" }, { value: "CLIENT_REVIEW", label: "Client Review" }, { value: "COMPLETED", label: "Completed" },
           ]} />
           <FormField label="Priority" type="select" value={formData.priority || "MEDIUM"} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} options={[
             { value: "LOW", label: "Low" }, { value: "MEDIUM", label: "Medium" }, { value: "HIGH", label: "High" }, { value: "URGENT", label: "Urgent" },
