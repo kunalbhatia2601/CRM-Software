@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Search, Eye, Pencil, Trash2, PackageCheck, Loader2 } from "lucide-react";
@@ -20,7 +20,6 @@ export default function ServicesListContent({ initialData }) {
   const [data, setData] = useState(initialData);
   const [search, setSearch] = useState("");
   const [isActive, setIsActive] = useState("");
-  const [page, setPage] = useState(1);
   const [toast, setToast] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ open: false, service: null });
   const [isDeleting, setIsDeleting] = useState(false);
@@ -41,7 +40,6 @@ export default function ServicesListContent({ initialData }) {
 
         if (result.success) {
           setData(result.data);
-          setPage(newPage);
         } else {
           setToast({
             type: "error",
@@ -58,18 +56,27 @@ export default function ServicesListContent({ initialData }) {
     handleLoadServices(newPage);
   };
 
-  // Handle search
+  // Handle search — refetch is debounced by the effect below
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearch(value);
-    setPage(1);
+    setSearch(e.target.value);
   };
 
   // Handle filter change
   const handleFilterChange = (e) => {
     setIsActive(e.target.value);
-    setPage(1);
   };
+
+  // Refetch page 1 whenever the search text or status filter changes.
+  // Skipped on mount so the server-rendered first page isn't re-requested.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const t = setTimeout(() => handleLoadServices(1), 350);
+    return () => clearTimeout(t);
+  }, [search, isActive, handleLoadServices]);
 
   // Handle delete
   const handleDeleteClick = (service) => {
@@ -190,11 +197,9 @@ export default function ServicesListContent({ initialData }) {
     },
   ];
 
-  // Apply search and filter to data (debounced via transition)
-  const filteredData = {
-    services: data?.services || [],
-    pagination: data?.pagination || {},
-  };
+  // Rows and pagination both come from the server, already filtered.
+  const services = data?.services || [];
+  const pagination = data?.pagination || {};
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -255,11 +260,15 @@ export default function ServicesListContent({ initialData }) {
       </div>
 
       {/* Data Table Card */}
-      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
+      <div
+        className={`bg-white dark:bg-slate-950 rounded-[24px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none transition-opacity ${
+          isPending ? "opacity-60" : "opacity-100"
+        }`}
+      >
         <DataTable
           columns={columns}
-          data={filteredData.services}
-          pagination={filteredData.pagination}
+          data={services}
+          pagination={pagination}
           onPageChange={handlePageChange}
           onRowClick={(row) => router.push(`/owner/services/${row.id}`)}
           emptyMessage="No services found. Create your first service to get started!"

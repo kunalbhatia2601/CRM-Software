@@ -70,7 +70,7 @@ class AnnouncementService {
       }),
       prisma.announcement.count(),
     ]);
-    return { announcements, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    return { announcements, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async remove(id) {

@@ -61,7 +61,7 @@ class JobService {
       prisma.job.findMany({ where, include: JOB_INCLUDE, orderBy: { createdAt: "desc" }, skip, take: limit }),
       prisma.job.count({ where }),
     ]);
-    return { jobs, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    return { jobs, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getJobById(id) {
