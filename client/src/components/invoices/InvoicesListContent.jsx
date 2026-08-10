@@ -167,7 +167,7 @@ export default function InvoicesListContent({ basePath, initialData }) {
                   <td className="px-5 py-3 text-right font-semibold text-slate-900 dark:text-slate-50">
                     {format(inv.total)}
                   </td>
-                  <td className="px-5 py-3 text-slate-500">{new Date(inv.issueDate).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-slate-500">{new Date(inv.issueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => router.push(`${basePath}/invoices/${inv.id}`)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md" title="View">

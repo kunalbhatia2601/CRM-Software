@@ -432,7 +432,7 @@ export default function DeliverablesSection({
                                   : "bg-slate-100 text-slate-600"}`}>
                                   {f.type.replace(/_/g, " ")}
                                 </span>
-                                <span className="ml-2 text-slate-400">{new Date(f.createdAt).toLocaleDateString()}</span>
+                                <span className="ml-2 text-slate-400">{new Date(f.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                               </p>
                               {f.message && <p className="text-slate-600 dark:text-slate-400 mt-0.5 whitespace-pre-line">{f.message}</p>}
                             </div>

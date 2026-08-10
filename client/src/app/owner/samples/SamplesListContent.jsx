@@ -133,7 +133,7 @@ export default function SamplesListContent({ initialData }) {
       label: "Created",
       render: (val) => (
         <span className="text-sm text-slate-600 dark:text-slate-400">
-          {val ? new Date(val).toLocaleDateString() : "—"}
+          {val ? new Date(val).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
         </span>
       ),
     },

@@ -114,7 +114,7 @@ export default function EmployeeDocuments({ userId, canManage = true }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{d.name}</p>
-                <p className="text-xs text-slate-400">{d.type} · {fmtSize(d.fileSize)} · {new Date(d.createdAt).toLocaleDateString()}</p>
+                <p className="text-xs text-slate-400">{d.type} · {fmtSize(d.fileSize)} · {new Date(d.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
               </div>
               <a href={d.fileUrl} target="_blank" rel="noreferrer" className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700" title="Download">
                 <Download className="w-4 h-4 text-slate-400" />

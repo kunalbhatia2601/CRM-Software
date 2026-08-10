@@ -15,6 +15,18 @@ const BILLING_CYCLES = ["ONE_TIME", "MONTHLY", "QUARTERLY", "HALF_YEARLY", "YEAR
 
 const label = (v) => (v || "").replaceAll("_", " ");
 
+/**
+ * Fixed-locale date rendering. `toLocaleDateString()` with no locale resolves
+ * differently on the server (node's locale) than in the browser, which breaks
+ * hydration — pin it explicitly.
+ */
+function formatDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+
 /** yyyy-mm-dd for <input type="date">, empty when unset. */
 function toDateInput(value) {
   if (!value) return "";
@@ -206,20 +218,20 @@ export default function ProjectInfoSection({ project, canManage = false, onUpdat
         <div className="flex flex-col">
           <InfoRow icon={FolderKanban} label="Name" value={project.name} />
           <InfoRow icon={FileText} label="Description" value={project.description} />
-          <InfoRow icon={Calendar} label="Start Date" value={project.startDate ? new Date(project.startDate).toLocaleDateString() : null} />
-          <InfoRow icon={Calendar} label="End Date" value={project.endDate ? new Date(project.endDate).toLocaleDateString() : null} />
+          <InfoRow icon={Calendar} label="Start Date" value={formatDate(project.startDate)} />
+          <InfoRow icon={Calendar} label="End Date" value={formatDate(project.endDate)} />
           <InfoRow icon={DollarSign} label="Budget" value={project.budget ? format(Number(project.budget), { decimals: 0 }) : "Not Set"} />
           <InfoRow icon={RefreshCw} label="Billing" value={label(project.billingCycle)} />
           {isRecurring && (
             <InfoRow icon={CalendarClock} label="Next Billing"
-              value={project.nextBillingDate ? new Date(project.nextBillingDate).toLocaleDateString() : null} />
+              value={formatDate(project.nextBillingDate)} />
           )}
           <InfoRow
             icon={User}
             label="Account Manager"
             value={project.accountManager ? `${project.accountManager.firstName} ${project.accountManager.lastName}` : null}
           />
-          <InfoRow icon={Calendar} label="Created" value={project.createdAt ? new Date(project.createdAt).toLocaleDateString() : null} />
+          <InfoRow icon={Calendar} label="Created" value={formatDate(project.createdAt)} />
         </div>
       )}
     </div>

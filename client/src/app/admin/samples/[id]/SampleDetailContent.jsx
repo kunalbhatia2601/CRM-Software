@@ -155,7 +155,7 @@ export default function SampleDetailContent({ initialSample }) {
         <DetailCard
           icon={Calendar}
           label="Created"
-          value={createdAt ? new Date(createdAt).toLocaleDateString() : "—"}
+          value={createdAt ? new Date(createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
           accent
         />
       </div>

@@ -2,29 +2,7 @@
 
 import React, { useState } from "react";
 import {
-  Plus,
-  ChevronDown,
-  ChevronRight,
-  Target,
-  ListChecks,
-  Layers,
-  Pencil,
-  Trash2,
-  Calendar,
-  User,
-  Clock,
-  X,
-  Loader2,
-  MessageSquare,
-  MessageCircle,
-  ArrowRight,
-  GitBranch,
-  CornerDownRight,
-  Lightbulb,
-  Package,
-  Link as LinkIcon,
-  Video,
-  ExternalLink,
+  Plus, ChevronDown, ChevronRight, Target, ListChecks, Layers, Pencil, Trash2, Calendar, User, Clock, X, Loader2, MessageSquare, MessageCircle, ArrowRight, GitBranch, CornerDownRight, Lightbulb, Package, Link as LinkIcon, Video, ExternalLink, Copy, Eye, EyeOff,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -55,6 +33,10 @@ export default function PlanningSection({
   const [tasks, setTasks] = useState(initialTasks);
 
   // Accordion state
+  // Completed milestones/steps are noise once done — hidden until asked for.
+  const [showCompletedMilestones, setShowCompletedMilestones] = useState(false);
+  const [showCompletedSteps, setShowCompletedSteps] = useState(false);
+
   const [expandedSections, setExpandedSections] = useState({
     milestones: true,
     steps: true,
@@ -94,6 +76,29 @@ export default function PlanningSection({
     if (entityType === "milestone") return tasks.filter((t) => t.milestoneId === entityId).length;
     if (entityType === "step") return tasks.filter((t) => t.planningStepId === entityId).length;
     return 0;
+  };
+
+  const visibleMilestones = showCompletedMilestones
+    ? milestones
+    : milestones.filter((m) => m.status !== "COMPLETED");
+  const visibleSteps = showCompletedSteps
+    ? steps
+    : steps.filter((s) => s.status !== "COMPLETED");
+  const completedMilestoneCount = milestones.filter((m) => m.status === "COMPLETED").length;
+  const completedStepCount = steps.filter((s) => s.status === "COMPLETED").length;
+
+  /**
+   * Build create-modal data from an existing record.
+   * Dates are deliberately dropped — a duplicate is new work, so it must not
+   * inherit the original's schedule. Progress fields reset to their initial
+   * value and the id is left off so the modal opens in "create" mode.
+   */
+  const duplicateOf = (entity, fields, resetStatus) => {
+    const copy = {};
+    for (const f of fields) {
+      if (entity[f] !== undefined && entity[f] !== null) copy[f] = entity[f];
+    }
+    return { ...copy, title: `${entity.title} (Copy)`, status: resetStatus };
   };
 
   const getMilestoneName = (id) => milestones.find((m) => m.id === id)?.title || "-";
@@ -152,6 +157,13 @@ export default function PlanningSection({
     });
   };
 
+  const duplicateMilestone = (milestone) =>
+    setMilestonesModal({
+      isOpen: true,
+      mode: "create",
+      data: duplicateOf(milestone, ["description"], "PENDING"),
+    });
+
   const closeMilestoneModal = () => setMilestonesModal({ isOpen: false, mode: "create", data: null });
 
   const handleSaveMilestone = async (formData) => {
@@ -209,6 +221,13 @@ export default function PlanningSection({
     });
   };
 
+  const duplicateStep = (step) =>
+    setStepsModal({
+      isOpen: true,
+      mode: "create",
+      data: duplicateOf(step, ["description"], "PENDING"),
+    });
+
   const closeStepModal = () => setStepsModal({ isOpen: false, mode: "create", data: null });
 
   const handleSaveStep = async (formData) => {
@@ -265,6 +284,21 @@ export default function PlanningSection({
       data: task || { title: "", description: "", status: "TODO", priority: "MEDIUM", assigneeId: "", dueDate: "", planningStepId: "", milestoneId: "" },
     });
   };
+
+  const duplicateTask = (task) =>
+    setTasksModal({
+      isOpen: true,
+      mode: "create",
+      data: duplicateOf(
+        task,
+        [
+          "description", "objectives", "deliverables", "references",
+          "priority", "assigneeId", "planningStepId", "milestoneId",
+          "internalCostAmount", "internalCostType",
+        ],
+        "TODO"
+      ),
+    });
 
   const closeTaskModal = () => setTasksModal({ isOpen: false, mode: "create", data: null });
 
@@ -378,6 +412,9 @@ export default function PlanningSection({
         <button onClick={() => toggleComments("MILESTONE", milestone.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
           <MessageCircle className="w-3.5 h-3.5" /> Chat
         </button>
+        <button onClick={() => duplicateMilestone(milestone)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
+          <Copy className="w-3.5 h-3.5" /> Copy
+        </button>
         <button onClick={() => setConfirmModal({ isOpen: true, type: "milestone", id: milestone.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
       </div>
       {commentingOn?.type === "MILESTONE" && commentingOn?.id === milestone.id && (
@@ -409,6 +446,9 @@ export default function PlanningSection({
         <button onClick={() => openStepModal(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>
         <button onClick={() => toggleComments("PLANNING_STEP", step.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
           <MessageCircle className="w-3.5 h-3.5" /> Chat
+        </button>
+        <button onClick={() => duplicateStep(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
+          <Copy className="w-3.5 h-3.5" /> Copy
         </button>
         <button onClick={() => setConfirmModal({ isOpen: true, type: "step", id: step.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
       </div>
@@ -478,6 +518,13 @@ export default function PlanningSection({
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
               </button>
             )}
+            <button
+              onClick={() => duplicateTask(task)}
+              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              title="Duplicate task"
+            >
+              <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            </button>
             <button onClick={() => openTaskModal(task)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
               <Pencil className="w-4 h-4 text-slate-600 dark:text-slate-400" />
             </button>
@@ -643,6 +690,20 @@ export default function PlanningSection({
     </div>
   );
 
+  const CompletedToggle = ({ count, show, onToggle }) => {
+    if (count === 0) return null;
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mb-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5542F6] transition-colors"
+      >
+        {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {show ? "Hide" : "Show"} {count} completed
+      </button>
+    );
+  };
+
   const AccordionSection = ({ title, icon: Icon, expanded, onToggle, onCreateClick, children }) => (
     <div className="rounded-[24px] bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 overflow-hidden">
       <div
@@ -681,9 +742,20 @@ export default function PlanningSection({
         {milestones.length === 0 ? (
           <EmptyState icon={Target} title="No milestones yet. Create one to get started." onCreateClick={() => openMilestoneModal()} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {milestones.map((m) => <MilestoneCard key={m.id} milestone={m} />)}
-          </div>
+          <>
+            <CompletedToggle
+              count={completedMilestoneCount}
+              show={showCompletedMilestones}
+              onToggle={() => setShowCompletedMilestones((v) => !v)}
+            />
+            {visibleMilestones.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">All milestones are completed.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleMilestones.map((m) => <MilestoneCard key={m.id} milestone={m} />)}
+              </div>
+            )}
+          </>
         )}
       </AccordionSection>
 
@@ -695,9 +767,20 @@ export default function PlanningSection({
         {steps.length === 0 ? (
           <EmptyState icon={Layers} title="No planning steps yet. Create one to organize your project." onCreateClick={() => openStepModal()} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {steps.map((s) => <StepCard key={s.id} step={s} />)}
-          </div>
+          <>
+            <CompletedToggle
+              count={completedStepCount}
+              show={showCompletedSteps}
+              onToggle={() => setShowCompletedSteps((v) => !v)}
+            />
+            {visibleSteps.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">All planning steps are completed.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleSteps.map((s) => <StepCard key={s.id} step={s} />)}
+              </div>
+            )}
+          </>
         )}
       </AccordionSection>
 

@@ -86,7 +86,7 @@ export default function JobApplications({ basePath = "/hr", jobId }) {
                       {a.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{a.phone}</span>}
                     </p>
                   </div>
-                  <span className="text-xs text-slate-400">{new Date(a.createdAt).toLocaleDateString()}</span>
+                  <span className="text-xs text-slate-400">{new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                   <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${STATUS_STYLE[a.status]}`}>{a.status}</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
                 </button>

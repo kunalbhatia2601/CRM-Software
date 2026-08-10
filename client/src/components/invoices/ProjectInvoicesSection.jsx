@@ -77,7 +77,7 @@ export default function ProjectInvoicesSection({ projectId, basePath, readOnly =
                 </span>
               </div>
               <div className="flex items-center gap-4 shrink-0">
-                <span className="text-xs text-slate-400">{new Date(inv.issueDate).toLocaleDateString()}</span>
+                <span className="text-xs text-slate-400">{new Date(inv.issueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-50">{format(inv.total)}</span>
                 <Eye className="w-4 h-4 text-slate-400" />
               </div>

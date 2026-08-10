@@ -153,7 +153,7 @@ export default function EmployeeProfile({ basePath = "/hr", userId, canManageDoc
               <InfoRow icon={Briefcase} label="Employee Type" value={u.employeeType ? (EMP_TYPE_LABELS[u.employeeType] || u.employeeType) + (u.employeeTypeOther ? ` (${u.employeeTypeOther})` : "") : null} />
               <InfoRow icon={UserCircle} label="Reporting Manager" value={manager ? `${manager.firstName} ${manager.lastName}` : null} />
               <InfoRow icon={Fingerprint} label="Biometric Code" value={u.biometricCode != null ? String(u.biometricCode) : null} />
-              <InfoRow icon={CalendarClock} label="Joined" value={u.createdAt ? new Date(u.createdAt).toLocaleDateString() : null} />
+              <InfoRow icon={CalendarClock} label="Joined" value={u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : null} />
 
               {/* Base pay — editable */}
               {u.role !== "CLIENT" && (

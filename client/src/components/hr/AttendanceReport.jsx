@@ -61,8 +61,8 @@ export default function AttendanceReport({ userId, userName = "employee" }) {
       rows.push([
         date,
         r?.status || "",
-        r?.checkInAt ? new Date(r.checkInAt).toLocaleTimeString() : "",
-        r?.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString() : "",
+        r?.checkInAt ? new Date(r.checkInAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "",
+        r?.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "",
         r?.workedMinutes ?? "",
         (r?.notes || "").replace(/,/g, ";"),
       ]);

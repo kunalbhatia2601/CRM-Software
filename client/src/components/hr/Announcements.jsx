@@ -103,7 +103,7 @@ export default function Announcements({ canManage = true }) {
                   <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
                     <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800">{AUD_LABEL[a.audience] || a.audience}</span>
                     <span>· {a.createdBy?.firstName} {a.createdBy?.lastName}</span>
-                    <span>· {new Date(a.createdAt).toLocaleDateString()}</span>
+                    <span>· {new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
                   </div>
                 </div>
                 {canManage && (

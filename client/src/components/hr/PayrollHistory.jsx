@@ -51,7 +51,7 @@ export default function PayrollHistory({ basePath = "/hr", userId }) {
             : <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold">{u.firstName?.[0]}{u.lastName?.[0]}</div>}
           <div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-50">{u.firstName} {u.lastName}</h1>
-            <p className="text-sm text-slate-400">Payroll history · joined {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</p>
+            <p className="text-sm text-slate-400">Payroll history · joined {u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</p>
           </div>
         </div>
       </div>
