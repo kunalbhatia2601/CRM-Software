@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import {
-  Plus, ChevronDown, ChevronRight, Target, ListChecks, Layers, Pencil, Trash2, Calendar, User, Clock, X, Loader2, MessageSquare, MessageCircle, ArrowRight, GitBranch, CornerDownRight, Lightbulb, Package, Link as LinkIcon, Video, ExternalLink, Copy, Eye, EyeOff,
+  Plus, ChevronDown, ChevronRight, Target, ListChecks, Layers, Pencil, Trash2, Calendar, User, Clock, X, Loader2, MessageSquare, MessageCircle, ArrowRight, GitBranch, CornerDownRight, Lightbulb, Package, Link as LinkIcon, Video, ExternalLink, Copy, Eye, EyeOff, UserCheck,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -27,6 +27,9 @@ export default function PlanningSection({
   initialTasks = [],
   assignableUsers = [],
   showToast,
+  // Employees work off their task list — the plan behind it stays internal.
+  showMilestones = true,
+  showSteps = true,
 }) {
   const [steps, setSteps] = useState(initialSteps);
   const [milestones, setMilestones] = useState(initialMilestones);
@@ -540,8 +543,16 @@ export default function PlanningSection({
               {teamName && <span className="text-[10px] text-slate-400 flex-shrink-0">· {teamName}</span>}
             </div>
           )}
-          {task.milestoneId && (<div className="flex items-center gap-2"><Target className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getMilestoneName(task.milestoneId)}</span></div>)}
-          {task.planningStepId && (<div className="flex items-center gap-2"><Layers className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getStepName(task.planningStepId)}</span></div>)}
+          {task.assignedBy && task.assignedBy.id !== task.assigneeId && (
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-xs">
+                Assigned by {task.assignedBy.firstName} {task.assignedBy.lastName}
+              </span>
+            </div>
+          )}
+          {showMilestones && task.milestoneId && (<div className="flex items-center gap-2"><Target className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getMilestoneName(task.milestoneId)}</span></div>)}
+          {showSteps && task.planningStepId && (<div className="flex items-center gap-2"><Layers className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getStepName(task.planningStepId)}</span></div>)}
         </div>
 
         {/* Content details: objectives, deliverables, references, linked meetings */}
@@ -735,54 +746,58 @@ export default function PlanningSection({
   return (
     <div className="space-y-6">
       {/* MILESTONES */}
-      <AccordionSection title="Milestones" icon={Target} expanded={expandedSections.milestones}
-        onToggle={() => setExpandedSections({ ...expandedSections, milestones: !expandedSections.milestones })}
-        onCreateClick={() => openMilestoneModal()}
-      >
-        {milestones.length === 0 ? (
-          <EmptyState icon={Target} title="No milestones yet. Create one to get started." onCreateClick={() => openMilestoneModal()} />
-        ) : (
-          <>
-            <CompletedToggle
-              count={completedMilestoneCount}
-              show={showCompletedMilestones}
-              onToggle={() => setShowCompletedMilestones((v) => !v)}
-            />
-            {visibleMilestones.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">All milestones are completed.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {visibleMilestones.map((m) => <MilestoneCard key={m.id} milestone={m} />)}
-              </div>
-            )}
-          </>
-        )}
-      </AccordionSection>
+      {showMilestones && (
+        <AccordionSection title="Milestones" icon={Target} expanded={expandedSections.milestones}
+          onToggle={() => setExpandedSections({ ...expandedSections, milestones: !expandedSections.milestones })}
+          onCreateClick={() => openMilestoneModal()}
+        >
+          {milestones.length === 0 ? (
+            <EmptyState icon={Target} title="No milestones yet. Create one to get started." onCreateClick={() => openMilestoneModal()} />
+          ) : (
+            <>
+              <CompletedToggle
+                count={completedMilestoneCount}
+                show={showCompletedMilestones}
+                onToggle={() => setShowCompletedMilestones((v) => !v)}
+              />
+              {visibleMilestones.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">All milestones are completed.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visibleMilestones.map((m) => <MilestoneCard key={m.id} milestone={m} />)}
+                </div>
+              )}
+            </>
+          )}
+        </AccordionSection>
+      )}
 
       {/* PLANNING STEPS */}
-      <AccordionSection title="Planning Steps" icon={Layers} expanded={expandedSections.steps}
-        onToggle={() => setExpandedSections({ ...expandedSections, steps: !expandedSections.steps })}
-        onCreateClick={() => openStepModal()}
-      >
-        {steps.length === 0 ? (
-          <EmptyState icon={Layers} title="No planning steps yet. Create one to organize your project." onCreateClick={() => openStepModal()} />
-        ) : (
-          <>
-            <CompletedToggle
-              count={completedStepCount}
-              show={showCompletedSteps}
-              onToggle={() => setShowCompletedSteps((v) => !v)}
-            />
-            {visibleSteps.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">All planning steps are completed.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {visibleSteps.map((s) => <StepCard key={s.id} step={s} />)}
-              </div>
-            )}
-          </>
-        )}
-      </AccordionSection>
+      {showSteps && (
+        <AccordionSection title="Planning Steps" icon={Layers} expanded={expandedSections.steps}
+          onToggle={() => setExpandedSections({ ...expandedSections, steps: !expandedSections.steps })}
+          onCreateClick={() => openStepModal()}
+        >
+          {steps.length === 0 ? (
+            <EmptyState icon={Layers} title="No planning steps yet. Create one to organize your project." onCreateClick={() => openStepModal()} />
+          ) : (
+            <>
+              <CompletedToggle
+                count={completedStepCount}
+                show={showCompletedSteps}
+                onToggle={() => setShowCompletedSteps((v) => !v)}
+              />
+              {visibleSteps.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">All planning steps are completed.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visibleSteps.map((s) => <StepCard key={s.id} step={s} />)}
+                </div>
+              )}
+            </>
+          )}
+        </AccordionSection>
+      )}
 
       {/* TASKS */}
       <AccordionSection title="Tasks" icon={ListChecks} expanded={expandedSections.tasks}
@@ -805,7 +820,7 @@ export default function PlanningSection({
       <StepModal isOpen={stepsModal.isOpen} onClose={closeStepModal} onSave={handleSaveStep} mode={stepsModal.mode} data={stepsModal.data} saving={savingStep} />
 
       {/* TASK MODAL */}
-      <TaskModal isOpen={tasksModal.isOpen} onClose={closeTaskModal} onSave={handleSaveTask} mode={tasksModal.mode} data={tasksModal.data} steps={steps} milestones={milestones} assignableUsers={assignableUsers} saving={savingTask} />
+      <TaskModal isOpen={tasksModal.isOpen} onClose={closeTaskModal} onSave={handleSaveTask} mode={tasksModal.mode} data={tasksModal.data} steps={showSteps ? steps : null} milestones={showMilestones ? milestones : null} assignableUsers={assignableUsers} saving={savingTask} />
 
       {/* FEEDBACK / REVIEW MODAL */}
       {feedbackModal.isOpen && (
@@ -1118,14 +1133,19 @@ function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, ass
             ...assignableUsers.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}${getTeamLabel(u)}` })),
           ]} />
           <FormField label="Due Date" type="date" value={formData.dueDate ? formData.dueDate.split("T")[0] : ""} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} />
-          <FormField label="Planning Step" type="select" value={formData.planningStepId || ""} onChange={(e) => setFormData({ ...formData, planningStepId: e.target.value })} options={[
-            { value: "", label: "Select a planning step (optional)" },
-            ...steps.map((s) => ({ value: s.id, label: s.title })),
-          ]} />
-          <FormField label="Milestone" type="select" value={formData.milestoneId || ""} onChange={(e) => setFormData({ ...formData, milestoneId: e.target.value })} options={[
-            { value: "", label: "Select a milestone (optional)" },
-            ...milestones.map((m) => ({ value: m.id, label: m.title })),
-          ]} />
+          {/* null (not empty array) means the caller hides the plan from this user */}
+          {steps && (
+            <FormField label="Planning Step" type="select" value={formData.planningStepId || ""} onChange={(e) => setFormData({ ...formData, planningStepId: e.target.value })} options={[
+              { value: "", label: "Select a planning step (optional)" },
+              ...steps.map((s) => ({ value: s.id, label: s.title })),
+            ]} />
+          )}
+          {milestones && (
+            <FormField label="Milestone" type="select" value={formData.milestoneId || ""} onChange={(e) => setFormData({ ...formData, milestoneId: e.target.value })} options={[
+              { value: "", label: "Select a milestone (optional)" },
+              ...milestones.map((m) => ({ value: m.id, label: m.title })),
+            ]} />
+          )}
         </div>
       </div>
     </SlideOverModal>

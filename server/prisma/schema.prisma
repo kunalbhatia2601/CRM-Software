@@ -181,6 +181,7 @@ model User {
   // Planning, Tasks, Milestones
   createdPlanningSteps PlanningStep[] @relation("PlanningStepCreator")
   assignedTasks        Task[]         @relation("TaskAssignee")
+  delegatedTasks       Task[]         @relation("TaskAssigner")
   createdTasks         Task[]         @relation("TaskCreator")
   reviewedTasks        Task[]         @relation("TaskReviewer")
   createdMilestones    Milestone[]    @relation("MilestoneCreator")
@@ -1240,6 +1241,11 @@ model Task {
   // Assignee — must be a member of a team assigned to the project
   assigneeId  String?      @map("assignee_id")
   assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  // Who handed this task to the current assignee — lets a team lead take a
+  // task and delegate it onward while keeping the trail visible.
+  assignedById String?     @map("assigned_by_id")
+  assignedBy   User?       @relation("TaskAssigner", fields: [assignedById], references: [id])
 
   // Who reviewed/approved
   reviewedById String?     @map("reviewed_by_id")

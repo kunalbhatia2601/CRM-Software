@@ -6,6 +6,9 @@ const TASK_INCLUDE = {
   assignee: {
     select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
   },
+  assignedBy: {
+    select: { id: true, firstName: true, lastName: true, role: true },
+  },
   createdBy: {
     select: { id: true, firstName: true, lastName: true, email: true, avatar: true, role: true },
   },
@@ -84,6 +87,13 @@ async function canReviewTask(userId, projectId) {
     if (project && project.clientId === user.clientId) return true;
   }
 
+  // A team lead owns the work their team delivers, so they can sign it off.
+  const led = await prisma.projectTeam.findFirst({
+    where: { projectId, team: { leadId: userId } },
+    select: { id: true },
+  });
+  if (led) return true;
+
   return false;
 }
 
@@ -136,6 +146,7 @@ class TaskService {
         planningStepId: data.planningStepId || null,
         milestoneId: data.milestoneId || null,
         assigneeId: data.assigneeId || null,
+        assignedById: data.assigneeId ? createdById : null,
         parentTaskId: data.parentTaskId || null,
         internalCostAmount: data.internalCostAmount ?? null,
         internalCostType: data.internalCostType || "NONE",
@@ -208,7 +219,13 @@ class TaskService {
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.position !== undefined) updateData.position = data.position;
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
-    if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId || null;
+    // Track delegation: whoever changes the assignee is recorded as the assigner.
+    const assigneeChanged =
+      data.assigneeId !== undefined && (data.assigneeId || null) !== task.assigneeId;
+    if (data.assigneeId !== undefined) {
+      updateData.assigneeId = data.assigneeId || null;
+      if (assigneeChanged) updateData.assignedById = data.assigneeId ? userId : null;
+    }
     if (data.planningStepId !== undefined) updateData.planningStepId = data.planningStepId || null;
     if (data.milestoneId !== undefined) updateData.milestoneId = data.milestoneId || null;
     if (data.internalCostAmount !== undefined) updateData.internalCostAmount = data.internalCostAmount ?? null;
@@ -260,6 +277,35 @@ class TaskService {
           where: { id },
           include: TASK_INCLUDE,
         });
+      });
+    }
+
+    // ── Reassignment is part of a task's history, so record it ──
+    if (assigneeChanged) {
+      const [from, to] = await Promise.all([
+        task.assigneeId
+          ? prisma.user.findUnique({ where: { id: task.assigneeId }, select: { firstName: true, lastName: true } })
+          : null,
+        updateData.assigneeId
+          ? prisma.user.findUnique({ where: { id: updateData.assigneeId }, select: { firstName: true, lastName: true } })
+          : null,
+      ]);
+      const name = (u) => (u ? `${u.firstName} ${u.lastName}` : "Unassigned");
+
+      return prisma.$transaction(async (tx) => {
+        await tx.task.update({ where: { id }, data: updateData });
+
+        await tx.taskFeedback.create({
+          data: {
+            feedback: data.feedback?.trim() || null,
+            nextStep: `Reassigned from ${name(from)} to ${name(to)}`,
+            statusAfter: task.status,
+            taskId: id,
+            givenById: userId,
+          },
+        });
+
+        return tx.task.findUnique({ where: { id }, include: TASK_INCLUDE });
       });
     }
 

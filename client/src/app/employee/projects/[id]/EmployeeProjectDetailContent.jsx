@@ -3,22 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  FolderKanban,
-  Calendar,
-  User,
-  Target,
-  FileText,
-  ExternalLink,
-  Video,
-  Phone,
-  MapPin,
-  Clock,
-  LayoutList,
-  Kanban,
-  Users,
-  ClipboardList,
-  ListChecks,
+  ArrowLeft, FolderKanban, Calendar, User, FileText, ExternalLink, Video, Phone, MapPin, Clock, LayoutList, Kanban, Users, ClipboardList, ListChecks,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import PlanningSection from "@/components/project/PlanningSection";
@@ -97,12 +82,6 @@ export default function EmployeeProjectDetailContent({
         )}
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
-            <Target className="w-4 h-4" /> Milestones
-          </div>
-          <p className="text-sm font-medium text-slate-900 dark:text-slate-50">{initialMilestones.length}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
             <FolderKanban className="w-4 h-4" /> Tasks
           </div>
           <p className="text-sm font-medium text-slate-900 dark:text-slate-50">{tasks.length}</p>
@@ -160,6 +139,8 @@ export default function EmployeeProjectDetailContent({
             initialMilestones={initialMilestones}
             initialTasks={tasks}
             assignableUsers={assignableUsers}
+            showMilestones={false}
+            showSteps={false}
             showToast={showToast}
           />
         ) : (
@@ -167,8 +148,6 @@ export default function EmployeeProjectDetailContent({
             projectId={project.id}
             tasks={tasks}
             assignableUsers={assignableUsers}
-            milestones={initialMilestones}
-            planningSteps={initialSteps}
             onTaskUpdate={(taskId, data) => {
               setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...data } : t)));
             }}
