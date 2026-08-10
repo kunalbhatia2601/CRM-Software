@@ -2,7 +2,17 @@ import Link from "next/link";
 import { getPublicJobs } from "@/actions/jobs.action";
 import { Briefcase, MapPin } from "lucide-react";
 
-export const metadata = { title: "Careers" };
+export const metadata = {
+  title: "Careers",
+  description:
+    "Open positions and job openings. Browse current roles and apply online.",
+  alternates: { canonical: "/careers" },
+  openGraph: {
+    title: "Careers",
+    description: "Open positions and job openings. Browse current roles and apply online.",
+    type: "website",
+  },
+};
 
 export default async function CareersPage() {
   const res = await getPublicJobs();

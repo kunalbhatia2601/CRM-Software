@@ -177,11 +177,21 @@ export default function Footer() {
             </div>
 
             {/* Copyright */}
-            <div className="flex justify-center mt-8 mb-4" onClick={() => window.open("https://kunalbhatia.dev", "_blank")}>
+            {/* Real anchor, not a div with window.open — a JS click handler is
+                invisible to crawlers, so the credit carried no link value. */}
+            <div className="flex justify-center mt-8 mb-4">
               <p className="text-gray text-[16px] leading-[150%]">
-                ©{" "}
-                <span className="hover:text-primary transition-colors cursor-pointer">{site.name}{" "}</span> - Powered by{" "}
-                <span className="hover:text-primary transition-colors cursor-pointer">Kunal Bhatia</span>
+                © {new Date().getFullYear()}{" "}
+                <span>{site.name}</span> - Built by{" "}
+                <a
+                  href="https://kunalbhatia.in"
+                  target="_blank"
+                  rel="noopener"
+                  title="Kunal Bhatia — Software Engineer & Backend Developer"
+                  className="hover:text-primary transition-colors underline-offset-2 hover:underline"
+                >
+                  Kunal Bhatia
+                </a>
               </p>
             </div>
           </div>

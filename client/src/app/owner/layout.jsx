@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 export async function generateMetadata() {
   const siteData = await getSiteData();
   const name = siteData?.name || "TaskGo Agency";
-  return { title: `Owner Panel — ${name}` };
+  return { title: `Owner Panel — ${name}`, robots: { index: false, follow: false } };
 }
 
 const navItems = [

@@ -14,17 +14,54 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Public origin, used for canonicals, Open Graph and the sitemap.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.totemservices.org";
+
 export async function generateMetadata() {
   const siteData = await getSiteData();
   const name = siteData?.name || "TaskGo Agency";
-  // favicon
   const favicon = siteData?.logo || "/logo.svg";
+  const description =
+    siteData?.description ||
+    `${name} — an agency CRM for managing leads, deals, clients, projects, tasks, invoices and team performance in one place.`;
+
   return {
-    title: name,
-    description: name,
-    icons: {
-      icon: favicon,
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: name,
+      // Child pages set only their own title; this keeps the brand on the end.
+      template: `%s · ${name}`,
     },
+    description,
+    applicationName: name,
+    keywords: [
+      "agency CRM", "project management", "client portal", "task management",
+      "invoicing", "team performance", "lead management",
+    ],
+    authors: [{ name: "Kunal Bhatia", url: "https://kunalbhatia.in" }],
+    creator: "Kunal Bhatia",
+    publisher: name,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      url: SITE_URL,
+      siteName: name,
+      title: name,
+      description,
+      images: [{ url: favicon, alt: name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: name,
+      description,
+      images: [favicon],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+    },
+    icons: { icon: favicon },
   };
 }
 

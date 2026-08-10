@@ -3,6 +3,7 @@
 import { getSiteData } from "@/actions/site.action";
 import { Wrench } from "lucide-react";
 
+
 export default function MaintenancePage() {
   
   async function checkSiteStatus() {

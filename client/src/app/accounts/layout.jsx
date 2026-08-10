@@ -7,7 +7,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 export async function generateMetadata() {
   const siteData = await getSiteData();
   const name = siteData?.name || "TaskGo Agency";
-  return { title: `Accounts Panel — ${name}` };
+  return { title: `Accounts Panel — ${name}`, robots: { index: false, follow: false } };
 }
 
 const navItems = [

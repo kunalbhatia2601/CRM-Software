@@ -10,10 +10,19 @@ import Integrations from "@/components/landing/Integrations";
 import FAQ from "@/components/landing/FAQ";
 import CTA from "@/components/landing/CTA";
 import Footer from "@/components/landing/Footer";
+import { SiteJsonLd } from "@/components/seo/JsonLd";
+import { getSiteData } from "@/actions/site.action";
 
-export default function Home() {
+export default async function Home() {
+  const site = await getSiteData();
+  const name = site?.name || "TaskGo Agency";
+  const description =
+    site?.description ||
+    `${name} — an agency CRM for managing leads, deals, clients, projects, tasks, invoices and team performance in one place.`;
+
   return (
     <div className="border border-white">
+      <SiteJsonLd siteName={name} logo={site?.logo} description={description} />
       <Navbar />
       <Hero />
       <BrandLogos />

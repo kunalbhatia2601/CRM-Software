@@ -3,21 +3,38 @@ import { notFound } from "next/navigation";
 import { getPublicJob } from "@/actions/jobs.action";
 import JobApplyForm from "@/components/careers/JobApplyForm";
 import { ArrowLeft, MapPin } from "lucide-react";
+import { JobPostingJsonLd } from "@/components/seo/JsonLd";
+import { getSiteData } from "@/actions/site.action";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const res = await getPublicJob(slug);
-  return { title: res.success ? res.data.title : "Careers" };
+  if (!res.success || !res.data) return { title: "Careers" };
+
+  const job = res.data;
+  const bits = [job.department, job.location, job.type?.replace("_", " ")].filter(Boolean);
+  const description =
+    (job.description || "").slice(0, 155).trim() ||
+    `${job.title}${bits.length ? ` — ${bits.join(" · ")}` : ""}. Apply online.`;
+
+  return {
+    title: job.title,
+    description,
+    alternates: { canonical: `/careers/${slug}` },
+    openGraph: { title: job.title, description, type: "article" },
+    twitter: { card: "summary", title: job.title, description },
+  };
 }
 
 export default async function CareerJobPage({ params }) {
   const { slug } = await params;
-  const res = await getPublicJob(slug);
+  const [res, site] = await Promise.all([getPublicJob(slug), getSiteData()]);
   if (!res.success || !res.data) notFound();
   const job = res.data;
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <JobPostingJsonLd job={job} siteName={site?.name || "TaskGo Agency"} logo={site?.logo} />
       <div className="max-w-3xl mx-auto px-4 py-12">
         <Link href="/careers" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6">
           <ArrowLeft className="w-4 h-4" /> All positions
