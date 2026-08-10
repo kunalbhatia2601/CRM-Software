@@ -70,6 +70,14 @@ export default function PlanningSection({
 
   // Accordion state
   // Completed milestones/steps are noise once done — hidden until asked for.
+  // Someone with only view/comment rights is here to work their own queue, so
+  // their list starts filtered. Anyone who can edit tasks manages the whole
+  // board and sees everything. null = waiting on the permission fetch.
+  const [showAllTasks, setShowAllTasks] = useState(null);
+  useEffect(() => {
+    if (perms) setShowAllTasks(!!perms.tasks?.edit);
+  }, [perms]);
+
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false);
   const [showCompletedSteps, setShowCompletedSteps] = useState(false);
 
@@ -120,6 +128,9 @@ export default function PlanningSection({
   const visibleSteps = showCompletedSteps
     ? steps
     : steps.filter((s) => s.status !== "COMPLETED");
+  const myTasks = tasks.filter((t) => t.assigneeId === currentUser?.id);
+  const visibleTasks = showAllTasks ? tasks : myTasks;
+
   const completedMilestoneCount = milestones.filter((m) => m.status === "COMPLETED").length;
   const completedStepCount = steps.filter((s) => s.status === "COMPLETED").length;
 
@@ -875,7 +886,34 @@ export default function PlanningSection({
           <EmptyState canCreate={can("tasks", "create")} icon={ListChecks} title="No tasks yet. Create one to get started." onCreateClick={() => openTaskModal()} />
         ) : (
           <div className="space-y-3">
-            {tasks.map((t) => <TaskRow key={t.id} task={t} />)}
+            <div className="flex items-center gap-2 pb-1">
+              <button
+                type="button"
+                onClick={() => setShowAllTasks(false)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  !showAllTasks
+                    ? "bg-[#5542F6] text-white border-[#5542F6]"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-[#5542F6]"
+                }`}
+              >
+                My tasks ({myTasks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAllTasks(true)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  showAllTasks
+                    ? "bg-[#5542F6] text-white border-[#5542F6]"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-[#5542F6]"
+                }`}
+              >
+                All tasks ({tasks.length})
+              </button>
+            </div>
+            {visibleTasks.length === 0 && (
+              <p className="text-sm text-slate-400 italic">No tasks assigned to you on this project.</p>
+            )}
+            {visibleTasks.map((t) => <TaskRow key={t.id} task={t} />)}
           </div>
         )}
       </AccordionSection>

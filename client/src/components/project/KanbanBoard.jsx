@@ -79,8 +79,18 @@ export default function KanbanBoard({
     setLocalTasks(tasks);
   }, [tasks]);
 
+  // Same rule as the list view: view/comment-only users start on their own
+  // queue and can opt into the whole board. null = permissions still loading.
+  const [showAllTasks, setShowAllTasks] = useState(null);
+  useEffect(() => {
+    if (perms) setShowAllTasks(!!perms.tasks?.edit);
+  }, [perms]);
+
+  const myTasks = localTasks.filter((t) => t.assigneeId === currentUser?.id);
+  const boardTasks = showAllTasks ? localTasks : myTasks;
+
   const tasksByStatus = COLUMN_STATUSES.reduce((acc, status) => {
-    acc[status.id] = localTasks.filter((task) => task.status === status.id);
+    acc[status.id] = boardTasks.filter((task) => task.status === status.id);
     return acc;
   }, {});
 
@@ -192,6 +202,30 @@ export default function KanbanBoard({
 
   return (
     <>
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setShowAllTasks(false)}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            !showAllTasks
+              ? "bg-[#5542F6] text-white border-[#5542F6]"
+              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-[#5542F6]"
+          }`}
+        >
+          My tasks ({myTasks.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowAllTasks(true)}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            showAllTasks
+              ? "bg-[#5542F6] text-white border-[#5542F6]"
+              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-[#5542F6]"
+          }`}
+        >
+          All tasks ({localTasks.length})
+        </button>
+      </div>
       <div className="w-full h-full overflow-x-auto pb-4">
         <div className="flex gap-4 min-w-min">
           {COLUMN_STATUSES.map((status) => {
