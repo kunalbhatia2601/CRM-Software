@@ -10,6 +10,7 @@ import {
   addProjectServicesAPI,
   updateProjectServiceAPI,
   removeProjectServiceAPI,
+  getProjectPermissionsAPI,
 } from "@/lib/api";
 import { getAssignableStaff } from "./users.action";
 import { getClientsDropdown } from "./clients.action";
@@ -155,5 +156,23 @@ export async function removeProjectService(projectId, serviceId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to remove service" };
+  }
+}
+
+// ─── Project Permissions ────────────────────────────────
+
+/**
+ * What the signed-in user may do on this project.
+ * Used to decide which buttons and fields to render.
+ */
+export async function getProjectPermissions(projectId) {
+  const token = await getToken();
+  if (!token) return null;
+
+  try {
+    const res = await getProjectPermissionsAPI(projectId, token);
+    return res.success ? res.data : null;
+  } catch {
+    return null;
   }
 }

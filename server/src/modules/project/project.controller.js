@@ -3,7 +3,7 @@ import catchAsync from "../../utils/catchAsync.js";
 import { ok, created } from "../../utils/apiResponse.js";
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
-import { getUserProjectIds } from "../../utils/projectPermission.js";
+import { getUserProjectIds, getProjectCapabilities } from "../../utils/projectPermission.js";
 
 class ProjectController {
   createProject = catchAsync(async (req, res) => {
@@ -48,6 +48,12 @@ class ProjectController {
 
     const result = await projectService.listProjects(query);
     return ok(res, "Projects retrieved", result);
+  });
+
+  /** What the current user may do on this project — drives which controls render. */
+  getPermissions = catchAsync(async (req, res) => {
+    const caps = await getProjectCapabilities(req.user.id, req.params.id);
+    return ok(res, "Project permissions retrieved", caps);
   });
 
   getProjectById = catchAsync(async (req, res) => {

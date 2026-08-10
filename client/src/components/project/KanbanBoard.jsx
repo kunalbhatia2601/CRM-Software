@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { updateTask } from "@/actions/tasks.action";
+import { getProjectPermissions } from "@/actions/projects.action";
+import { useAuth } from "@/context/AuthContext";
 
 const COLUMN_STATUSES = [
   { id: "NEW", label: "New", headerColor: "bg-slate-100 dark:bg-slate-800" },
@@ -42,6 +44,33 @@ export default function KanbanBoard({
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
 
   // Feedback modal for sign-off transitions
+  const { user: currentUser } = useAuth();
+
+  // Only drag what this user is allowed to move: their own task through the
+  // assignee statuses, or anything if they hold task edit / review rights.
+  const [perms, setPerms] = useState(null);
+  useEffect(() => {
+    let active = true;
+    getProjectPermissions(projectId).then((p) => { if (active) setPerms(p); });
+    return () => { active = false; };
+  }, [projectId]);
+
+  const ASSIGNEE_STATUSES = ["ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
+
+  /** Mirrors the server's authorizeStatusChange so drags fail before the request. */
+  const canMove = (task, target) => {
+    const leavingReview = ["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status);
+    const isAssignee = task.assigneeId === currentUser?.id;
+
+    // Sign-off, and pulling reviewed work back, both need approve.
+    if (["CLIENT_REVIEW", "COMPLETED"].includes(target)) return !!perms?.canApprove;
+    if (leavingReview) return !!perms?.canApprove;
+
+    if (isAssignee && ASSIGNEE_STATUSES.includes(target)) return true;
+    if (target === "IN_REVIEW") return !!perms?.canReview || !!perms?.tasks?.edit;
+    return !!perms?.tasks?.edit;
+  };
+
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, task: null, targetStatus: null });
   const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "" });
   const [savingFeedback, setSavingFeedback] = useState(false);
@@ -102,8 +131,14 @@ export default function KanbanBoard({
         return;
       }
 
+      if (!canMove(draggedTask, columnStatus)) {
+        setDraggedTask(null);
+        showToast?.("error", "You do not have permission to move this task");
+        return;
+      }
+
       // Signing a task off should carry a note, so ask for feedback first
-      if (columnStatus === "COMPLETED") {
+      if (columnStatus === "COMPLETED" && perms?.canApprove) {
         setFeedbackModal({ isOpen: true, task: draggedTask, targetStatus: "COMPLETED" });
         setFeedbackForm({ feedback: "", nextStep: "" });
         setDraggedTask(null);
@@ -185,13 +220,15 @@ export default function KanbanBoard({
                       {columnTasks.length}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleCreateTask(status.id)}
-                    className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-400"
-                    title={`Add task to ${status.label}`}
-                  >
-                    <Plus size={16} />
-                  </button>
+                  {perms?.tasks?.create && (
+                    <button
+                      onClick={() => handleCreateTask(status.id)}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-400"
+                      title={`Add task to ${status.label}`}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Task Cards */}
@@ -207,7 +244,7 @@ export default function KanbanBoard({
                       return (
                         <div
                           key={task.id}
-                          draggable={!isUpdating}
+                          draggable={!isUpdating && (perms?.tasks?.edit || perms?.canApprove || perms?.canReview || task.assigneeId === currentUser?.id)}
                           onDragStart={(e) => handleDragStart(e, task)}
                           className={`rounded-xl p-4 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none hover:shadow-md transition-shadow group ${
                             isUpdating ? "opacity-60 cursor-wait" : "cursor-grab active:cursor-grabbing"

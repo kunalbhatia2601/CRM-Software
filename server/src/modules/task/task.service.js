@@ -1,6 +1,10 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
-import { requireProjectPermission } from "../../utils/projectPermission.js";
+import {
+  requireProjectPermission,
+  canReviewTasks,
+  canApproveTasks,
+} from "../../utils/projectPermission.js";
 
 const TASK_INCLUDE = {
   assignee: {
@@ -77,45 +81,18 @@ const ASSIGNEE_SELF_STATUSES = ["ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
 const REVIEWER_STATUSES = ["CLIENT_REVIEW", "COMPLETED"];
 
 /**
- * Reviewers: owner, admin, the project's client, the project account manager,
- * and the lead of any team on the project. Only they can move a task out of
- * IN_REVIEW — to CLIENT_REVIEW, to COMPLETED, or back for rework.
- */
-async function canReviewTask(userId, projectId) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, role: true, clientId: true },
-  });
-  if (!user) return false;
-
-  if (["OWNER", "ADMIN"].includes(user.role)) return true;
-
-  if (user.role === "CLIENT" && user.clientId) {
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { clientId: true },
-    });
-    if (project && project.clientId === user.clientId) return true;
-  }
-
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { accountManagerId: true },
-  });
-  if (project?.accountManagerId === userId) return true;
-
-  // A team lead owns the work their team delivers, so they can sign it off.
-  const led = await prisma.projectTeam.findFirst({
-    where: { projectId, team: { leadId: userId } },
-    select: { id: true },
-  });
-  if (led) return true;
-
-  return false;
-}
-
-/**
  * Authorize a status change.
+ *
+ * Three groups of moves, three different rights:
+ *   - ACKNOWLEDGED / IN_PROGRESS / IN_REVIEW on your own task — the assignee,
+ *     no permission needed.
+ *   - IN_REVIEW on someone else's task — `tasks.review`, i.e. pulling work in
+ *     for checking.
+ *   - CLIENT_REVIEW / COMPLETED, or sending reviewed work back for rework —
+ *     `tasks.approve`, the sign-off.
+ *
+ * Owner, admin, account manager and team lead pass both via
+ * `checkProjectPermission`; the project's client passes approve only.
  *
  * @param {object} task    the task being moved
  * @param {string} next    target status
@@ -123,24 +100,36 @@ async function canReviewTask(userId, projectId) {
  */
 async function authorizeStatusChange(task, next, userId) {
   const isAssignee = task.assigneeId === userId;
+  const leavingReview = ["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status);
+
+  // Rework — pulling reviewed work back is the reviewer's call, checked before
+  // the assignee shortcut so an assignee can't quietly retract their own
+  // submission and erase the redo from their KPI.
+  if (leavingReview && !REVIEWER_STATUSES.includes(next)) {
+    if (isAssignee && task.status === "IN_REVIEW" && next === "IN_PROGRESS") {
+      throw ApiError.forbidden(
+        "This task is under review — ask a reviewer to send it back"
+      );
+    }
+    if (await canApproveTasks(userId, task.projectId)) return;
+    await requireProjectPermission(userId, task.projectId, "tasks", "edit");
+    return;
+  }
 
   // The assignee drives their own work forward without needing task edit rights.
   if (isAssignee && ASSIGNEE_SELF_STATUSES.includes(next)) return;
 
   if (REVIEWER_STATUSES.includes(next)) {
-    const allowed = await canReviewTask(userId, task.projectId);
-    if (!allowed) {
-      throw ApiError.forbidden(
-        `Only a manager, team lead, account manager or the client can move a task to ${STATUS_LABELS[next] || next}`
-      );
-    }
-    return;
+    if (await canApproveTasks(userId, task.projectId)) return;
+    throw ApiError.forbidden(
+      `You need approve permission to move a task to ${STATUS_LABELS[next] || next}`
+    );
   }
 
-  // Rework: pulling finished work back for changes is a reviewer's call.
-  if (["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status) && !isAssignee) {
-    const allowed = await canReviewTask(userId, task.projectId);
-    if (allowed) return;
+  // Pulling someone else's task in for checking.
+  if (next === "IN_REVIEW") {
+    if (await canReviewTasks(userId, task.projectId)) return;
+    throw ApiError.forbidden("You need review permission to send a task for review");
   }
 
   // Everything else needs ordinary task edit rights.
@@ -461,10 +450,13 @@ class TaskService {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) throw ApiError.notFound("Task not found");
 
-    // Only OWNER, ADMIN, CLIENT can add feedback
-    const allowed = await canReviewTask(userId, task.projectId);
-    if (!allowed) {
-      throw ApiError.forbidden("Only the project client, owner, or admin can add feedback");
+    // Review feedback comes from whoever may review or sign off this work.
+    const [mayReview, mayApprove] = await Promise.all([
+      canReviewTasks(userId, task.projectId),
+      canApproveTasks(userId, task.projectId),
+    ]);
+    if (!mayReview && !mayApprove) {
+      throw ApiError.forbidden("You do not have permission to review this task");
     }
 
     await prisma.taskFeedback.create({

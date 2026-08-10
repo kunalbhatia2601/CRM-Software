@@ -22,6 +22,7 @@ const projectAccess = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANA
 router.post("/", authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER"), validate(createProjectSchema), projectController.createProject);
 router.get("/", projectAccess, validate(listProjectsSchema), projectController.listProjects);
 router.get("/:id", projectAccess, validate(getProjectSchema), projectController.getProjectById);
+router.get("/:id/permissions", projectAccess, validate(getProjectSchema), projectController.getPermissions);
 router.patch("/:id", authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER"), validate(updateProjectSchema), projectController.updateProject);
 router.delete("/:id", authorize("OWNER"), validate(getProjectSchema), projectController.deleteProject);
 

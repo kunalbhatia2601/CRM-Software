@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus, ChevronDown, ChevronRight, Target, ListChecks, Layers, Pencil, Trash2, Calendar, User, Clock, X, Loader2, MessageSquare, MessageCircle, ArrowRight, GitBranch, CornerDownRight, Lightbulb, Package, Link as LinkIcon, Video, ExternalLink, Copy, Eye, EyeOff, UserCheck,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   deletePlanningStep,
 } from "@/actions/planning-steps.action";
 import { createTask, updateTask, deleteTask } from "@/actions/tasks.action";
+import { getProjectPermissions } from "@/actions/projects.action";
 import {
   createMilestone,
   updateMilestone,
@@ -49,6 +50,20 @@ export default function PlanningSection({
   showSteps = true,
 }) {
   const { user: currentUser } = useAuth();
+
+  // Deny everything until the server reports back — better a control appears a
+  // moment late than one flashes for someone who may not use it.
+  const [perms, setPerms] = useState(null);
+  const can = (resource, action) => !!perms?.[resource]?.[action];
+
+  useEffect(() => {
+    let active = true;
+    getProjectPermissions(projectId).then((p) => {
+      if (active) setPerms(p);
+    });
+    return () => { active = false; };
+  }, [projectId]);
+
   const [steps, setSteps] = useState(initialSteps);
   const [milestones, setMilestones] = useState(initialMilestones);
   const [tasks, setTasks] = useState(initialTasks);
@@ -387,7 +402,12 @@ export default function PlanningSection({
   // ============ FEEDBACK / REVIEW HANDLERS ============
   const openFeedbackModal = (task) => {
     setFeedbackModal({ isOpen: true, taskId: task.id, taskTitle: task.title });
-    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
+    // Default to an outcome this user is actually allowed to submit.
+    setFeedbackForm({
+      feedback: "",
+      nextStep: "",
+      statusAfter: perms?.canApprove ? "COMPLETED" : "IN_REVIEW",
+    });
   };
 
   const closeFeedbackModal = () => {
@@ -444,14 +464,14 @@ export default function PlanningSection({
         <div className="flex items-center gap-1"><ListChecks className="w-3.5 h-3.5" />{getTaskCount(milestone.id, "milestone")} tasks</div>
       </div>
       <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-        <button onClick={() => openMilestoneModal(milestone)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>
-        <button onClick={() => toggleComments("MILESTONE", milestone.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
+        {can("milestones", "edit") && <button onClick={() => openMilestoneModal(milestone)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>}
+        {can("milestones", "comment") && <button onClick={() => toggleComments("MILESTONE", milestone.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
           <MessageCircle className="w-3.5 h-3.5" /> Chat
-        </button>
-        <button onClick={() => duplicateMilestone(milestone)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
+        </button>}
+        {can("milestones", "create") && <button onClick={() => duplicateMilestone(milestone)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
           <Copy className="w-3.5 h-3.5" /> Copy
-        </button>
-        <button onClick={() => setConfirmModal({ isOpen: true, type: "milestone", id: milestone.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
+        </button>}
+        {can("milestones", "delete") && <button onClick={() => setConfirmModal({ isOpen: true, type: "milestone", id: milestone.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>}
       </div>
       {commentingOn?.type === "MILESTONE" && commentingOn?.id === milestone.id && (
         <CommentThread entityType="MILESTONE" entityId={milestone.id} showToast={showToast} />
@@ -479,14 +499,14 @@ export default function PlanningSection({
         <div className="flex items-center gap-1"><ListChecks className="w-3.5 h-3.5" />{getTaskCount(step.id, "step")} tasks</div>
       </div>
       <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-        <button onClick={() => openStepModal(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>
-        <button onClick={() => toggleComments("PLANNING_STEP", step.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
+        {can("planningSteps", "edit") && <button onClick={() => openStepModal(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>}
+        {can("planningSteps", "comment") && <button onClick={() => toggleComments("PLANNING_STEP", step.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
           <MessageCircle className="w-3.5 h-3.5" /> Chat
-        </button>
-        <button onClick={() => duplicateStep(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
+        </button>}
+        {can("planningSteps", "create") && <button onClick={() => duplicateStep(step)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-1">
           <Copy className="w-3.5 h-3.5" /> Copy
-        </button>
-        <button onClick={() => setConfirmModal({ isOpen: true, type: "step", id: step.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
+        </button>}
+        {can("planningSteps", "delete") && <button onClick={() => setConfirmModal({ isOpen: true, type: "step", id: step.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>}
       </div>
       {commentingOn?.type === "PLANNING_STEP" && commentingOn?.id === step.id && (
         <CommentThread entityType="PLANNING_STEP" entityId={step.id} showToast={showToast} />
@@ -538,14 +558,14 @@ export default function PlanningSection({
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
+            {can("tasks", "create") && <button
               onClick={() => openFollowUpModal(task)}
               className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
               title="Create follow-up task"
             >
               <GitBranch className="w-4 h-4 text-emerald-600" />
-            </button>
-            {["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status) && (
+            </button>}
+            {(perms?.canApprove || perms?.canReview) && ["IN_REVIEW", "CLIENT_REVIEW"].includes(task.status) && (
               <button
                 onClick={() => openFeedbackModal(task)}
                 className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
@@ -562,16 +582,18 @@ export default function PlanningSection({
                 {ASSIGNEE_NEXT[task.status].label}
               </button>
             )}
-            <button
+            {can("tasks", "create") && <button
               onClick={() => duplicateTask(task)}
               className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Duplicate task"
             >
               <Copy className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-            </button>
-            <button onClick={() => openTaskModal(task)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
-              <Pencil className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-            </button>
+            </button>}
+            {can("tasks", "edit") && (
+              <button onClick={() => openTaskModal(task)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                <Pencil className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -717,11 +739,11 @@ export default function PlanningSection({
         )}
 
         <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <button onClick={() => openTaskModal(task)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>
-          <button onClick={() => toggleComments("TASK", task.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
+          {can("tasks", "edit") && <button onClick={() => openTaskModal(task)} className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Edit</button>}
+          {can("tasks", "comment") && <button onClick={() => toggleComments("TASK", task.id)} className="flex-1 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center justify-center gap-1">
             <MessageCircle className="w-3.5 h-3.5" /> Chat
-          </button>
-          <button onClick={() => setConfirmModal({ isOpen: true, type: "task", id: task.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>
+          </button>}
+          {can("tasks", "delete") && <button onClick={() => setConfirmModal({ isOpen: true, type: "task", id: task.id, loading: false })} className="flex-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Delete</button>}
         </div>
 
         {/* Comment thread */}
@@ -732,13 +754,15 @@ export default function PlanningSection({
     );
   };
 
-  const EmptyState = ({ icon: Icon, title, onCreateClick }) => (
+  const EmptyState = ({ icon: Icon, title, onCreateClick, canCreate = true }) => (
     <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-12 text-center">
       <Icon className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
       <p className="text-slate-600 dark:text-slate-400 mb-4">{title}</p>
-      <button onClick={onCreateClick} className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] transition-colors">
-        <Plus className="w-4 h-4" /> Create
-      </button>
+      {canCreate && (
+        <button onClick={onCreateClick} className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] transition-colors">
+          <Plus className="w-4 h-4" /> Create
+        </button>
+      )}
     </div>
   );
 
@@ -756,7 +780,7 @@ export default function PlanningSection({
     );
   };
 
-  const AccordionSection = ({ title, icon: Icon, expanded, onToggle, onCreateClick, children }) => (
+  const AccordionSection = ({ title, icon: Icon, expanded, onToggle, onCreateClick, canCreate = true, children }) => (
     <div className="rounded-[24px] bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 overflow-hidden">
       <div
         role="button"
@@ -770,13 +794,15 @@ export default function PlanningSection({
           <span className="font-semibold text-slate-900 dark:text-slate-50">{title}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onCreateClick(); }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#5542F6] text-white text-xs font-semibold rounded-xl hover:bg-[#4636d4] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> New
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCreateClick(); }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#5542F6] text-white text-xs font-semibold rounded-xl hover:bg-[#4636d4] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> New
+            </button>
+          )}
           {expanded ? <ChevronDown className="w-5 h-5 text-slate-600 dark:text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />}
         </div>
       </div>
@@ -788,12 +814,12 @@ export default function PlanningSection({
     <div className="space-y-6">
       {/* MILESTONES */}
       {showMilestones && (
-        <AccordionSection title="Milestones" icon={Target} expanded={expandedSections.milestones}
+        <AccordionSection canCreate={can("milestones", "create")} title="Milestones" icon={Target} expanded={expandedSections.milestones}
           onToggle={() => setExpandedSections({ ...expandedSections, milestones: !expandedSections.milestones })}
           onCreateClick={() => openMilestoneModal()}
         >
           {milestones.length === 0 ? (
-            <EmptyState icon={Target} title="No milestones yet. Create one to get started." onCreateClick={() => openMilestoneModal()} />
+            <EmptyState canCreate={can("milestones", "create")} icon={Target} title="No milestones yet. Create one to get started." onCreateClick={() => openMilestoneModal()} />
           ) : (
             <>
               <CompletedToggle
@@ -815,12 +841,12 @@ export default function PlanningSection({
 
       {/* PLANNING STEPS */}
       {showSteps && (
-        <AccordionSection title="Planning Steps" icon={Layers} expanded={expandedSections.steps}
+        <AccordionSection canCreate={can("planningSteps", "create")} title="Planning Steps" icon={Layers} expanded={expandedSections.steps}
           onToggle={() => setExpandedSections({ ...expandedSections, steps: !expandedSections.steps })}
           onCreateClick={() => openStepModal()}
         >
           {steps.length === 0 ? (
-            <EmptyState icon={Layers} title="No planning steps yet. Create one to organize your project." onCreateClick={() => openStepModal()} />
+            <EmptyState canCreate={can("planningSteps", "create")} icon={Layers} title="No planning steps yet. Create one to organize your project." onCreateClick={() => openStepModal()} />
           ) : (
             <>
               <CompletedToggle
@@ -841,12 +867,12 @@ export default function PlanningSection({
       )}
 
       {/* TASKS */}
-      <AccordionSection title="Tasks" icon={ListChecks} expanded={expandedSections.tasks}
+      <AccordionSection canCreate={can("tasks", "create")} title="Tasks" icon={ListChecks} expanded={expandedSections.tasks}
         onToggle={() => setExpandedSections({ ...expandedSections, tasks: !expandedSections.tasks })}
         onCreateClick={() => openTaskModal()}
       >
         {tasks.length === 0 ? (
-          <EmptyState icon={ListChecks} title="No tasks yet. Create one to get started." onCreateClick={() => openTaskModal()} />
+          <EmptyState canCreate={can("tasks", "create")} icon={ListChecks} title="No tasks yet. Create one to get started." onCreateClick={() => openTaskModal()} />
         ) : (
           <div className="space-y-3">
             {tasks.map((t) => <TaskRow key={t.id} task={t} />)}
@@ -903,14 +929,16 @@ export default function PlanningSection({
                   onChange={(e) => setFeedbackForm({ ...feedbackForm, statusAfter: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none"
                 >
-                  <option value="COMPLETED">Approve — mark Completed</option>
-                  <option value="CLIENT_REVIEW">Send to Client Review</option>
-                  <option value="IN_PROGRESS">Send back — rework needed</option>
+                  {perms?.canApprove && <option value="COMPLETED">Approve — mark Completed</option>}
+                  {perms?.canApprove && <option value="CLIENT_REVIEW">Send to Client Review</option>}
+                  {perms?.canApprove && <option value="IN_PROGRESS">Send back — rework needed</option>}
                   <option value="IN_REVIEW">Keep In Review</option>
                 </select>
               </div>
               <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 font-medium">
-                Only a manager, team lead, account manager or the client can sign off. Feedback is required.
+                {perms?.canApprove
+                  ? "Feedback is required."
+                  : "You can comment on this review, but signing off needs approve permission."}
               </p>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">

@@ -31,6 +31,17 @@ import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
+// Which actions mean something per resource. `review` and `approve` only exist
+// for tasks — milestones and planning steps have no review flow, so offering
+// them there would save a value nothing reads.
+const BASE_PERMS = ["view", "create", "edit", "delete", "comment"];
+const TASK_PERMS = ["view", "create", "edit", "delete", "review", "approve", "comment"];
+
+const PERM_HINTS = {
+  review: "Send someone else's task in for review",
+  approve: "Sign off, pass to client, or send back for rework",
+};
+
 export default function TeamDetailContent({ initialTeam }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -505,9 +516,10 @@ export default function TeamDetailContent({ initialTeam }) {
                   {label}
                 </h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {["view", "create", "edit", "delete", "review", "approve", "comment"].map((perm) => (
+                  {(category === "tasks" ? TASK_PERMS : BASE_PERMS).map((perm) => (
                     <label
                       key={perm}
+                      title={PERM_HINTS[perm] || ""}
                       className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-colors"
                     >
                       <input
