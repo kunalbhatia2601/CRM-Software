@@ -3,34 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Pencil,
-  Calendar,
-  DollarSign,
-  Building2,
-  UserCheck,
-  Handshake,
-  FolderKanban,
-  FileText,
-  User,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  PauseCircle,
-  XCircle,
-  PlayCircle,
-  ExternalLink,
-  PackageCheck,
-  ListChecks,
-  RefreshCw,
-  CalendarClock,
-  Users2,
-  Crown,
-  FileSignature,
-  ShieldCheck,
-  Sparkles,
-  Download,
-  LayoutList,
-  Kanban,
+  Pencil, Calendar, DollarSign, Building2, UserCheck, Handshake, FolderKanban, User, Clock, CheckCircle2, AlertCircle, PauseCircle, XCircle, PlayCircle, ExternalLink, ListChecks, RefreshCw, CalendarClock, FileSignature, ShieldCheck, Sparkles, Download, LayoutList, Kanban,
 } from "lucide-react";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
@@ -38,6 +11,9 @@ import Badge from "@/components/ui/Badge";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
 import PlanningSection from "@/components/project/PlanningSection";
 import ProjectServicesSection from "@/components/project/ProjectServicesSection";
+import ProjectInfoSection from "@/components/project/ProjectInfoSection";
+import ProjectTeamsSection from "@/components/project/ProjectTeamsSection";
+import ProjectNotesSection from "@/components/project/ProjectNotesSection";
 import DeliverablesSection from "@/components/project/DeliverablesSection";
 import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
 import KanbanBoard from "@/components/project/KanbanBoard";
@@ -148,7 +124,7 @@ function AvatarBadge({ initials, name, label }) {
 }
 
 export default function ProjectDetailContent({ initialProject, initialMeetings = [], initialDocuments = [], initialSteps = [], initialTasks = [], initialMilestones = [], assignableUsers = [] }) {
-  const [project] = useState(initialProject);
+  const [project, setProject] = useState(initialProject);
   const { format } = useSite();
   const [toast, setToast] = useState(null);
   const [planningView, setPlanningView] = useState("list"); // "list" | "kanban"
@@ -343,59 +319,11 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
 
       {/* Project Information & Client Info Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Project Information Card */}
-        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center">
-              <FolderKanban className="w-5 h-5 text-indigo-600" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Project Information</h3>
-          </div>
-          <div className="flex flex-col">
-            <InfoRow
-              icon={FolderKanban}
-              label="Name"
-              value={project.name}
-            />
-            <InfoRow
-              icon={FileText}
-              label="Description"
-              value={project.description}
-            />
-            <InfoRow
-              icon={Calendar}
-              label="Start Date"
-              value={formatDate(project.startDate)}
-            />
-            <InfoRow
-              icon={Calendar}
-              label="End Date"
-              value={formatDate(project.endDate)}
-            />
-            <InfoRow
-              icon={DollarSign}
-              label="Budget"
-              value={project.budget ? format(Number(project.budget), { decimals: 0 }) : "Not Set"}
-            />
-            <InfoRow
-              icon={RefreshCw}
-              label="Billing"
-              value={getBillingLabel(project.billingCycle)}
-            />
-            {isRecurring && (
-              <InfoRow
-                icon={CalendarClock}
-                label="Next Billing"
-                value={formatDate(project.nextBillingDate)}
-              />
-            )}
-            <InfoRow
-              icon={Calendar}
-              label="Created"
-              value={formatDate(project.createdAt)}
-            />
-          </div>
-        </div>
+        <ProjectInfoSection
+          project={project}
+          canManage
+          onUpdated={setProject}
+        />
 
         {/* Client Details Card */}
         <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
@@ -458,52 +386,13 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
         tasks={tasks}
       />
 
-      {/* Assigned Teams Section */}
-      {project.projectTeams && project.projectTeams.length > 0 && (
-        <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-900/30 flex items-center justify-center">
-              <Users2 className="w-5 h-5 text-violet-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Assigned Teams</h3>
-              <p className="text-xs text-slate-400">{project.projectTeams.length} team{project.projectTeams.length !== 1 ? "s" : ""} working on this project</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {project.projectTeams.map((pt) => (
-              <Link
-                key={pt.id}
-                href={`/accounts/teams/${pt.team.id}`}
-                className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors group"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {pt.team.name?.[0]?.toUpperCase() || "T"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-50 group-hover:text-indigo-600 transition-colors">
-                      {pt.team.name}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-slate-400">{pt.team._count?.members || 0} members</span>
-                      {pt.team.lead && (
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                          <Crown className="w-3 h-3 text-amber-500" />
-                          {pt.team.lead.firstName} {pt.team.lead.lastName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      <ProjectTeamsSection
+        project={project}
+        basePath="/accounts"
+        canManage
+        onUpdated={setProject}
+      />
 
-      {/* ═══ Due Signing Banner ═══ */}
       {project.status === "DUE_SIGNING" && pendingSignatures.length > 0 && (
         <div className="rounded-[24px] border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10 p-6 shadow-sm dark:shadow-none">
           <div className="flex items-center gap-3 mb-3">
@@ -679,20 +568,11 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
       {/* ═══ Invoices ═══ */}
       <ProjectInvoicesSection projectId={project.id} basePath="/accounts" />
 
-      {/* Notes Section */}
-      <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Notes</h3>
-        </div>
-        {project.notes ? (
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">{project.notes}</p>
-        ) : (
-          <p className="text-sm text-slate-400 italic">No notes added yet.</p>
-        )}
-      </div>
+      <ProjectNotesSection
+        project={project}
+        canManage
+        onUpdated={setProject}
+      />
 
       {/* People Section */}
       <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50 dark:shadow-none">
