@@ -386,115 +386,139 @@ export async function getClientDashboardStats(clientId) {
  * @param {string} userId – The employee user ID
  * @param {string[]} projectIds – Pre-resolved project IDs from getUserProjectIds()
  */
-export async function getEmployeeDashboardStats(userId, projectIds) {
+export async function getEmployeeDashboardStats(userId) {
   const now = new Date();
-  const pIds = projectIds;
+
+  // Midnight seven days back, so "last 7 days" covers whole days including today.
+  const weekStart = new Date(now);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - 6);
+
+  const weekAhead = new Date(now);
+  weekAhead.setDate(weekAhead.getDate() + 7);
+
+  const OPEN_STATUSES = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW", "CLIENT_REVIEW"];
+
+  const TASK_FIELDS = {
+    id: true,
+    title: true,
+    status: true,
+    priority: true,
+    dueDate: true,
+    completedAt: true,
+    updatedAt: true,
+    project: { select: { id: true, name: true } },
+  };
 
   const [
-    totalProjects,
-    activeProjects,
-    myTotalTasks,
-    myTodoTasks,
-    myInProgressTasks,
-    myInReviewTasks,
-    myCompletedTasks,
-    upcomingMilestones,
+    byStatus,
+    overdueCount,
+    dueSoonCount,
+    completedThisWeek,
+    assignedThisWeek,
     recentTasks,
-    upcomingMeetings,
-    projectsList,
+    dueSoonTasks,
+    overdueTasks,
   ] = await Promise.all([
-    // Project counts
-    prisma.project.count({ where: { id: { in: pIds } } }),
-    prisma.project.count({ where: { id: { in: pIds }, status: "IN_PROGRESS" } }),
+    prisma.task.groupBy({
+      by: ["status"],
+      where: { assigneeId: userId },
+      _count: { id: true },
+    }),
 
-    // Tasks assigned to this user
-    prisma.task.count({ where: { assigneeId: userId } }),
-    prisma.task.count({ where: { assigneeId: userId, status: { in: ["NEW", "ACKNOWLEDGED"] } } }),
-    prisma.task.count({ where: { assigneeId: userId, status: "IN_PROGRESS" } }),
-    prisma.task.count({ where: { assigneeId: userId, status: "IN_REVIEW" } }),
-    prisma.task.count({ where: { assigneeId: userId, status: "COMPLETED" } }),
+    prisma.task.count({
+      where: { assigneeId: userId, status: { in: OPEN_STATUSES }, dueDate: { lt: now } },
+    }),
 
-    // Upcoming milestones from assigned projects
-    prisma.milestone.findMany({
+    prisma.task.count({
       where: {
-        projectId: { in: pIds },
-        status: { in: ["PENDING", "IN_PROGRESS"] },
+        assigneeId: userId,
+        status: { in: OPEN_STATUSES },
+        dueDate: { gte: now, lte: weekAhead },
+      },
+    }),
+
+    // Raw rows for the 7-day chart — grouping by day is done below, since
+    // Prisma cannot truncate a timestamp to a date in groupBy.
+    prisma.task.findMany({
+      where: { assigneeId: userId, completedAt: { gte: weekStart } },
+      select: { completedAt: true },
+    }),
+
+    prisma.task.findMany({
+      where: { assigneeId: userId, createdAt: { gte: weekStart } },
+      select: { createdAt: true },
+    }),
+
+    prisma.task.findMany({
+      where: { assigneeId: userId },
+      take: 8,
+      orderBy: { updatedAt: "desc" },
+      select: TASK_FIELDS,
+    }),
+
+    prisma.task.findMany({
+      where: {
+        assigneeId: userId,
+        status: { in: OPEN_STATUSES },
+        dueDate: { gte: now, lte: weekAhead },
       },
       take: 5,
       orderBy: { dueDate: "asc" },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        dueDate: true,
-        project: { select: { id: true, name: true } },
-      },
+      select: TASK_FIELDS,
     }),
 
-    // Recent tasks assigned to user (last updated)
     prisma.task.findMany({
-      where: { assigneeId: userId },
+      where: { assigneeId: userId, status: { in: OPEN_STATUSES }, dueDate: { lt: now } },
       take: 5,
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        priority: true,
-        dueDate: true,
-        project: { select: { id: true, name: true } },
-      },
-    }),
-
-    // Upcoming meetings from assigned projects
-    prisma.meeting.findMany({
-      where: {
-        projectId: { in: pIds },
-        scheduledAt: { gte: now },
-        status: "SCHEDULED",
-      },
-      take: 5,
-      orderBy: { scheduledAt: "asc" },
-      select: {
-        id: true,
-        title: true,
-        mode: true,
-        status: true,
-        scheduledAt: true,
-        duration: true,
-        project: { select: { id: true, name: true } },
-      },
-    }),
-
-    // Projects overview
-    prisma.project.findMany({
-      where: { id: { in: pIds } },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        startDate: true,
-        endDate: true,
-        _count: { select: { tasks: true, milestones: true } },
-      },
+      orderBy: { dueDate: "asc" },
+      select: TASK_FIELDS,
     }),
   ]);
 
+  const statusCount = (status) => byStatus.find((r) => r.status === status)?._count.id ?? 0;
+  const total = byStatus.reduce((sum, r) => sum + r._count.id, 0);
+
+  // Build the seven day buckets, oldest first, so the chart never has gaps.
+  const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
+  const buckets = [];
+  for (let i = 0; i < 7; i += 1) {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + i);
+    buckets.push({ date: dayKey(day), completed: 0, assigned: 0 });
+  }
+  const bucketFor = (d) => buckets.find((b) => b.date === dayKey(d));
+
+  for (const t of completedThisWeek) {
+    const b = bucketFor(t.completedAt);
+    if (b) b.completed += 1;
+  }
+  for (const t of assignedThisWeek) {
+    const b = bucketFor(t.createdAt);
+    if (b) b.assigned += 1;
+  }
+
   return {
-    projects: { total: totalProjects, active: activeProjects },
     tasks: {
-      total: myTotalTasks,
-      todo: myTodoTasks,
-      inProgress: myInProgressTasks,
-      inReview: myInReviewTasks,
-      completed: myCompletedTasks,
+      total,
+      new: statusCount("NEW"),
+      acknowledged: statusCount("ACKNOWLEDGED"),
+      inProgress: statusCount("IN_PROGRESS"),
+      inReview: statusCount("IN_REVIEW"),
+      clientReview: statusCount("CLIENT_REVIEW"),
+      completed: statusCount("COMPLETED"),
+      open: OPEN_STATUSES.reduce((sum, st) => sum + statusCount(st), 0),
+      overdue: overdueCount,
+      dueSoon: dueSoonCount,
     },
-    upcomingMilestones,
+    last7Days: buckets,
+    weekTotals: {
+      completed: completedThisWeek.length,
+      assigned: assignedThisWeek.length,
+    },
     recentTasks,
-    upcomingMeetings,
-    projectsList,
+    dueSoonTasks,
+    overdueTasks,
   };
 }
 

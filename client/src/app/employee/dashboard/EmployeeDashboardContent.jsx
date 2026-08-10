@@ -2,248 +2,200 @@
 
 import Link from "next/link";
 import {
-  FolderKanban,
-  ListChecks,
-  CheckCircle2,
-  Clock,
-  Target,
-  Calendar,
-  ArrowRight,
-  AlertCircle,
+  ListChecks, Clock, AlertTriangle, CheckCircle2, ArrowRight, CalendarDays,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 
-export default function EmployeeDashboardContent({ stats }) {
-  if (!stats) {
-    return (
-      <div className="p-6">
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
-          <p className="text-slate-500 dark:text-slate-400">Unable to load dashboard data.</p>
+const STATUS_BAR = [
+  { key: "new", label: "New", color: "bg-slate-300 dark:bg-slate-600" },
+  { key: "acknowledged", label: "Acknowledged", color: "bg-sky-500" },
+  { key: "inProgress", label: "In Progress", color: "bg-blue-500" },
+  { key: "inReview", label: "In Review", color: "bg-amber-500" },
+  { key: "clientReview", label: "Client Review", color: "bg-purple-500" },
+  { key: "completed", label: "Completed", color: "bg-emerald-500" },
+];
+
+function formatDate(date) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Short weekday label for an ISO yyyy-mm-dd key. */
+function dayLabel(iso) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short" });
+}
+
+function StatCard({ icon: Icon, label, value, tone = "slate", href }) {
+  const tones = {
+    slate: "text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900",
+    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
+    amber: "text-amber-600 bg-amber-50 dark:bg-amber-900/20",
+    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
+    emerald: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20",
+  };
+  const body = (
+    <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 hover:shadow-md transition-shadow h-full">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${tones[tone]}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <p className="text-2xl font-bold text-slate-900 dark:text-slate-50">{value}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
+    </div>
+  );
+  return href ? <Link href={href}>{body}</Link> : body;
+}
+
+/** One row in a task list. */
+function TaskLine({ task, overdue = false }) {
+  return (
+    <Link
+      href={`/employee/tasks?task=${task.id}`}
+      className="flex items-center gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 rounded-lg px-2 -mx-2 transition-colors"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{task.title}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <Badge value={task.status} />
+          {task.project && <span className="text-xs text-slate-400 truncate">{task.project.name}</span>}
         </div>
       </div>
-    );
-  }
+      {task.dueDate && (
+        <span className={`text-xs shrink-0 ${overdue ? "text-red-600 font-semibold" : "text-slate-400"}`}>
+          {formatDate(task.dueDate)}
+        </span>
+      )}
+    </Link>
+  );
+}
 
-  const statCards = [
-    {
-      label: "Assigned Projects",
-      value: stats.projects?.total || 0,
-      icon: FolderKanban,
-      color: "bg-blue-50 dark:bg-blue-900/20 text-blue-600",
-      href: "/employee/projects",
-    },
-    {
-      label: "My Tasks",
-      value: stats.tasks?.total || 0,
-      icon: ListChecks,
-      color: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600",
-      href: "/employee/tasks",
-    },
-    {
-      label: "Completed",
-      value: stats.tasks?.completed || 0,
-      icon: CheckCircle2,
-      color: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600",
-    },
-    {
-      label: "In Review",
-      value: stats.tasks?.inReview || 0,
-      icon: Clock,
-      color: "bg-amber-50 dark:bg-amber-900/20 text-amber-600",
-    },
-  ];
+export default function EmployeeDashboardContent({ stats }) {
+  const t = stats?.tasks || {};
+  const week = stats?.last7Days || [];
+  const totals = stats?.weekTotals || { completed: 0, assigned: 0 };
 
-  const formatDate = (date) => {
-    if (!date) return "—";
-    return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  };
-
-  const formatTime = (date) => {
-    if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-  };
+  // Scale the chart to its own busiest day so short bars stay readable.
+  const peak = Math.max(1, ...week.map((d) => Math.max(d.completed, d.assigned)));
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Dashboard</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Your tasks, projects, and upcoming activity.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Work</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Everything assigned to you, and how the last 7 days went.
+        </p>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat) => {
-          const Wrapper = stat.href ? Link : "div";
-          return (
-            <Wrapper
-              key={stat.label}
-              {...(stat.href ? { href: stat.href } : {})}
-              className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.label}</span>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">{stat.value}</p>
-            </Wrapper>
-          );
-        })}
+      {/* Headline numbers */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={ListChecks} label="Open tasks" value={t.open ?? 0} tone="blue" href="/employee/tasks" />
+        <StatCard icon={Clock} label="Due in 7 days" value={t.dueSoon ?? 0} tone="amber" href="/employee/tasks" />
+        <StatCard icon={AlertTriangle} label="Overdue" value={t.overdue ?? 0} tone="red" href="/employee/tasks" />
+        <StatCard icon={CheckCircle2} label="Completed" value={t.completed ?? 0} tone="emerald" href="/employee/tasks" />
       </div>
 
-      {/* Task breakdown bar */}
-      {stats.tasks?.total > 0 && (
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3">Task Breakdown</h2>
-          <div className="flex rounded-full overflow-hidden h-3 bg-slate-100 dark:bg-slate-800">
-            {stats.tasks.completed > 0 && (
-              <div className="bg-emerald-500" style={{ width: `${(stats.tasks.completed / stats.tasks.total) * 100}%` }} title={`Completed: ${stats.tasks.completed}`} />
-            )}
-            {stats.tasks.inProgress > 0 && (
-              <div className="bg-blue-500" style={{ width: `${(stats.tasks.inProgress / stats.tasks.total) * 100}%` }} title={`In Progress: ${stats.tasks.inProgress}`} />
-            )}
-            {stats.tasks.inReview > 0 && (
-              <div className="bg-amber-500" style={{ width: `${(stats.tasks.inReview / stats.tasks.total) * 100}%` }} title={`In Review: ${stats.tasks.inReview}`} />
-            )}
-            {stats.tasks.todo > 0 && (
-              <div className="bg-slate-300 dark:bg-slate-600" style={{ width: `${(stats.tasks.todo / stats.tasks.total) * 100}%` }} title={`Todo: ${stats.tasks.todo}`} />
+      {/* Status breakdown */}
+      {t.total > 0 && (
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3">
+            Status breakdown · {t.total} task{t.total !== 1 ? "s" : ""}
+          </h2>
+          <div className="flex h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+            {STATUS_BAR.map(({ key, label, color }) =>
+              t[key] > 0 ? (
+                <div
+                  key={key}
+                  className={color}
+                  style={{ width: `${(t[key] / t.total) * 100}%` }}
+                  title={`${label}: ${t[key]}`}
+                />
+              ) : null
             )}
           </div>
-          <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Completed ({stats.tasks.completed})</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> In Progress ({stats.tasks.inProgress})</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> In Review ({stats.tasks.inReview})</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300" /> Todo ({stats.tasks.todo})</span>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs text-slate-500 dark:text-slate-400">
+            {STATUS_BAR.filter(({ key }) => t[key] > 0).map(({ key, label, color }) => (
+              <span key={key} className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${color}`} /> {label} ({t[key]})
+              </span>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Tasks */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
-              <ListChecks className="w-5 h-5 text-[#5542F6]" /> Recent Tasks
-            </h2>
-            <Link href="/employee/tasks" className="text-sm text-[#5542F6] hover:underline flex items-center gap-1">
-              View all <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {stats.recentTasks?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.recentTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{task.title}</h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge value={task.status} />
-                      <Badge value={task.priority} />
-                      <span className="text-xs text-slate-400">{task.project?.name}</span>
-                    </div>
-                  </div>
-                  {task.dueDate && (
-                    <span className="text-xs text-slate-500 flex-shrink-0">{formatDate(task.dueDate)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 text-center py-6">No tasks assigned yet.</p>
-          )}
-        </div>
-
-        {/* Projects Overview */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
-              <FolderKanban className="w-5 h-5 text-[#5542F6]" /> Projects
-            </h2>
-            <Link href="/employee/projects" className="text-sm text-[#5542F6] hover:underline flex items-center gap-1">
-              View all <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {stats.projectsList?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.projectsList.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/employee/projects/${project.id}`}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors group"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate group-hover:text-[#5542F6] transition-colors">
-                      {project.name}
-                    </h4>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
-                      <span>{project._count?.tasks || 0} tasks</span>
-                      <span>{project._count?.milestones || 0} milestones</span>
-                    </div>
-                  </div>
-                  <Badge value={project.status} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 text-center py-6">No projects assigned yet.</p>
-          )}
-        </div>
-
-        {/* Upcoming Milestones */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#5542F6]" /> Upcoming Milestones
+      {/* Last 7 days */}
+      <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-[#5542F6]" /> Last 7 days
           </h2>
-          {stats.upcomingMilestones?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.upcomingMilestones.map((milestone) => (
-                <div key={milestone.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{milestone.title}</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">{milestone.project?.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge value={milestone.status} />
-                    {milestone.dueDate && <span className="text-xs text-slate-500">{formatDate(milestone.dueDate)}</span>}
-                  </div>
-                </div>
+          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" /> {totals.completed} completed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500" /> {totals.assigned} assigned
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between gap-2 h-32">
+          {week.map((day) => (
+            <div key={day.date} className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="w-full flex items-end justify-center gap-1 h-24">
+                <div
+                  className="w-1/3 max-w-3.5 rounded-t bg-emerald-500 min-h-0.5 transition-all"
+                  style={{ height: `${(day.completed / peak) * 100}%` }}
+                  title={`${day.completed} completed`}
+                />
+                <div
+                  className="w-1/3 max-w-3.5 rounded-t bg-blue-500 min-h-0.5 transition-all"
+                  style={{ height: `${(day.assigned / peak) * 100}%` }}
+                  title={`${day.assigned} assigned`}
+                />
+              </div>
+              <span className="text-[11px] text-slate-400">{dayLabel(day.date)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Needs attention: overdue first, then due soon */}
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" /> Needs attention
+          </h2>
+          {(stats?.overdueTasks?.length || stats?.dueSoonTasks?.length) ? (
+            <div className="flex flex-col">
+              {(stats.overdueTasks || []).map((task) => (
+                <TaskLine key={task.id} task={task} overdue />
+              ))}
+              {(stats.dueSoonTasks || []).map((task) => (
+                <TaskLine key={task.id} task={task} />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400 text-center py-6">No upcoming milestones.</p>
+            <p className="text-sm text-slate-400 text-center py-6">Nothing overdue or due this week.</p>
           )}
         </div>
 
-        {/* Upcoming Meetings */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#5542F6]" /> Upcoming Meetings
+        {/* Recent activity */}
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
+              <ListChecks className="w-4 h-4 text-[#5542F6]" /> Recently updated
             </h2>
-            <Link href="/employee/meetings" className="text-sm text-[#5542F6] hover:underline flex items-center gap-1">
-              View all <ArrowRight className="w-3.5 h-3.5" />
+            <Link href="/employee/tasks" className="text-xs text-[#5542F6] hover:underline flex items-center gap-1">
+              View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          {stats.upcomingMeetings?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.upcomingMeetings.map((meeting) => (
-                <div key={meeting.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{meeting.title}</h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge value={meeting.mode} />
-                      <span className="text-xs text-slate-400">{meeting.project?.name}</span>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{formatDate(meeting.scheduledAt)}</p>
-                    <p className="text-xs text-slate-400">{formatTime(meeting.scheduledAt)}</p>
-                  </div>
-                </div>
+          {stats?.recentTasks?.length > 0 ? (
+            <div className="flex flex-col">
+              {stats.recentTasks.map((task) => (
+                <TaskLine key={task.id} task={task} />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400 text-center py-6">No upcoming meetings.</p>
+            <p className="text-sm text-slate-400 text-center py-6">No tasks assigned to you yet.</p>
           )}
         </div>
       </div>

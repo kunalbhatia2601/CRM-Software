@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ListChecks,
@@ -60,7 +61,9 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
   const [toast, setToast] = useState(null);
   const [advancingId, setAdvancingId] = useState(null);
   const [priorityFilter, setPriorityFilter] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
+  // Deep link from the dashboard: /employee/tasks?task=<id> opens that task.
+  const searchParams = useSearchParams();
+  const [expandedId, setExpandedId] = useState(searchParams.get("task"));
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -166,7 +169,21 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
             return (
               <div
                 key={task.id}
-                className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 hover:shadow-md transition-shadow"
+                id={`task-${task.id}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setExpandedId(isExpanded ? null : task.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpandedId(isExpanded ? null : task.id);
+                  }
+                }}
+                className={`bg-white dark:bg-slate-950 rounded-2xl border p-5 hover:shadow-md transition-shadow cursor-pointer ${
+                  isExpanded
+                    ? "border-[#5542F6] shadow-md"
+                    : "border-slate-200 dark:border-slate-800"
+                }`}
               >
                 {/* Parent task breadcrumb */}
                 {task.parentTask && (
@@ -184,7 +201,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                       <Badge value={task.priority} />
                       {ASSIGNEE_NEXT[task.status] && (
                         <button
-                          onClick={() => advance(task)}
+                          onClick={(e) => { e.stopPropagation(); advance(task); }}
                           disabled={advancingId === task.id}
                           className="px-2.5 py-1 text-xs font-semibold text-white bg-[#5542F6] hover:bg-[#4636d4] rounded-lg transition-colors disabled:opacity-60"
                         >
@@ -193,6 +210,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                       )}
                       {task.project && (
                         <Link
+                          onClick={(e) => e.stopPropagation()}
                           href={`/employee/projects/${task.project.id}`}
                           className="inline-flex items-center gap-1 text-xs text-[#5542F6] hover:underline"
                         >
@@ -237,21 +255,28 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                         <GitBranch className="w-3.5 h-3.5" /> {task.childTasks.length}
                       </span>
                     )}
-                    {hasContent && (
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : task.id)}
-                        className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title={isExpanded ? "Collapse" : "Show details"}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    )}
+                    <span
+                      className="p-1 rounded-md text-slate-500"
+                      title={isExpanded ? "Collapse" : "Show details"}
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </span>
                   </div>
                 </div>
 
                 {/* Expandable content details */}
-                {isExpanded && hasContent && (
+                {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    {!hasContent && (
+                      <p className="text-sm text-slate-400 italic">No description or objectives were added to this task.</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      {task.assignedBy && (
+                        <span>Assigned by <span className="text-slate-700 dark:text-slate-300">{task.assignedBy.firstName} {task.assignedBy.lastName}</span></span>
+                      )}
+                      {task.dueDate && <span>Due {formatDate(task.dueDate)}</span>}
+                      {task.completedAt && <span>Completed {formatDate(task.completedAt)}</span>}
+                    </div>
                     {task.description && (
                       <div className="text-sm">
                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Description</span>
@@ -313,6 +338,35 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                                 <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 truncate">{m.title}</span>
                                 {m.phase && m.phase !== "REGULAR" && <Badge value={m.phase} />}
                                 <Badge value={m.status} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Review history — every status change and note lands here */}
+                    {task.feedbacks?.length > 0 && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <MessageSquare className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">History</span>
+                          <div className="flex flex-col gap-2 mt-1">
+                            {task.feedbacks.map((f) => (
+                              <div key={f.id} className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge value={f.statusAfter} />
+                                  {f.givenBy && (
+                                    <span className="text-xs text-slate-500">
+                                      {f.givenBy.firstName} {f.givenBy.lastName}
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-slate-400 ml-auto">{formatDate(f.createdAt)}</span>
+                                </div>
+                                {f.nextStep && <p className="text-xs text-slate-500 mt-1">{f.nextStep}</p>}
+                                {f.feedback && (
+                                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap mt-1">{f.feedback}</p>
+                                )}
                               </div>
                             ))}
                           </div>

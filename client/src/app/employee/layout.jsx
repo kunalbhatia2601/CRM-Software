@@ -14,7 +14,6 @@ const navItems = [
   { name: "Dashboard", href: "/employee/dashboard", icon: "LayoutDashboard" },
   { name: "My Tasks", href: "/employee/tasks", icon: "ListChecks" },
   { name: "Projects", href: "/employee/projects", icon: "FolderKanban" },
-  { name: "Documents", href: "/employee/documents", icon: "FileText" },
   { name: "Meetings", href: "/employee/meetings", icon: "Calendar" },
   { name: "My Attendance", href: "/employee/my-attendance", icon: "Clock" },
   { name: "Apply Leave", href: "/employee/my-leaves", icon: "FileText" },

@@ -1,7 +1,6 @@
 import { getDashboardStats, getClientDashboardStats, getEmployeeDashboardStats, getSalesDashboardStats, getAccountDashboardStats, getHrDashboardStats } from "./dashboard.service.js";
 import { ok } from "../../utils/apiResponse.js";
 import prisma from "../../utils/prisma.js";
-import { getUserProjectIds } from "../../utils/projectPermission.js";
 
 /**
  * GET /api/dashboard/stats?period=month|year|today|all
@@ -51,24 +50,13 @@ export async function getClientStats(req, res, next) {
 
 /**
  * GET /api/dashboard/employee-stats
- * Returns dashboard statistics scoped to the EMPLOYEE user's team projects.
+ * Returns the EMPLOYEE user's own task workload. Scoped to tasks assigned to
+ * them, not to their teams' projects — the employee dashboard is a work queue,
+ * not a project overview.
  */
 export async function getEmployeeStats(req, res, next) {
   try {
-    const projectIds = await getUserProjectIds(req.user.id);
-
-    if (projectIds.length === 0) {
-      return ok(res, "Employee stats fetched", {
-        projects: { total: 0, active: 0 },
-        tasks: { total: 0, todo: 0, inProgress: 0, inReview: 0, completed: 0 },
-        upcomingMilestones: [],
-        recentTasks: [],
-        upcomingMeetings: [],
-        projectsList: [],
-      });
-    }
-
-    const stats = await getEmployeeDashboardStats(req.user.id, projectIds);
+    const stats = await getEmployeeDashboardStats(req.user.id);
     return ok(res, "Employee dashboard statistics fetched", stats);
   } catch (error) {
     next(error);
