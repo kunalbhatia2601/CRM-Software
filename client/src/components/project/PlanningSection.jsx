@@ -13,6 +13,9 @@ import {
 } from "@/actions/planning-steps.action";
 import { createTask, updateTask, deleteTask } from "@/actions/tasks.action";
 import { getProjectPermissions } from "@/actions/projects.action";
+import SubmitWorkModal from "@/components/project/SubmitWorkModal";
+import ReviewWorkModal from "@/components/project/ReviewWorkModal";
+import TaskWorkHistory from "@/components/project/TaskWorkHistory";
 import {
   createMilestone,
   updateMilestone,
@@ -101,8 +104,10 @@ export default function PlanningSection({
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null, id: null, loading: false });
 
   // Feedback modal — for review actions
+  const [submitModal, setSubmitModal] = useState({ isOpen: false, task: null });
+  const [submitting, setSubmitting] = useState(false);
+
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, taskId: null, taskTitle: "" });
-  const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
   const [savingFeedback, setSavingFeedback] = useState(false);
 
   // Task detail/feedbacks view
@@ -337,14 +342,22 @@ export default function PlanningSection({
    * assignee's permission covers the status column and nothing else — bundling
    * other fields would trip the server's edit check.
    */
-  const advanceTask = async (task, status) => {
-    const result = await updateTask(task.id, { status });
+  const advanceTask = async (task, status, submission = null) => {
+    // Sending a task to review carries the work with it.
+    if (status === "IN_REVIEW" && !submission) {
+      setSubmitModal({ isOpen: true, task });
+      return;
+    }
+    const payload = submission ? { status, submission } : { status };
+    const result = await updateTask(task.id, payload);
     if (result.success) {
       setTasks(tasks.map((t) => (t.id === result.data.id ? result.data : t)));
+      setSubmitModal({ isOpen: false, task: null });
       showToast("success", `Moved to ${STATUS_FLOW_LABELS[status] || status}`);
     } else {
       showToast("error", result.error || "Failed to update task");
     }
+    setSubmitting(false);
   };
 
   const duplicateTask = (task) =>
@@ -412,31 +425,20 @@ export default function PlanningSection({
 
   // ============ FEEDBACK / REVIEW HANDLERS ============
   const openFeedbackModal = (task) => {
-    setFeedbackModal({ isOpen: true, taskId: task.id, taskTitle: task.title });
-    // Default to an outcome this user is actually allowed to submit.
-    setFeedbackForm({
-      feedback: "",
-      nextStep: "",
-      statusAfter: perms?.canApprove ? "COMPLETED" : "IN_REVIEW",
-    });
+    setFeedbackModal({ isOpen: true, taskId: task.id, taskTitle: task.title, task });
   };
 
   const closeFeedbackModal = () => {
     setFeedbackModal({ isOpen: false, taskId: null, taskTitle: "" });
-    setFeedbackForm({ feedback: "", nextStep: "", statusAfter: "COMPLETED" });
   };
 
-  const handleSubmitFeedback = async () => {
-    if (!feedbackForm.feedback.trim()) {
-      showToast("error", "Feedback is required");
-      return;
-    }
+  const handleSubmitFeedback = async ({ status, feedback, reviewNotes }) => {
     setSavingFeedback(true);
     try {
       const result = await updateTask(feedbackModal.taskId, {
-        status: feedbackForm.statusAfter,
-        feedback: feedbackForm.feedback,
-        nextStep: feedbackForm.nextStep || null,
+        status,
+        feedback,
+        reviewNotes,
       });
       if (result.success) {
         setTasks(tasks.map((t) => (t.id === result.data.id ? result.data : t)));
@@ -628,6 +630,13 @@ export default function PlanningSection({
           {showMilestones && task.milestoneId && (<div className="flex items-center gap-2"><Target className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getMilestoneName(task.milestoneId)}</span></div>)}
           {showSteps && task.planningStepId && (<div className="flex items-center gap-2"><Layers className="w-4 h-4 flex-shrink-0" /><span className="truncate">{getStepName(task.planningStepId)}</span></div>)}
         </div>
+
+        {/* Everything submitted, and every review note raised on it */}
+        {(task.submissions?.length > 0 || task.feedbacks?.length > 0) && (
+          <div className="mb-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <TaskWorkHistory task={task} />
+          </div>
+        )}
 
         {/* Content details: objectives, deliverables, references, linked meetings */}
         {(task.objectives || task.deliverables || references.length > 0 || linkedMeetings.length > 0) && (
@@ -918,6 +927,17 @@ export default function PlanningSection({
         )}
       </AccordionSection>
 
+      <SubmitWorkModal
+        isOpen={submitModal.isOpen}
+        taskTitle={submitModal.task?.title || ""}
+        saving={submitting}
+        onClose={() => setSubmitModal({ isOpen: false, task: null })}
+        onSubmit={(submission) => {
+          setSubmitting(true);
+          advanceTask(submitModal.task, "IN_REVIEW", submission);
+        }}
+      />
+
       {/* MILESTONE MODAL */}
       <MilestoneModal isOpen={milestonesModal.isOpen} onClose={closeMilestoneModal} onSave={handleSaveMilestone} mode={milestonesModal.mode} data={milestonesModal.data} saving={savingMilestone} />
 
@@ -928,73 +948,15 @@ export default function PlanningSection({
       <TaskModal isOpen={tasksModal.isOpen} onClose={closeTaskModal} onSave={handleSaveTask} mode={tasksModal.mode} data={tasksModal.data} steps={showSteps ? steps : null} milestones={showMilestones ? milestones : null} assignableUsers={assignableUsers} saving={savingTask} />
 
       {/* FEEDBACK / REVIEW MODAL */}
-      {feedbackModal.isOpen && (
-        <>
-          <div onClick={closeFeedbackModal} className="fixed inset-0 bg-black/50 z-40" />
-          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-950 shadow-xl z-50 flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Review Task</h2>
-                <p className="text-xs text-slate-400 mt-0.5">{feedbackModal.taskTitle}</p>
-              </div>
-              <button onClick={closeFeedbackModal} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"><X className="w-5 h-5 text-slate-600 dark:text-slate-400" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">Feedback <span className="text-red-500">*</span></label>
-                <textarea
-                  value={feedbackForm.feedback}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, feedback: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none"
-                  rows={4}
-                  placeholder="Provide your feedback on this task..."
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">Next Step</label>
-                <input
-                  type="text"
-                  value={feedbackForm.nextStep}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, nextStep: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none"
-                  placeholder="What should happen next?"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">Set Status To</label>
-                <select
-                  value={feedbackForm.statusAfter}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, statusAfter: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-[#5542F6] focus:border-transparent outline-none"
-                >
-                  {perms?.canApprove && <option value="COMPLETED">Approve — mark Completed</option>}
-                  {perms?.canApprove && <option value="CLIENT_REVIEW">Send to Client Review</option>}
-                  {perms?.canApprove && <option value="IN_PROGRESS">Send back — rework needed</option>}
-                  <option value="IN_REVIEW">Keep In Review</option>
-                </select>
-              </div>
-              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 font-medium">
-                {perms?.canApprove
-                  ? "Feedback is required."
-                  : "You can comment on this review, but signing off needs approve permission."}
-              </p>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">
-              <button type="button" onClick={closeFeedbackModal} disabled={savingFeedback} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50">Cancel</button>
-              <button
-                onClick={handleSubmitFeedback}
-                disabled={savingFeedback || !feedbackForm.feedback.trim()}
-                className="flex-1 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {savingFeedback && <Loader2 className="w-4 h-4 animate-spin" />}
-                {savingFeedback ? "Submitting..." : "Submit Review"}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <ReviewWorkModal
+        isOpen={feedbackModal.isOpen}
+        task={feedbackModal.task}
+        canApprove={!!perms?.canApprove}
+        saving={savingFeedback}
+        onClose={closeFeedbackModal}
+        onSubmit={handleSubmitFeedback}
+      />
 
-      {/* CONFIRM DELETE */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ isOpen: false, type: null, id: null, loading: false })}

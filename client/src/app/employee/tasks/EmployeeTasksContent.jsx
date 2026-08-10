@@ -27,6 +27,8 @@ import {
 import Badge from "@/components/ui/Badge";
 import { getMyTasks, updateTask } from "@/actions/tasks.action";
 import Toast from "@/components/ui/Toast";
+import SubmitWorkModal from "@/components/project/SubmitWorkModal";
+import TaskWorkHistory from "@/components/project/TaskWorkHistory";
 
 // What the assignee can do next, by current status. Anything past IN_REVIEW
 // belongs to a reviewer.
@@ -60,6 +62,8 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [toast, setToast] = useState(null);
   const [advancingId, setAdvancingId] = useState(null);
+  const [submitModal, setSubmitModal] = useState({ isOpen: false, task: null });
+  const [submitting, setSubmitting] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState("");
   // Deep link from the dashboard: /employee/tasks?task=<id> opens that task.
   const searchParams = useSearchParams();
@@ -90,15 +94,27 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
   };
 
   /** Move one of my tasks along. Status-only payload: that is all I may change. */
-  const advance = async (task) => {
+  const advance = async (task, submission = null) => {
     const next = ASSIGNEE_NEXT[task.status];
     if (!next) return;
+
+    // Handing work in needs the work attached, so collect it first.
+    if (next.status === "IN_REVIEW" && !submission) {
+      setSubmitModal({ isOpen: true, task });
+      return;
+    }
+
     setAdvancingId(task.id);
-    const res = await updateTask(task.id, { status: next.status });
+    const res = await updateTask(
+      task.id,
+      submission ? { status: next.status, submission } : { status: next.status }
+    );
     setAdvancingId(null);
+    setSubmitting(false);
     if (res.success) {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...res.data } : t)));
-      setToast({ type: "success", message: `Moved to ${next.label === "Acknowledge" ? "Acknowledged" : next.status.replace(/_/g, " ")}` });
+      setSubmitModal({ isOpen: false, task: null });
+      setToast({ type: "success", message: `Moved to ${next.status.replace(/_/g, " ").toLowerCase()}` });
     } else {
       setToast({ type: "error", message: res.error || "Failed to update task" });
     }
@@ -115,6 +131,17 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
   return (
     <div className="p-6 space-y-6">
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+
+      <SubmitWorkModal
+        isOpen={submitModal.isOpen}
+        taskTitle={submitModal.task?.title || ""}
+        saving={submitting}
+        onClose={() => setSubmitModal({ isOpen: false, task: null })}
+        onSubmit={(submission) => {
+          setSubmitting(true);
+          advance(submitModal.task, submission);
+        }}
+      />
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Tasks</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">All tasks assigned to you across all projects.</p>
@@ -345,34 +372,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                       </div>
                     )}
 
-                    {/* Review history — every status change and note lands here */}
-                    {task.feedbacks?.length > 0 && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <MessageSquare className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">History</span>
-                          <div className="flex flex-col gap-2 mt-1">
-                            {task.feedbacks.map((f) => (
-                              <div key={f.id} className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge value={f.statusAfter} />
-                                  {f.givenBy && (
-                                    <span className="text-xs text-slate-500">
-                                      {f.givenBy.firstName} {f.givenBy.lastName}
-                                    </span>
-                                  )}
-                                  <span className="text-xs text-slate-400 ml-auto">{formatDate(f.createdAt)}</span>
-                                </div>
-                                {f.nextStep && <p className="text-xs text-slate-500 mt-1">{f.nextStep}</p>}
-                                {f.feedback && (
-                                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap mt-1">{f.feedback}</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <TaskWorkHistory task={task} />
                   </div>
                 )}
               </div>

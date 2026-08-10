@@ -186,6 +186,7 @@ model User {
   reviewedTasks        Task[]         @relation("TaskReviewer")
   createdMilestones    Milestone[]    @relation("MilestoneCreator")
   taskFeedbacks        TaskFeedback[] @relation("TaskFeedbackGiver")
+  taskSubmissions      TaskSubmission[] @relation("TaskSubmitter")
 
   // Comments
   comments             Comment[]      @relation("CommentAuthor")
@@ -1264,6 +1265,7 @@ model Task {
   meetingTasks MeetingTask[]
 
   feedbacks   TaskFeedback[]
+  submissions TaskSubmission[]
   linkedDeliverables DeliverableTask[]
 
   createdAt   DateTime     @default(now()) @map("created_at")
@@ -1279,8 +1281,39 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Task Submission ─────────────────────────────────
+// The work handed in when a task goes to review. One row per hand-in, so a
+// task that bounces back for rework keeps every round instead of overwriting.
 
-// ─── Task Feedback ──────────────────────────────────
+model TaskSubmission {
+  id          String   @id @default(cuid())
+
+  // Notes for the reviewer: what was done, what to look at
+  note        String?  @db.Text
+  // Written deliverable — copy, script, summary
+  content     String?  @db.Text
+  // [{ name, url, key, mimeType, size }]
+  files       Json?
+  // [{ label, url }] — Drive, Figma, staging, anything external
+  links       Json?
+
+  // 1 for the first hand-in, 2 after the first rework, and so on
+  round       Int      @default(1)
+
+  taskId      String   @map("task_id")
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  submittedById String @map("submitted_by_id")
+  submittedBy   User   @relation("TaskSubmitter", fields: [submittedById], references: [id])
+
+  // Review notes raised against this specific hand-in
+  feedbacks   TaskFeedback[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_submissions")
+}
 
 model TaskFeedback {
   id          String   @id @default(cuid())
@@ -1291,12 +1324,22 @@ model TaskFeedback {
   taskId      String   @map("task_id")
   task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  // Which hand-in this note is about. Null for plain status changes that are
+  // not reviewing submitted work.
+  submissionId String?        @map("submission_id")
+  submission   TaskSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  // Optional pointer at one item inside that submission, so "this is wrong" can
+  // name the file or link it means: { kind: "FILE"|"LINK"|"CONTENT", index, label }
+  targetRef   Json?          @map("target_ref")
+
   givenById   String   @map("given_by_id")
   givenBy     User     @relation("TaskFeedbackGiver", fields: [givenById], references: [id])
 
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@index([taskId])
+  @@index([submissionId])
   @@map("task_feedbacks")
 }
 

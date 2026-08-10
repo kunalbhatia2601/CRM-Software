@@ -9,6 +9,34 @@ const referenceSchema = z.object({
   url: z.string().min(1).max(2000),
 });
 
+const fileSchema = z.object({
+  name: z.string().min(1).max(300),
+  url: z.string().min(1),
+  key: z.string().optional().nullable(),
+  mimeType: z.string().optional().nullable(),
+  size: z.coerce.number().optional().nullable(),
+});
+
+const linkSchema = z.object({
+  label: z.string().min(1).max(200),
+  url: z.string().min(1).max(2000),
+});
+
+// Work handed in when a task moves to IN_REVIEW.
+const submissionSchema = z.object({
+  note: z.string().max(5000).optional().nullable(),
+  content: z.string().max(20000).optional().nullable(),
+  files: z.array(fileSchema).optional().nullable(),
+  links: z.array(linkSchema).optional().nullable(),
+});
+
+// A reviewer's note may point at one item inside a submission.
+const targetRefSchema = z.object({
+  kind: z.enum(["CONTENT", "FILE", "LINK"]),
+  index: z.coerce.number().int().min(0).optional().nullable(),
+  label: z.string().max(300).optional().nullable(),
+});
+
 export const createTaskSchema = z.object({
   body: z.object({
     projectId: z.string().min(1, "Project ID is required"),
@@ -47,10 +75,25 @@ export const updateTaskSchema = z.object({
     milestoneId: z.string().optional().nullable(),
     assigneeId: z.string().optional().nullable(),
     // Feedback fields — recorded on any status change
-    feedback: z.string().max(5000).optional(),
+    feedback: z.string().max(5000).optional().nullable(),
     internalCostAmount: z.coerce.number().min(0).optional().nullable(),
     internalCostType: z.enum(costTypes).optional(),
     nextStep: z.string().max(2000).optional().nullable(),
+    // Work handed in alongside a move to IN_REVIEW
+    submission: submissionSchema.optional(),
+    // Reviewer pointing at what they are responding to
+    submissionId: z.string().optional().nullable(),
+    targetRef: targetRefSchema.optional().nullable(),
+    // Per-item review notes, each pinned to one part of a submission
+    reviewNotes: z
+      .array(
+        z.object({
+          feedback: z.string().min(1).max(5000),
+          submissionId: z.string().optional().nullable(),
+          targetRef: targetRefSchema.optional().nullable(),
+        })
+      )
+      .optional(),
   }),
 });
 
@@ -75,5 +118,7 @@ export const addFeedbackSchema = z.object({
     feedback: z.string().min(1, "Feedback is required").max(5000),
     nextStep: z.string().max(2000).optional().nullable(),
     statusAfter: z.enum(statuses).optional(),
+    submissionId: z.string().optional().nullable(),
+    targetRef: targetRefSchema.optional().nullable(),
   }),
 });

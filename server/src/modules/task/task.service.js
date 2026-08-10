@@ -40,12 +40,27 @@ const TASK_INCLUDE = {
     },
     orderBy: { createdAt: "asc" },
   },
+  submissions: {
+    orderBy: { round: "desc" },
+    select: {
+      id: true,
+      note: true,
+      content: true,
+      files: true,
+      links: true,
+      round: true,
+      createdAt: true,
+      submittedBy: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+    },
+  },
   feedbacks: {
     select: {
       id: true,
       feedback: true,
       nextStep: true,
       statusAfter: true,
+      submissionId: true,
+      targetRef: true,
       createdAt: true,
       givenBy: {
         select: { id: true, firstName: true, lastName: true, avatar: true, role: true },
@@ -79,6 +94,17 @@ const ASSIGNEE_SELF_STATUSES = ["ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
 
 /** Statuses only a reviewer may set: the sign-off end of the flow. */
 const REVIEWER_STATUSES = ["CLIENT_REVIEW", "COMPLETED"];
+
+/** True when a submission payload carries something a reviewer can look at. */
+function hasWork(sub) {
+  if (!sub) return false;
+  return !!(
+    sub.content?.trim() ||
+    sub.note?.trim() ||
+    (Array.isArray(sub.files) && sub.files.length > 0) ||
+    (Array.isArray(sub.links) && sub.links.length > 0)
+  );
+}
 
 /**
  * Authorize a status change.
@@ -231,17 +257,53 @@ class TaskService {
     if (!task) throw ApiError.notFound("Task not found");
 
     const statusChanged = data.status !== undefined && data.status !== task.status;
+    const reviewNotes = Array.isArray(data.reviewNotes) ? data.reviewNotes : [];
+    // "Keep In Review" is a review with no status change — it must still be
+    // authorized as a review and must still persist its notes.
+    const isReviewOnly = !statusChanged && (reviewNotes.length > 0 || !!data.feedback?.trim());
 
     // ── Permission checks ──
+    // Submitting work travels with the status change, so it must not count as
+    // "editing the task" and trip the edit-permission check.
     const statusOnly =
       statusChanged &&
-      Object.keys(data).every((k) => ["status", "feedback", "nextStep"].includes(k));
+      Object.keys(data).every((k) =>
+        [
+          "status", "feedback", "nextStep",
+          "submission", "submissionId", "targetRef", "reviewNotes",
+        ].includes(k)
+      );
 
     if (statusChanged) {
       await authorizeStatusChange(task, data.status, userId);
+
+      // Handing a task in means showing the work — but only for the assignee
+      // submitting it. A manager pulling a task into review, or reopening one
+      // from COMPLETED, has nothing of their own to attach.
+      if (
+        data.status === "IN_REVIEW" &&
+        task.assigneeId === userId &&
+        !hasWork(data.submission)
+      ) {
+        const existing = await prisma.taskSubmission.count({ where: { taskId: id } });
+        if (existing === 0) {
+          throw ApiError.badRequest(
+            "Attach your work before sending this for review — a note, written content, files, or links"
+          );
+        }
+      }
+
       // Touching any other field alongside the status still needs edit rights —
       // the assignee's free pass covers the status column only.
       if (!statusOnly) {
+        await requireProjectPermission(userId, task.projectId, "tasks", "edit");
+      }
+    } else if (isReviewOnly) {
+      const [mayReview, mayApprove] = await Promise.all([
+        canReviewTasks(userId, task.projectId),
+        canApproveTasks(userId, task.projectId),
+      ]);
+      if (!mayReview && !mayApprove) {
         await requireProjectPermission(userId, task.projectId, "tasks", "edit");
       }
     } else {
@@ -298,6 +360,41 @@ class TaskService {
           data: updateData,
         });
 
+        // A hand-in becomes its own row so rework rounds stay side by side.
+        let submissionId = data.submissionId || null;
+        if (data.status === "IN_REVIEW" && hasWork(data.submission)) {
+          const last = await tx.taskSubmission.findFirst({
+            where: { taskId: id },
+            orderBy: { round: "desc" },
+            select: { round: true },
+          });
+
+          const created = await tx.taskSubmission.create({
+            data: {
+              taskId: id,
+              submittedById: userId,
+              note: data.submission.note?.trim() || null,
+              content: data.submission.content?.trim() || null,
+              files: data.submission.files ?? [],
+              links: data.submission.links ?? [],
+              round: (last?.round ?? 0) + 1,
+            },
+            select: { id: true },
+          });
+          submissionId = created.id;
+        }
+
+        // A reviewer who does not name a submission is responding to the
+        // latest one, so link it for them.
+        if (!submissionId && ["CLIENT_REVIEW", "COMPLETED", "IN_PROGRESS"].includes(data.status)) {
+          const latest = await tx.taskSubmission.findFirst({
+            where: { taskId: id },
+            orderBy: { round: "desc" },
+            select: { id: true },
+          });
+          submissionId = latest?.id || null;
+        }
+
         await tx.taskFeedback.create({
           data: {
             // Feedback text is optional — use user-provided or null
@@ -305,10 +402,28 @@ class TaskService {
             // nextStep: user-provided takes priority, otherwise auto-fill
             nextStep: data.nextStep?.trim() || autoNextStep,
             statusAfter: data.status,
+            submissionId,
+            targetRef: data.targetRef ?? null,
             taskId: id,
             givenById: userId,
           },
         });
+
+        // Per-item notes raised during the review. They share the resulting
+        // status so the whole review reads as one event in the history.
+        if (reviewNotes.length > 0) {
+          await tx.taskFeedback.createMany({
+            data: reviewNotes.map((n) => ({
+              feedback: n.feedback.trim(),
+              nextStep: null,
+              statusAfter: data.status,
+              submissionId: n.submissionId || submissionId,
+              targetRef: n.targetRef ?? null,
+              taskId: id,
+              givenById: userId,
+            })),
+          });
+        }
 
         return tx.task.findUnique({
           where: { id },
@@ -346,24 +461,48 @@ class TaskService {
       });
     }
 
-    // ── Non-status update (just field edits) ──
-    // If user provided explicit feedback on a non-status-change edit, still record it
-    if (data.feedback?.trim()) {
+    // ── Non-status update: field edits, or a review that left the status alone ──
+    if (data.feedback?.trim() || reviewNotes.length > 0) {
+      const latest = await prisma.taskSubmission.findFirst({
+        where: { taskId: id },
+        orderBy: { round: "desc" },
+        select: { id: true },
+      });
+      const fallbackSubmissionId = data.submissionId || latest?.id || null;
+
       return prisma.$transaction(async (tx) => {
         await tx.task.update({
           where: { id },
           data: updateData,
         });
 
-        await tx.taskFeedback.create({
-          data: {
-            feedback: data.feedback.trim(),
-            nextStep: data.nextStep?.trim() || null,
-            statusAfter: task.status, // status didn't change
-            taskId: id,
-            givenById: userId,
-          },
-        });
+        if (data.feedback?.trim()) {
+          await tx.taskFeedback.create({
+            data: {
+              feedback: data.feedback.trim(),
+              nextStep: data.nextStep?.trim() || null,
+              statusAfter: task.status, // status didn't change
+              submissionId: fallbackSubmissionId,
+              targetRef: data.targetRef ?? null,
+              taskId: id,
+              givenById: userId,
+            },
+          });
+        }
+
+        if (reviewNotes.length > 0) {
+          await tx.taskFeedback.createMany({
+            data: reviewNotes.map((n) => ({
+              feedback: n.feedback.trim(),
+              nextStep: null,
+              statusAfter: task.status,
+              submissionId: n.submissionId || fallbackSubmissionId,
+              targetRef: n.targetRef ?? null,
+              taskId: id,
+              givenById: userId,
+            })),
+          });
+        }
 
         return tx.task.findUnique({
           where: { id },
@@ -464,6 +603,8 @@ class TaskService {
         feedback: data.feedback?.trim() || null,
         nextStep: data.nextStep?.trim() || null,
         statusAfter: data.statusAfter || task.status,
+        submissionId: data.submissionId || null,
+        targetRef: data.targetRef ?? null,
         taskId,
         givenById: userId,
       },

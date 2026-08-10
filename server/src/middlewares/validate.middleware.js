@@ -17,7 +17,14 @@ const validate = (schema) => {
         field: issue.path.join("."),
         message: issue.message,
       }));
-      return next(ApiError.badRequest("Validation failed", errors));
+      // Name the offending field in the message — a bare "Validation failed"
+      // says nothing in the log, where the errors array is not printed.
+      const summary = errors
+        .slice(0, 3)
+        .map((e) => `${e.field}: ${e.message}`)
+        .join("; ");
+      const suffix = errors.length > 3 ? ` (+${errors.length - 3} more)` : "";
+      return next(ApiError.badRequest(`Validation failed — ${summary}${suffix}`, errors));
     }
 
     // Replace req data with parsed (cleaned) values

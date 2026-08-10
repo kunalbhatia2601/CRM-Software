@@ -17,6 +17,7 @@ import {
 import Badge from "@/components/ui/Badge";
 import { updateTask } from "@/actions/tasks.action";
 import { getProjectPermissions } from "@/actions/projects.action";
+import SubmitWorkModal from "@/components/project/SubmitWorkModal";
 import { useAuth } from "@/context/AuthContext";
 
 const COLUMN_STATUSES = [
@@ -70,6 +71,9 @@ export default function KanbanBoard({
     if (target === "IN_REVIEW") return !!perms?.canReview || !!perms?.tasks?.edit;
     return !!perms?.tasks?.edit;
   };
+
+  const [submitModal, setSubmitModal] = useState({ isOpen: false, task: null });
+  const [submitting, setSubmitting] = useState(false);
 
   const [feedbackModal, setFeedbackModal] = useState({ isOpen: false, task: null, targetStatus: null });
   const [feedbackForm, setFeedbackForm] = useState({ feedback: "", nextStep: "" });
@@ -147,6 +151,14 @@ export default function KanbanBoard({
         return;
       }
 
+      // The assignee handing their own work in must attach it, same as the
+      // list view. Managers pulling a task into review attach nothing.
+      if (columnStatus === "IN_REVIEW" && draggedTask.assigneeId === currentUser?.id) {
+        setSubmitModal({ isOpen: true, task: draggedTask });
+        setDraggedTask(null);
+        return;
+      }
+
       // Signing a task off should carry a note, so ask for feedback first
       if (columnStatus === "COMPLETED" && perms?.canApprove) {
         setFeedbackModal({ isOpen: true, task: draggedTask, targetStatus: "COMPLETED" });
@@ -158,7 +170,7 @@ export default function KanbanBoard({
       await moveTask(draggedTask.id, columnStatus);
       setDraggedTask(null);
     },
-    [draggedTask, onTaskUpdate, showToast]
+    [draggedTask, onTaskUpdate, showToast, perms, currentUser]
   );
 
   const handleSubmitFeedback = async () => {
@@ -366,6 +378,19 @@ export default function KanbanBoard({
           })}
         </div>
       </div>
+
+      <SubmitWorkModal
+        isOpen={submitModal.isOpen}
+        taskTitle={submitModal.task?.title || ""}
+        saving={submitting}
+        onClose={() => setSubmitModal({ isOpen: false, task: null })}
+        onSubmit={async (submission) => {
+          setSubmitting(true);
+          await moveTask(submitModal.task.id, "IN_REVIEW", { submission });
+          setSubmitting(false);
+          setSubmitModal({ isOpen: false, task: null });
+        }}
+      />
 
       {/* Feedback Modal for sign-off drops */}
       {feedbackModal.isOpen && (
