@@ -21,7 +21,13 @@ function scoreColor(s) {
   return "text-red-600";
 }
 
-export default function PayrollRun({ basePath = "/hr" }) {
+/**
+ * Payroll run for a month.
+ *
+ * @param {string}  basePath   role base for links, e.g. "/hr"
+ * @param {boolean} canManage  false hides generate + config; finance reads only
+ */
+export default function PayrollRun({ basePath = "/hr", canManage = true }) {
   const router = useRouter();
   const { format } = useSite();
   const now = new Date();
@@ -63,17 +69,19 @@ export default function PayrollRun({ basePath = "/hr" }) {
         title="Payroll"
         description="Auto-computed pay + KPI performance bonus per employee."
         actions={
-          <div className="flex items-center gap-2">
-            <button onClick={() => router.push(`${basePath}/payroll/config`)}
-              className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200">
-              <Settings2 className="w-4 h-4" /> KPI Config
-            </button>
-            <button onClick={run} disabled={generating}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Generate / Refresh
-            </button>
-          </div>
+          canManage ? (
+            <div className="flex items-center gap-2">
+              <button onClick={() => router.push(`${basePath}/payroll/config`)}
+                className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200">
+                <Settings2 className="w-4 h-4" /> KPI Config
+              </button>
+              <button onClick={run} disabled={generating}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Generate / Refresh
+              </button>
+            </div>
+          ) : null
         }
       />
 
@@ -98,7 +106,9 @@ export default function PayrollRun({ basePath = "/hr" }) {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Wallet className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
             <p className="text-sm text-slate-400 mb-4">No payroll for {MONTHS[month - 1]} {year}.</p>
-            <button onClick={run} className="text-sm px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100">Generate now</button>
+            {canManage && (
+              <button onClick={run} className="text-sm px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100">Generate now</button>
+            )}
           </div>
         ) : (
           <table className="w-full text-sm">

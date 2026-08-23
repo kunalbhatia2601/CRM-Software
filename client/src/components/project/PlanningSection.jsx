@@ -1033,7 +1033,8 @@ function StepModal({ isOpen, onClose, onSave, mode, data, saving }) {
 function TaskModal({ isOpen, onClose, onSave, mode, data, steps, milestones, assignableUsers, saving }) {
   const { user } = useAuth();
   const [formData, setFormData] = React.useState({});
-  const canViewCost = ["OWNER", "ADMIN", "SALES_MANAGER"].includes(user?.role);
+  // Finance owns the money side, so internal costing is visible to it too.
+  const canViewCost = ["OWNER", "ADMIN", "SALES_MANAGER", "FINANCE_MANAGER"].includes(user?.role);
 
   React.useEffect(() => {
     if (isOpen && data) {

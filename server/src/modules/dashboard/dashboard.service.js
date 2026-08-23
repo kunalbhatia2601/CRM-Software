@@ -826,3 +826,183 @@ export async function getHrDashboardStats() {
     upcomingHolidays,
   };
 }
+
+/**
+ * Finance dashboard — everything derived from invoices.
+ *
+ * Money is stored as Decimal, so every aggregate is converted with Number()
+ * before it leaves this function; Decimal instances do not survive JSON.
+ */
+export async function getFinanceDashboardStats() {
+  const now = new Date();
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  // 6 months back, inclusive of the current one.
+  const trendStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  const OPEN_STATUSES = ["SENT", "PARTIALLY_PAID", "OVERDUE"];
+  const num = (v) => Number(v || 0);
+
+  const [
+    byStatus,
+    openInvoices,
+    paidThisMonth,
+    paidThisYear,
+    trendRows,
+    recentInvoices,
+    overdueInvoices,
+    projectCount,
+    clientCount,
+  ] = await Promise.all([
+    prisma.invoice.groupBy({
+      by: ["status"],
+      _count: { id: true },
+      _sum: { total: true, amountPaid: true },
+    }),
+
+    // Anything still owed, for the outstanding figure and the top-debtor list.
+    prisma.invoice.findMany({
+      where: { status: { in: OPEN_STATUSES } },
+      select: {
+        id: true, invoiceNumber: true, total: true, amountPaid: true, dueDate: true, status: true,
+        client: { select: { id: true, companyName: true } },
+        project: { select: { id: true, name: true } },
+      },
+    }),
+
+    prisma.invoice.aggregate({
+      where: { status: "PAID", paidAt: { gte: monthStart } },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    prisma.invoice.aggregate({
+      where: { status: "PAID", paidAt: { gte: yearStart } },
+      _sum: { total: true },
+    }),
+
+    // Raw rows for the 6-month trend; grouping by month happens below.
+    prisma.invoice.findMany({
+      where: { issueDate: { gte: trendStart } },
+      select: { issueDate: true, total: true, amountPaid: true, status: true },
+    }),
+
+    prisma.invoice.findMany({
+      take: 8,
+      orderBy: { issueDate: "desc" },
+      select: {
+        id: true, invoiceNumber: true, status: true, total: true, amountPaid: true,
+        issueDate: true, dueDate: true,
+        client: { select: { id: true, companyName: true } },
+        project: { select: { id: true, name: true } },
+      },
+    }),
+
+    prisma.invoice.findMany({
+      where: {
+        status: { in: OPEN_STATUSES },
+        dueDate: { lt: now },
+      },
+      take: 6,
+      orderBy: { dueDate: "asc" },
+      select: {
+        id: true, invoiceNumber: true, status: true, total: true, amountPaid: true, dueDate: true,
+        client: { select: { id: true, companyName: true } },
+        project: { select: { id: true, name: true } },
+      },
+    }),
+
+    prisma.project.count(),
+    prisma.client.count(),
+  ]);
+
+  const statusRow = (s) => byStatus.find((r) => r.status === s);
+  const countOf = (s) => statusRow(s)?._count.id ?? 0;
+
+  const billedTotal = byStatus
+    .filter((r) => r.status !== "DRAFT" && r.status !== "CANCELLED")
+    .reduce((sum, r) => sum + num(r._sum.total), 0);
+
+  const collectedTotal = byStatus
+    .filter((r) => r.status !== "CANCELLED")
+    .reduce((sum, r) => sum + num(r._sum.amountPaid), 0);
+
+  const outstanding = openInvoices.reduce(
+    (sum, inv) => sum + (num(inv.total) - num(inv.amountPaid)),
+    0
+  );
+
+  const overdueValue = openInvoices
+    .filter((inv) => inv.dueDate && new Date(inv.dueDate) < now)
+    .reduce((sum, inv) => sum + (num(inv.total) - num(inv.amountPaid)), 0);
+
+  // Owed per client, biggest first — who to chase.
+  const debtorMap = new Map();
+  for (const inv of openInvoices) {
+    const key = inv.client?.id || "unassigned";
+    const name = inv.client?.companyName || "Unassigned";
+    const due = num(inv.total) - num(inv.amountPaid);
+    if (due <= 0) continue;
+    const prev = debtorMap.get(key) || { id: key, name, amount: 0, invoices: 0 };
+    prev.amount += due;
+    prev.invoices += 1;
+    debtorMap.set(key, prev);
+  }
+  const topDebtors = [...debtorMap.values()].sort((a, b) => b.amount - a.amount).slice(0, 5);
+
+  // Six month buckets, oldest first, pre-seeded so quiet months are not gaps.
+  const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const months = [];
+  for (let i = 0; i < 6; i += 1) {
+    const d = new Date(trendStart.getFullYear(), trendStart.getMonth() + i, 1);
+    months.push({
+      month: monthKey(d),
+      label: d.toLocaleDateString("en-IN", { month: "short" }),
+      billed: 0,
+      collected: 0,
+    });
+  }
+  for (const inv of trendRows) {
+    if (inv.status === "CANCELLED") continue;
+    const bucket = months.find((m) => m.month === monthKey(new Date(inv.issueDate)));
+    if (!bucket) continue;
+    if (inv.status !== "DRAFT") bucket.billed += num(inv.total);
+    bucket.collected += num(inv.amountPaid);
+  }
+
+  const shape = (inv) => ({
+    ...inv,
+    total: num(inv.total),
+    amountPaid: num(inv.amountPaid),
+    due: num(inv.total) - num(inv.amountPaid),
+  });
+
+  return {
+    totals: {
+      billed: billedTotal,
+      collected: collectedTotal,
+      outstanding,
+      overdueValue,
+      collectionRate: billedTotal > 0 ? Math.round((collectedTotal / billedTotal) * 100) : 0,
+      thisMonthCollected: num(paidThisMonth._sum.total),
+      thisMonthPaidCount: paidThisMonth._count.id,
+      thisYearCollected: num(paidThisYear._sum.total),
+    },
+    counts: {
+      total: byStatus.reduce((sum, r) => sum + r._count.id, 0),
+      draft: countOf("DRAFT"),
+      sent: countOf("SENT"),
+      partiallyPaid: countOf("PARTIALLY_PAID"),
+      paid: countOf("PAID"),
+      overdue: openInvoices.filter((i) => i.dueDate && new Date(i.dueDate) < now).length,
+      cancelled: countOf("CANCELLED"),
+      projects: projectCount,
+      clients: clientCount,
+    },
+    trend: months,
+    topDebtors,
+    recentInvoices: recentInvoices.map(shape),
+    overdueInvoices: overdueInvoices.map(shape),
+  };
+}

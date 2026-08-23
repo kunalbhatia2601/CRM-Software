@@ -29,7 +29,15 @@ function scoreColor(s) {
   return "text-red-600";
 }
 
-export default function PayslipDetail({ basePath = "/hr", recordId }) {
+/**
+ * One payslip.
+ *
+ * @param {string}  basePath
+ * @param {string}  recordId
+ * @param {boolean} canManage  false makes every field read-only; finance views
+ *                             what it must disburse but cannot alter it
+ */
+export default function PayslipDetail({ basePath = "/hr", recordId, canManage = true }) {
   const router = useRouter();
   const { format } = useSite();
   const [record, setRecord] = useState(null);
@@ -90,9 +98,9 @@ export default function PayslipDetail({ basePath = "/hr", recordId }) {
         <button onClick={() => router.push(`${basePath}/payroll`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft className="w-4 h-4" /> Payroll
         </button>
-        <button onClick={() => router.push(`${basePath}/employees/${u.id}/payroll`)} className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+        {canManage && <button onClick={() => router.push(`${basePath}/employees/${u.id}/payroll`)} className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
           <History className="w-4 h-4" /> Full history
-        </button>
+        </button>}
       </div>
 
       {/* Header */}
@@ -186,7 +194,11 @@ export default function PayslipDetail({ basePath = "/hr", recordId }) {
           </div>
           <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
             <span>Manual Adjustment <span className="text-xs text-slate-400">(+/−: incentives, deductions)</span></span>
-            <input type="number" className={`${inputClass} w-40 text-right`} value={adjustment} onChange={(e) => setAdjustment(e.target.value)} />
+            {canManage ? (
+              <input type="number" className={`${inputClass} w-40 text-right`} value={adjustment} onChange={(e) => setAdjustment(e.target.value)} />
+            ) : (
+              <span className="font-medium text-slate-900 dark:text-slate-50">{format(Number(adjustment) || 0)}</span>
+            )}
           </div>
           <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-3 font-bold text-slate-900 dark:text-slate-50 text-base">
             <span>Net Pay</span><span>{format(netPreview)}</span>
@@ -196,22 +208,32 @@ export default function PayslipDetail({ basePath = "/hr", recordId }) {
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <div>
             <label className="text-xs font-medium text-slate-500 mb-1 block">Status</label>
-            <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="DRAFT">Draft</option>
-              <option value="FINALIZED">Finalized</option>
-              <option value="PAID">Paid</option>
-            </select>
+            {canManage ? (
+              <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="DRAFT">Draft</option>
+                <option value="FINALIZED">Finalized</option>
+                <option value="PAID">Paid</option>
+              </select>
+            ) : (
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-50">{status}</p>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500 mb-1 block">Notes</label>
-            <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes" />
+            {canManage ? (
+              <input className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes" />
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-300">{notes || "—"}</p>
+            )}
           </div>
         </div>
 
-        <button onClick={save} disabled={saving}
-          className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
-        </button>
+        {canManage && (
+          <button onClick={save} disabled={saving}
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
+          </button>
+        )}
       </div>
     </div>
   );

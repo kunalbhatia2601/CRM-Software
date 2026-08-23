@@ -1,7 +1,7 @@
 import { Router } from "express";
 import authenticate from "../../middlewares/auth.middleware.js";
 import authorize from "../../middlewares/role.middleware.js";
-import { getStats, getClientStats, getEmployeeStats, getSalesStats, getAccountStats, getHrStats } from "./dashboard.controller.js";
+import { getStats, getClientStats, getEmployeeStats, getSalesStats, getAccountStats, getHrStats, getFinanceStats } from "./dashboard.controller.js";
 
 const router = Router();
 
@@ -22,5 +22,8 @@ router.get("/account-stats", authenticate, authorize("ACCOUNT_MANAGER"), getAcco
 
 // HR / OWNER / ADMIN attendance-focused dashboard stats
 router.get("/hr-stats", authenticate, authorize("OWNER", "ADMIN", "HR"), getHrStats);
+
+// FINANCE_MANAGER billing dashboard
+router.get("/finance-stats", authenticate, authorize("OWNER", "ADMIN", "FINANCE_MANAGER"), getFinanceStats);
 
 export default router;

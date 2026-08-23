@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { getDashboardStatsAPI, getClientDashboardStatsAPI, getEmployeeDashboardStatsAPI, getSalesDashboardStatsAPI, getAccountDashboardStatsAPI, getHrDashboardStatsAPI } from "@/lib/api";
+import { getDashboardStatsAPI, getClientDashboardStatsAPI, getEmployeeDashboardStatsAPI, getSalesDashboardStatsAPI, getAccountDashboardStatsAPI, getHrDashboardStatsAPI, getFinanceDashboardStatsAPI } from "@/lib/api";
 
 /**
  * Fetches dashboard statistics from the backend.
@@ -115,6 +115,24 @@ export async function getHrDashboardStats() {
 
   try {
     const res = await getHrDashboardStatsAPI(accessToken);
+    if (res.success) return res.data;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches the FINANCE_MANAGER billing dashboard statistics.
+ */
+export async function getFinanceDashboardStats() {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("accessToken")?.value;
+
+  if (!accessToken) return null;
+
+  try {
+    const res = await getFinanceDashboardStatsAPI(accessToken);
     if (res.success) return res.data;
     return null;
   } catch {

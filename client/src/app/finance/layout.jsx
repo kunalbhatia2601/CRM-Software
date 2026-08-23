@@ -13,6 +13,12 @@ export async function generateMetadata() {
 const navItems = [
   { name: "Dashboard", href: "/finance/dashboard", icon: "LayoutDashboard" },
   { name: "Invoices", href: "/finance/invoices", icon: "ReceiptText" },
+  { name: "Clients", href: "/finance/clients", icon: "Building2" },
+  { name: "Projects", href: "/finance/projects", icon: "FolderKanban" },
+  { name: "Payroll", href: "/finance/payroll", icon: "Wallet" },
+  { name: "Meetings", href: "/finance/meetings", icon: "Calendar" },
+  { name: "My Attendance", href: "/finance/my-attendance", icon: "Clock" },
+  { name: "Apply Leave", href: "/finance/my-leaves", icon: "FileText" },
 ];
 
 export default async function FinanceLayout({ children }) {

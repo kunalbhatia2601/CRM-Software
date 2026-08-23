@@ -38,6 +38,12 @@ export async function checkProjectPermission(userId, projectId, resource, action
   if (!project) return false;
   if (project.accountManagerId === userId) return true;
 
+  // FINANCE_MANAGER oversees billing across every project, so it reads the
+  // plan but never changes it.
+  if (user.role === "FINANCE_MANAGER") {
+    return ["view", "comment"].includes(action);
+  }
+
   // 2.5 CLIENT user whose company owns the project → view + comment only
   if (user.role === "CLIENT") {
     const fullUser = await prisma.user.findUnique({
@@ -281,6 +287,16 @@ export async function getProjectCapabilities(userId, projectId) {
 
   if (isOwnerAdmin || isAccountManager) {
     return { ...all(), canReview: true, canApprove: true, isTeamLead: false, isManager: true };
+  }
+
+  // Finance: read-only across the whole plan, on every project.
+  if (user.role === "FINANCE_MANAGER") {
+    const caps = none();
+    for (const r of RESOURCES) {
+      caps[r].view = true;
+      caps[r].comment = true;
+    }
+    return { ...caps, canReview: false, canApprove: false, isTeamLead: false, isManager: false };
   }
 
   // Client of this project: read + comment only.

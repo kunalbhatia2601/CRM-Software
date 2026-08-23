@@ -1,4 +1,4 @@
-import { getDashboardStats, getClientDashboardStats, getEmployeeDashboardStats, getSalesDashboardStats, getAccountDashboardStats, getHrDashboardStats } from "./dashboard.service.js";
+import { getDashboardStats, getClientDashboardStats, getEmployeeDashboardStats, getSalesDashboardStats, getAccountDashboardStats, getHrDashboardStats, getFinanceDashboardStats } from "./dashboard.service.js";
 import { ok } from "../../utils/apiResponse.js";
 import prisma from "../../utils/prisma.js";
 
@@ -97,6 +97,19 @@ export async function getHrStats(_req, res, next) {
   try {
     const stats = await getHrDashboardStats();
     return ok(res, "HR dashboard statistics fetched", stats);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/dashboard/finance-stats
+ * Billing overview for the FINANCE_MANAGER panel.
+ */
+export async function getFinanceStats(req, res, next) {
+  try {
+    const stats = await getFinanceDashboardStats();
+    return ok(res, "Finance dashboard statistics fetched", stats);
   } catch (error) {
     next(error);
   }
