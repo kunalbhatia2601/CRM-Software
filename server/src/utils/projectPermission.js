@@ -6,7 +6,7 @@ import { ApiError } from "./apiError.js";
  *
  * Checks whether a user has a specific permission on a project's tasks or milestones.
  * Permission hierarchy:
- *   1. OWNER / ADMIN → always full access
+ *   1. OWNER / ADMIN / ACCOUNT_MANAGER / FINANCE_MANAGER → always full access
  *   2. Project Account Manager → always full access
  *   3. Team Lead (of a team assigned to the project) → always full access
  *   4. Team Member → based on their `permissions` JSON in TeamMember table
@@ -26,8 +26,9 @@ export async function checkProjectPermission(userId, projectId, resource, action
 
   if (!user) return false;
 
-  // OWNER and ADMIN always have full access
-  if (["OWNER", "ADMIN"].includes(user.role)) return true;
+  // Roles that manage delivery across the whole agency get full access to every
+  // project's plan, regardless of which project they are attached to.
+  if (["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER"].includes(user.role)) return true;
 
   // 2. Check if user is the project's account manager
   const project = await prisma.project.findUnique({
@@ -37,12 +38,6 @@ export async function checkProjectPermission(userId, projectId, resource, action
 
   if (!project) return false;
   if (project.accountManagerId === userId) return true;
-
-  // FINANCE_MANAGER oversees billing across every project, so it reads the
-  // plan but never changes it.
-  if (user.role === "FINANCE_MANAGER") {
-    return ["view", "comment"].includes(action);
-  }
 
   // 2.5 CLIENT user whose company owns the project → view + comment only
   if (user.role === "CLIENT") {
@@ -282,21 +277,12 @@ export async function getProjectCapabilities(userId, projectId) {
     return { ...none(), canReview: false, canApprove: false, isTeamLead: false, isManager: false };
   }
 
-  const isOwnerAdmin = ["OWNER", "ADMIN"].includes(user.role);
+  // Same list as checkProjectPermission — full plan access by role.
+  const isManagerRole = ["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER"].includes(user.role);
   const isAccountManager = project.accountManagerId === userId;
 
-  if (isOwnerAdmin || isAccountManager) {
+  if (isManagerRole || isAccountManager) {
     return { ...all(), canReview: true, canApprove: true, isTeamLead: false, isManager: true };
-  }
-
-  // Finance: read-only across the whole plan, on every project.
-  if (user.role === "FINANCE_MANAGER") {
-    const caps = none();
-    for (const r of RESOURCES) {
-      caps[r].view = true;
-      caps[r].comment = true;
-    }
-    return { ...caps, canReview: false, canApprove: false, isTeamLead: false, isManager: false };
   }
 
   // Client of this project: read + comment only.

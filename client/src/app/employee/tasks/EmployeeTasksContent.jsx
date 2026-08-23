@@ -29,6 +29,7 @@ import { getMyTasks, updateTask } from "@/actions/tasks.action";
 import Toast from "@/components/ui/Toast";
 import SubmitWorkModal from "@/components/project/SubmitWorkModal";
 import TaskWorkHistory from "@/components/project/TaskWorkHistory";
+import TaskTimings from "@/components/project/TaskTimings";
 
 // What the assignee can do next, by current status. Anything past IN_REVIEW
 // belongs to a reviewer.
@@ -373,6 +374,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                     )}
 
                     <TaskWorkHistory task={task} />
+                    <TaskTimings task={task} />
                   </div>
                 )}
               </div>

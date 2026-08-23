@@ -16,6 +16,7 @@ import { getProjectPermissions } from "@/actions/projects.action";
 import SubmitWorkModal from "@/components/project/SubmitWorkModal";
 import ReviewWorkModal from "@/components/project/ReviewWorkModal";
 import TaskWorkHistory from "@/components/project/TaskWorkHistory";
+import TaskTimings from "@/components/project/TaskTimings";
 import {
   createMilestone,
   updateMilestone,
@@ -637,6 +638,10 @@ export default function PlanningSection({
             <TaskWorkHistory task={task} />
           </div>
         )}
+
+        <div className="mb-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <TaskTimings task={task} />
+        </div>
 
         {/* Content details: objectives, deliverables, references, linked meetings */}
         {(task.objectives || task.deliverables || references.length > 0 || linkedMeetings.length > 0) && (
