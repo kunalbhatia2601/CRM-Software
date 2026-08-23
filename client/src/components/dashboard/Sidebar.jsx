@@ -126,7 +126,7 @@ function NavItem({ item, isActive, pathname, isCollapsed, level = 0, onNavigate 
   );
 }
 
-export default function Sidebar({ isCollapsed, toggleCollapse, navItems, isMobile, onNavigate }) {
+export default function Sidebar({ isCollapsed, toggleCollapse, navItems = [], isMobile, onNavigate }) {
   const pathname = usePathname();
   const site = useSite();
   const { logout, user } = useAuth();

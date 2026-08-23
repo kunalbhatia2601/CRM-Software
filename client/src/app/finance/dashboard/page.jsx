@@ -1,6 +1,5 @@
 "use client";
 
-import DashboardShell from "@/components/dashboard/DashboardShell";
 import { DollarSign, FileText, TrendingUp, PieChart } from "lucide-react";
 
 const stats = [
@@ -10,9 +9,14 @@ const stats = [
   { label: "Collections Rate", value: "—", icon: PieChart, color: "bg-purple-50 text-purple-600" },
 ];
 
+// The panel layout already wraps every page in DashboardShell — rendering a
+// second one here nested the whole chrome and, with no navItems passed, crashed
+// Sidebar on `navItems.map`.
 export default function FinanceDashboard() {
   return (
-    <DashboardShell title="Finance Dashboard">
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-6">Finance Dashboard</h1>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
@@ -30,6 +34,6 @@ export default function FinanceDashboard() {
       <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center">
         <p className="text-slate-500 dark:text-slate-400">Dashboard modules will be built in upcoming phases.</p>
       </div>
-    </DashboardShell>
+    </div>
   );
 }
