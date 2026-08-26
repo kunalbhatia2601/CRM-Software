@@ -1142,6 +1142,10 @@ export async function deleteHolidayAPI(id, accessToken) {
   return request(`/api/holidays/${id}`, { method: "DELETE", token: accessToken });
 }
 
+export async function getProjectOptionsAPI(accessToken) {
+  return request("/api/projects/options", { method: "GET", token: accessToken });
+}
+
 export async function getProjectPermissionsAPI(projectId, accessToken) {
   return request(`/api/projects/${projectId}/permissions`, { method: "GET", token: accessToken });
 }

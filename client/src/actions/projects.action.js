@@ -11,6 +11,7 @@ import {
   updateProjectServiceAPI,
   removeProjectServiceAPI,
   getProjectPermissionsAPI,
+  getProjectOptionsAPI,
 } from "@/lib/api";
 import { getAssignableStaff } from "./users.action";
 import { getClientsDropdown } from "./clients.action";
@@ -174,5 +175,21 @@ export async function getProjectPermissions(projectId) {
     return res.success ? res.data : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Projects the signed-in user may attribute spend or work to.
+ * Employees get their own team's projects; managers and HR get all.
+ */
+export async function getProjectOptions() {
+  const token = await getToken();
+  if (!token) return [];
+
+  try {
+    const res = await getProjectOptionsAPI(token);
+    return res.success ? res.data || [] : [];
+  } catch {
+    return [];
   }
 }

@@ -7,6 +7,7 @@ import { useUpload } from "@/hooks/useUpload";
 import { useSite } from "@/context/SiteContext";
 import Toast from "@/components/ui/Toast";
 import { getExpenseCategories, createExpense, updateExpense } from "@/actions/expenses.action";
+import { getProjectOptions } from "@/actions/projects.action";
 
 // Mirrors expense.validation.js — the server rejects anything past these.
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -88,13 +89,12 @@ function DynamicField({ field, value, onChange }) {
  * @param {Function} onCancel
  * @param {boolean}  selfApproving  true for OWNER/ADMIN — changes the button wording
  */
-export default function ExpenseForm({
-  expense = null, projects = [], onSaved, onCancel, selfApproving = false,
-}) {
+export default function ExpenseForm({ expense = null, onSaved, onCancel, selfApproving = false }) {
   const { upload, uploading, progress } = useUpload();
   const { format } = useSite();
   const fileRef = useRef(null);
 
+  const [projects, setProjects] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
   const [form, setForm] = useState(EMPTY);
@@ -107,6 +107,8 @@ export default function ExpenseForm({
       setCategories(res.success ? res.data : []);
       setLoadingCats(false);
     });
+    // Server scopes this: employees see their team's projects, managers see all.
+    getProjectOptions().then(setProjects);
   }, []);
 
   // Editing: hydrate once.
@@ -375,19 +377,23 @@ export default function ExpenseForm({
             {PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
-        {projects.length > 0 && (
-          <div>
-            <label className="text-xs font-medium text-slate-500 mb-1 block">Project (optional)</label>
+        <div>
+          <label className="text-xs font-medium text-slate-500 mb-1 block">Project (optional)</label>
+          {projects.length === 0 ? (
+            <p className="text-xs text-slate-400 italic py-2">
+              No projects available to attribute this to.
+            </p>
+          ) : (
             <select
               className={inputClass}
               value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value, isBillable: e.target.value ? form.isBillable : false })}
             >
               <option value="">Not project-related</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {form.projectId && (

@@ -222,6 +222,19 @@ class ProjectService {
   }
 
   /**
+   * Minimal id+name list for attribution pickers (expenses, etc).
+   *
+   * @param {string[]|null} projectIds  null = no restriction
+   */
+  async listProjectOptions(projectIds = null) {
+    return prisma.project.findMany({
+      where: projectIds ? { id: { in: projectIds } } : {},
+      select: { id: true, name: true, status: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  /**
    * Update project
    */
   async updateProject(id, data) {

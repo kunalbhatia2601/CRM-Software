@@ -50,6 +50,22 @@ class ProjectController {
     return ok(res, "Projects retrieved", result);
   });
 
+  /**
+   * Projects the user may attribute work or spend to.
+   *
+   * Employees are limited to their own team's projects; every internal manager
+   * role plus HR sees all. Clients never reach this route.
+   */
+  getProjectOptions = catchAsync(async (req, res) => {
+    let ids = null;
+    if (req.user.role === "EMPLOYEE") {
+      ids = await getUserProjectIds(req.user.id);
+      if (ids.length === 0) return ok(res, "Project options retrieved", []);
+    }
+    const projects = await projectService.listProjectOptions(ids);
+    return ok(res, "Project options retrieved", projects);
+  });
+
   /** What the current user may do on this project — drives which controls render. */
   getPermissions = catchAsync(async (req, res) => {
     const caps = await getProjectCapabilities(req.user.id, req.params.id);
