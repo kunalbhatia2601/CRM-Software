@@ -27,6 +27,7 @@ const navItems = [
     ],
   },
   { name: "Invoices", href: "/accounts/invoices", icon: "ReceiptText" },
+  { name: "My Expenses", href: "/accounts/expenses", icon: "Receipt" },
   { name: "Documents", href: "/accounts/documents", icon: "FileText" },
   { name: "Meetings", href: "/accounts/meetings", icon: "Calendar" },
   { name: "Teams", href: "/accounts/teams", icon: "Users" },

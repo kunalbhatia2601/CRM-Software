@@ -1382,3 +1382,64 @@ export async function deleteDeliverableAPI(id, accessToken) {
 export async function addDeliverableFeedbackAPI(id, data, accessToken) {
   return request(`/api/deliverables/${id}/feedback`, { method: "POST", body: JSON.stringify(data), token: accessToken });
 }
+
+/* ───────── Expenses ───────── */
+
+export async function getExpenseCategoriesAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/expenses/categories${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function createExpenseCategoryAPI(data, accessToken) {
+  return request("/api/expenses/categories", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function updateExpenseCategoryAPI(id, data, accessToken) {
+  return request(`/api/expenses/categories/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteExpenseCategoryAPI(id, accessToken) {
+  return request(`/api/expenses/categories/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getExpensesAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/expenses${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getMyExpensesAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/expenses/my${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getExpenseAPI(id, accessToken) {
+  return request(`/api/expenses/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createExpenseAPI(data, accessToken) {
+  return request("/api/expenses", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function updateExpenseAPI(id, data, accessToken) {
+  return request(`/api/expenses/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteExpenseAPI(id, accessToken) {
+  return request(`/api/expenses/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function approveExpenseAPI(id, data, accessToken) {
+  return request(`/api/expenses/${id}/approve`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function rejectExpenseAPI(id, data, accessToken) {
+  return request(`/api/expenses/${id}/reject`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function payExpenseAPI(id, data, accessToken) {
+  return request(`/api/expenses/${id}/pay`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function cancelExpenseAPI(id, accessToken) {
+  return request(`/api/expenses/${id}/cancel`, { method: "POST", body: JSON.stringify({}), token: accessToken });
+}

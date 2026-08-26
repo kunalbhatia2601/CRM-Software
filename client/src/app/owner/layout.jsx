@@ -16,6 +16,15 @@ const navItems = [
   { name: "Dashboard", href: "/owner/dashboard", icon: "LayoutDashboard" },
   { name: "Calendar", href: "/owner/calendar", icon: "Calendar" },
   {
+    name: "Expenses",
+    href: "/owner/expenses",
+    icon: "Receipt",
+    children: [
+      { name: "All Expenses", href: "/owner/expenses" },
+      { name: "Categories", href: "/owner/expenses/categories" },
+    ],
+  },
+  {
     name: "Users",
     href: "/owner/users",
     icon: "UsersRound",

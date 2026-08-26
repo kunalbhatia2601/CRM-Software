@@ -188,6 +188,12 @@ model User {
   taskFeedbacks        TaskFeedback[] @relation("TaskFeedbackGiver")
   taskSubmissions      TaskSubmission[] @relation("TaskSubmitter")
 
+  // Expenses
+  submittedExpenses    Expense[]      @relation("ExpenseSubmitter")
+  reviewedExpenses     Expense[]      @relation("ExpenseReviewer")
+  paidExpenses         Expense[]      @relation("ExpensePayer")
+  expenseEvents        ExpenseEvent[] @relation("ExpenseEventActor")
+
   // Comments
   comments             Comment[]      @relation("CommentAuthor")
 
@@ -392,6 +398,8 @@ model Client {
   // Invoices
   invoices        Invoice[]
 
+  expenses    Expense[]
+
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -454,6 +462,8 @@ model Project {
 
   // Deliverables
   deliverables    Deliverable[]
+
+  expenses    Expense[]
 
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -1281,6 +1291,132 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Expenses ────────────────────────────────────────
+
+enum ExpenseStatus {
+  DRAFT
+  PENDING     // submitted, awaiting approval
+  APPROVED    // approved, not yet reimbursed
+  REJECTED
+  PAID        // settled
+  CANCELLED   // withdrawn by the claimant
+}
+
+enum ExpensePaymentMode {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CARD
+  COMPANY_CARD
+  OTHER
+}
+
+// Configurable expense type. `fieldSchema` drives the claim form, exactly like
+// Job.formFields drives a job application.
+model ExpenseCategory {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  icon        String?                          // lucide icon name
+
+  // Array<{ id, label, type: "text"|"textarea"|"number"|"select"|"date"|"file",
+  //         required?: boolean, options?: string[], placeholder?: string,
+  //         computed?: { rate: number, into: "amount" } }>
+  fieldSchema Json?    @map("field_schema")
+
+  requiresReceipt Boolean  @default(true) @map("requires_receipt")
+  isReimbursable  Boolean  @default(true) @map("is_reimbursable")
+  // Above this, a second approver is expected. Stored now, enforced later.
+  approvalLimit   Decimal? @map("approval_limit") @db.Decimal(12, 2)
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  expenses    Expense[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  reference   String        @unique            // EXP-2026-0001
+  title       String
+  description String?       @db.Text
+
+  categoryId  String          @map("category_id")
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  // Answers to the category's fieldSchema
+  formData    Json?         @map("form_data")
+  // [{ name, url, key, mimeType, size }] — max 10 files, 5 MB each
+  attachments Json?
+
+  amount      Decimal       @db.Decimal(12, 2)
+  taxAmount   Decimal       @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount Decimal       @map("total_amount") @db.Decimal(12, 2)
+  currency    Currency      @default(INR)
+
+  expenseDate DateTime      @map("expense_date") @db.Date   // when spent
+  isReimbursable Boolean    @default(true) @map("is_reimbursable")
+  paymentMode ExpensePaymentMode?  @map("payment_mode")
+
+  status      ExpenseStatus @default(PENDING)
+
+  // Cost attribution
+  projectId   String?  @map("project_id")
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId    String?  @map("client_id")
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  isBillable  Boolean  @default(false) @map("is_billable")
+  invoiceId   String?  @map("invoice_id")       // set once recharged to the client
+
+  submittedById String @map("submitted_by_id")
+  submittedBy   User   @relation("ExpenseSubmitter", fields: [submittedById], references: [id])
+
+  reviewedById  String?   @map("reviewed_by_id")
+  reviewedBy    User?     @relation("ExpenseReviewer", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime? @map("reviewed_at")
+  reviewNotes   String?   @db.Text @map("review_notes")
+
+  paidById      String?   @map("paid_by_id")
+  paidBy        User?     @relation("ExpensePayer", fields: [paidById], references: [id])
+  paidAt        DateTime? @map("paid_at")
+  paymentRef    String?   @map("payment_ref")   // UTR / txn id
+
+  events      ExpenseEvent[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([submittedById])
+  @@index([categoryId])
+  @@index([projectId])
+  @@index([expenseDate])
+  @@map("expenses")
+}
+
+// Audit trail — one row per transition, same discipline as TaskFeedback.
+model ExpenseEvent {
+  id          String        @id @default(cuid())
+  expenseId   String        @map("expense_id")
+  expense     Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  action      String                            // SUBMITTED | APPROVED | REJECTED | PAID | EDITED | CANCELLED
+  note        String?       @db.Text
+  statusAfter ExpenseStatus @map("status_after")
+
+  actorId     String        @map("actor_id")
+  actor       User          @relation("ExpenseEventActor", fields: [actorId], references: [id])
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([expenseId])
+  @@map("expense_events")
+}
+
 // ─── Task Submission ─────────────────────────────────
 // The work handed in when a task goes to review. One row per hand-in, so a
 // task that bounces back for rework keeps every round instead of overwriting.

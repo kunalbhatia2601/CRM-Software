@@ -50,6 +50,12 @@ const VARIANTS = {
   IN_REVIEW: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
   CLIENT_REVIEW: "bg-purple-50 dark:bg-purple-900/20 text-purple-600 border-purple-200",
 
+  // Expense statuses
+  PENDING_APPROVAL: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200",
+  APPROVED: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-blue-200",
+  REJECTED: "bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200",
+  PAID: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-200",
+
   // Milestone / Step statuses
   PENDING: "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
 

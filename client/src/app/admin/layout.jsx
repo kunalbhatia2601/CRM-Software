@@ -24,6 +24,15 @@ const navItems = [
     ],
   },
   {
+    name: "Expenses",
+    href: "/admin/expenses",
+    icon: "Receipt",
+    children: [
+      { name: "All Expenses", href: "/admin/expenses" },
+      { name: "Categories", href: "/admin/expenses/categories" },
+    ],
+  },
+  {
     name: "Deals",
     href: "/admin/deals",
     icon: "Handshake",

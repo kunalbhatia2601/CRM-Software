@@ -12,6 +12,7 @@ export async function generateMetadata() {
 
 const navItems = [
   { name: "Dashboard", href: "/employee/dashboard", icon: "LayoutDashboard" },
+  { name: "My Expenses", href: "/employee/expenses", icon: "Receipt" },
   { name: "My Tasks", href: "/employee/tasks", icon: "ListChecks" },
   { name: "Projects", href: "/employee/projects", icon: "FolderKanban" },
   { name: "Meetings", href: "/employee/meetings", icon: "Calendar" },
