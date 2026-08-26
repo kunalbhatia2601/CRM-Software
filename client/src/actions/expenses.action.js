@@ -2,7 +2,7 @@
 
 import {
   getExpenseCategoriesAPI, createExpenseCategoryAPI, updateExpenseCategoryAPI, deleteExpenseCategoryAPI,
-  getExpensesAPI, getMyExpensesAPI, getExpenseAPI, createExpenseAPI, updateExpenseAPI,
+  getExpensesAPI, getMyExpensesAPI, getExpenseStatsAPI, getProjectExpenseSummaryAPI, getExpenseAPI, createExpenseAPI, updateExpenseAPI,
   deleteExpenseAPI, approveExpenseAPI, rejectExpenseAPI, payExpenseAPI, cancelExpenseAPI,
 } from "@/lib/api";
 import { getToken } from "@/lib/session";
@@ -38,6 +38,16 @@ export async function updateExpenseCategory(id, data) {
 
 export async function deleteExpenseCategory(id) {
   return call((t) => deleteExpenseCategoryAPI(id, t), "Failed to delete category");
+}
+
+/** Expense spend on one project, split by billing period. */
+export async function getProjectExpenseSummary(projectId) {
+  return call((t) => getProjectExpenseSummaryAPI(projectId, t), "Failed to load project expenses");
+}
+
+/** Role-aware dashboard figures. */
+export async function getExpenseStats() {
+  return call((t) => getExpenseStatsAPI(t), "Failed to load expense stats");
 }
 
 // ─── Expenses ───

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Users, CheckCircle2, Clock, Calendar, UserX, AlertCircle, ArrowRight, FileText } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 function formatDate(d) {
   if (!d) return "—";
@@ -172,6 +173,8 @@ function TodayBar({ stats, total }) {
           title={`${s.value}`}
         />
       ))}
+      <ExpenseTiles basePath="/hr" />
+
     </div>
   );
 }

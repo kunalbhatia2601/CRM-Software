@@ -71,6 +71,119 @@ function validateFormData(category, formData, attachments) {
   }
 }
 
+// Billable day/month used to convert elapsed working time into the unit a task
+// rate is quoted in. Must match TaskTimings.jsx on the client or the two
+// screens will disagree about the same task.
+const HOURS_PER_DAY = 8;
+const HOURS_PER_MONTH = HOURS_PER_DAY * 22;
+
+/**
+ * Cost of one task: its internal rate × the time spent working on it.
+ *
+ * Work starts at the first move to IN_PROGRESS — there is no startedAt column,
+ * so the feedback trail is the record. An unfinished task is costed up to now.
+ *
+ * @returns {{cost: number, hours: number, startedAt: Date|null, at: Date|null}}
+ */
+function costOfTask(task) {
+  const rate = num(task.internalCostAmount);
+  const type = task.internalCostType;
+  if (!rate || !type || type === "NONE") {
+    return { cost: 0, hours: 0, startedAt: null, at: task.completedAt || null };
+  }
+
+  const startedAt = (task.feedbacks || [])
+    .filter((f) => f.statusAfter === "IN_PROGRESS")
+    .map((f) => new Date(f.createdAt))
+    .sort((a, b) => a - b)[0] || null;
+
+  if (!startedAt) return { cost: 0, hours: 0, startedAt: null, at: task.completedAt || null };
+
+  const end = task.completedAt ? new Date(task.completedAt) : new Date();
+  const hours = Math.max(0, (end - startedAt) / 3600000);
+  const divisor = type === "HOUR" ? 1 : type === "DAY" ? HOURS_PER_DAY : HOURS_PER_MONTH;
+
+  return {
+    cost: rate * (hours / divisor),
+    hours,
+    startedAt,
+    // Costs land in the period the work finished, or started if still running.
+    at: task.completedAt ? new Date(task.completedAt) : startedAt,
+  };
+}
+
+/** Months in one billing cycle. ONE_TIME has no cycle. */
+const CYCLE_MONTHS = { MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, ANNUAL: 12 };
+
+/**
+ * Slice a project's spend into billing periods.
+ *
+ * Periods run from the project's start date in steps of the billing cycle, so
+ * they line up with what the client is actually invoiced for. A one-time
+ * project gets a single lifetime bucket.
+ *
+ * @returns {Array<{label, from, to, amount, count, isCurrent}>} oldest first
+ */
+function buildBillingPeriods(project, expenses, taskCosts = []) {
+  const months = CYCLE_MONTHS[project.billingCycle];
+  const start = project.startDate ? new Date(project.startDate) : null;
+
+  if (!months || !start) {
+    const amount = expenses.reduce((sum, e) => sum + num(e.totalAmount), 0);
+    const taskAmount = taskCosts.reduce((sum, t) => sum + t.cost, 0);
+    return [{
+      label: "Lifetime",
+      from: start,
+      to: null,
+      amount,
+      taskAmount,
+      total: amount + taskAmount,
+      count: expenses.length,
+      isCurrent: true,
+    }];
+  }
+
+  const now = new Date();
+  const fmt = (d) => d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+  const periods = [];
+
+  let from = new Date(start);
+  // Stop once the window that contains today has been added.
+  while (from <= now) {
+    const to = new Date(from);
+    to.setMonth(to.getMonth() + months);
+
+    const inPeriod = expenses.filter((e) => {
+      const d = new Date(e.expenseDate);
+      return d >= from && d < to;
+    });
+    const tasksInPeriod = taskCosts.filter((t) => t.at && t.at >= from && t.at < to);
+
+    const end = new Date(to);
+    end.setDate(end.getDate() - 1);
+
+    const amount = inPeriod.reduce((sum, e) => sum + num(e.totalAmount), 0);
+    const taskAmount = tasksInPeriod.reduce((sum, t) => sum + t.cost, 0);
+
+    periods.push({
+      label: months === 1 ? fmt(from) : `${fmt(from)} – ${fmt(end)}`,
+      from: new Date(from),
+      to: end,
+      amount,
+      taskAmount,
+      total: amount + taskAmount,
+      count: inPeriod.length,
+      isCurrent: now >= from && now < to,
+    });
+
+    from = to;
+  }
+
+  // Long-running retainers would return dozens of periods; the recent ones are
+  // what anyone actually looks at.
+  return periods.slice(-12);
+}
+
 class ExpenseService {
   // ─── Categories ──────────────────────────────────────
 
@@ -371,6 +484,261 @@ class ExpenseService {
     if (user.role !== "OWNER") throw ApiError.forbidden("Only an owner can delete an expense");
     if (existing.status === "PAID") throw ApiError.badRequest("A settled expense cannot be deleted");
     await prisma.expense.delete({ where: { id } });
+  }
+
+  /**
+   * Dashboard figures, shaped by who is asking.
+   *
+   * Approvers get the queue, payers get the liability, everyone gets their own
+   * position. Project-attributed spend is money-wide, so it is limited to the
+   * roles that see company finances.
+   */
+  async getStats(user) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const approver = APPROVER_ROLES.includes(user.role);
+    const financeWide = canViewAll(user);
+
+    const [
+      pendingQueue,
+      owedToStaff,
+      myPending,
+      myPaidThisMonth,
+      monthSpend,
+      projectSpend,
+      recent,
+    ] = await Promise.all([
+      // Awaiting approval — company-wide for approvers, otherwise skipped.
+      approver
+        ? prisma.expense.aggregate({
+            where: { status: "PENDING" },
+            _count: { id: true },
+            _sum: { totalAmount: true },
+          })
+        : null,
+
+      // Approved, reimbursable, not yet paid — a real liability.
+      financeWide
+        ? prisma.expense.aggregate({
+            where: { status: "APPROVED", isReimbursable: true },
+            _count: { id: true },
+            _sum: { totalAmount: true },
+          })
+        : null,
+
+      // What this user is still owed or waiting on.
+      prisma.expense.aggregate({
+        where: {
+          submittedById: user.id,
+          status: { in: ["PENDING", "APPROVED"] },
+          isReimbursable: true,
+        },
+        _count: { id: true },
+        _sum: { totalAmount: true },
+      }),
+
+      prisma.expense.aggregate({
+        where: { submittedById: user.id, status: "PAID", paidAt: { gte: monthStart } },
+        _sum: { totalAmount: true },
+      }),
+
+      // Company spend this month, approved or settled.
+      financeWide
+        ? prisma.expense.aggregate({
+            where: { status: { in: ["APPROVED", "PAID"] }, expenseDate: { gte: monthStart } },
+            _sum: { totalAmount: true },
+          })
+        : null,
+
+      // Spend attributed to a project, and how much of it is rechargeable.
+      financeWide
+        ? prisma.expense.groupBy({
+            by: ["isBillable"],
+            where: { status: { in: ["APPROVED", "PAID"] }, projectId: { not: null } },
+            _count: { id: true },
+            _sum: { totalAmount: true },
+          })
+        : null,
+
+      prisma.expense.findMany({
+        where: approver ? { status: "PENDING" } : { submittedById: user.id },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          category: { select: { id: true, name: true, icon: true } },
+          submittedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+    ]);
+
+    const billableRow = projectSpend?.find((r) => r.isBillable === true);
+    const nonBillableRow = projectSpend?.find((r) => r.isBillable === false);
+
+    return {
+      canApprove: approver,
+      financeWide,
+      pendingApproval: approver
+        ? { count: pendingQueue._count.id, amount: num(pendingQueue._sum.totalAmount) }
+        : null,
+      owedToStaff: financeWide
+        ? { count: owedToStaff._count.id, amount: num(owedToStaff._sum.totalAmount) }
+        : null,
+      mine: {
+        count: myPending._count.id,
+        amount: num(myPending._sum.totalAmount),
+        paidThisMonth: num(myPaidThisMonth._sum.totalAmount),
+      },
+      monthSpend: financeWide ? num(monthSpend._sum.totalAmount) : null,
+      projectSpend: financeWide
+        ? {
+            total: num(billableRow?._sum.totalAmount) + num(nonBillableRow?._sum.totalAmount),
+            billable: num(billableRow?._sum.totalAmount),
+            billableCount: billableRow?._count.id ?? 0,
+          }
+        : null,
+      recent: recent.map((e) => ({
+        ...e,
+        amount: num(e.amount),
+        totalAmount: num(e.totalAmount),
+      })),
+    };
+  }
+
+  /**
+   * Expense summary for one project.
+   *
+   * A recurring project's lifetime total says little — a two-year retainer will
+   * always look expensive. So spend is also broken down by billing period, with
+   * the period containing today called out separately.
+   */
+  async getProjectSummary(projectId) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, name: true, billingCycle: true, startDate: true, budget: true },
+    });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    // Delivery cost sits alongside claimed spend: team time is the larger half
+    // of what a project actually costs.
+    const [tasks, invoiceAgg] = await Promise.all([
+      prisma.task.findMany({
+        where: { projectId, internalCostType: { not: "NONE" } },
+        select: {
+          id: true, title: true, completedAt: true, status: true,
+          internalCostAmount: true, internalCostType: true,
+          assignee: { select: { id: true, firstName: true, lastName: true } },
+          feedbacks: { select: { statusAfter: true, createdAt: true } },
+        },
+      }),
+      // What the client has actually been billed, for margin.
+      prisma.invoice.aggregate({
+        where: { projectId, status: { notIn: ["DRAFT", "CANCELLED"] } },
+        _sum: { total: true, amountPaid: true },
+      }),
+    ]);
+
+    const taskCosts = tasks.map((t) => ({ task: t, ...costOfTask(t) }));
+    const taskCostTotal = taskCosts.reduce((sum, t) => sum + t.cost, 0);
+    const taskHours = taskCosts.reduce((sum, t) => sum + t.hours, 0);
+    const runningTaskCost = taskCosts
+      .filter((t) => !t.task.completedAt && t.cost > 0)
+      .reduce((sum, t) => sum + t.cost, 0);
+
+    // Drafts, rejections and withdrawals are not money spent.
+    const COUNTED = ["APPROVED", "PAID", "PENDING"];
+
+    const expenses = await prisma.expense.findMany({
+      where: { projectId, status: { in: COUNTED } },
+      select: {
+        id: true, reference: true, title: true, totalAmount: true, status: true,
+        expenseDate: true, isBillable: true, invoiceId: true,
+        category: { select: { id: true, name: true, icon: true } },
+        submittedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { expenseDate: "desc" },
+    });
+
+    const settled = expenses.filter((e) => e.status !== "PENDING");
+    const total = settled.reduce((sum, e) => sum + num(e.totalAmount), 0);
+    const pending = expenses
+      .filter((e) => e.status === "PENDING")
+      .reduce((sum, e) => sum + num(e.totalAmount), 0);
+
+    const billable = settled.filter((e) => e.isBillable);
+    const billableTotal = billable.reduce((sum, e) => sum + num(e.totalAmount), 0);
+    const unbilledTotal = billable
+      .filter((e) => !e.invoiceId)
+      .reduce((sum, e) => sum + num(e.totalAmount), 0);
+
+    // Spend per category, biggest first.
+    const catMap = new Map();
+    for (const e of settled) {
+      const key = e.category?.id || "none";
+      const prev = catMap.get(key) || {
+        id: key, name: e.category?.name || "Uncategorised",
+        icon: e.category?.icon || null, amount: 0, count: 0,
+      };
+      prev.amount += num(e.totalAmount);
+      prev.count += 1;
+      catMap.set(key, prev);
+    }
+    const byCategory = [...catMap.values()].sort((a, b) => b.amount - a.amount);
+
+    const periods = buildBillingPeriods(project, settled, taskCosts);
+
+    const billed = num(invoiceAgg._sum.total);
+    const collected = num(invoiceAgg._sum.amountPaid);
+    const totalCost = total + taskCostTotal;
+
+    return {
+      project: {
+        id: project.id,
+        name: project.name,
+        billingCycle: project.billingCycle,
+        budget: project.budget != null ? num(project.budget) : null,
+      },
+      total,
+      pending,
+      billableTotal,
+      unbilledTotal,
+      count: settled.length,
+      byCategory,
+
+      // Team time
+      taskCost: {
+        total: taskCostTotal,
+        hours: Math.round(taskHours * 10) / 10,
+        running: runningTaskCost,
+        taskCount: taskCosts.filter((t) => t.cost > 0).length,
+        top: taskCosts
+          .filter((t) => t.cost > 0)
+          .sort((a, b) => b.cost - a.cost)
+          .slice(0, 5)
+          .map((t) => ({
+            id: t.task.id,
+            title: t.task.title,
+            status: t.task.status,
+            assignee: t.task.assignee,
+            hours: Math.round(t.hours * 10) / 10,
+            cost: t.cost,
+            running: !t.task.completedAt,
+          })),
+      },
+
+      // The whole picture: what it cost versus what it earned
+      totals: {
+        cost: totalCost,
+        billed,
+        collected,
+        margin: billed - totalCost,
+        marginPct: billed > 0 ? Math.round(((billed - totalCost) / billed) * 100) : null,
+      },
+      isRecurring: project.billingCycle !== "ONE_TIME",
+      periods,
+      currentPeriod: periods.find((p) => p.isCurrent) || null,
+      recent: expenses.slice(0, 8).map((e) => ({ ...e, totalAmount: num(e.totalAmount) })),
+    };
   }
 
   // ─── Notifications ───────────────────────────────────

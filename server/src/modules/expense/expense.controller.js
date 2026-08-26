@@ -49,6 +49,16 @@ class ExpenseController {
     return ok(res, "My expenses retrieved", data);
   });
 
+  stats = catchAsync(async (req, res) => {
+    const data = await expenseService.getStats(req.user);
+    return ok(res, "Expense stats retrieved", data);
+  });
+
+  projectSummary = catchAsync(async (req, res) => {
+    const data = await expenseService.getProjectSummary(req.params.projectId);
+    return ok(res, "Project expense summary retrieved", data);
+  });
+
   getById = catchAsync(async (req, res) => {
     const expense = await expenseService.getById(req.params.id, req.user);
     return ok(res, "Expense retrieved", expense);

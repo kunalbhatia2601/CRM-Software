@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 export default function AccountDashboardContent({ stats }) {
   const { user } = useAuth();
@@ -222,6 +223,8 @@ export default function AccountDashboardContent({ stats }) {
           )}
         </div>
       </div>
+      <ExpenseTiles basePath="/accounts" />
+
     </div>
   );
 }

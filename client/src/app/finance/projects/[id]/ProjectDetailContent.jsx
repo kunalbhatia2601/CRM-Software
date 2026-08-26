@@ -16,6 +16,8 @@ import ProjectTeamsSection from "@/components/project/ProjectTeamsSection";
 import ProjectNotesSection from "@/components/project/ProjectNotesSection";
 import DeliverablesSection from "@/components/project/DeliverablesSection";
 import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection";
+import ProjectExpensesSection from "@/components/expenses/ProjectExpensesSection";
+import ProjectExpenseTile from "@/components/expenses/ProjectExpenseTile";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import Toast from "@/components/ui/Toast";
 
@@ -261,6 +263,8 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
           value={getBillingLabel(project.billingCycle)}
           accent={isRecurring}
         />
+        {/* Renders itself only for owner / admin / finance. */}
+        <ProjectExpenseTile projectId={project.id} />
       </div>
 
       {/* Recurring Billing Info — only show for recurring projects */}
@@ -557,6 +561,8 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
 
       {/* ═══ Invoices ═══ */}
       <ProjectInvoicesSection projectId={project.id} basePath="/finance" />
+
+      <ProjectExpensesSection projectId={project.id} basePath="/finance" />
 
       <ProjectNotesSection
         project={project}

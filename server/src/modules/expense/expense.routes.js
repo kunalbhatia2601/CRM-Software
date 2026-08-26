@@ -29,6 +29,14 @@ router.delete("/categories/:id", adminOnly, validate(idParamSchema), controller.
 // ─── Expenses ───
 // Named routes before /:id so they are not swallowed by it.
 router.get("/my", staff, validate(listExpensesSchema), controller.listMine);
+router.get("/stats", staff, controller.stats);
+
+// Project spend — company financials, so the money roles only.
+router.get(
+  "/project/:projectId/summary",
+  authorize("OWNER", "ADMIN", "FINANCE_MANAGER"),
+  controller.projectSummary
+);
 
 router.post("/", staff, validate(createExpenseSchema), controller.create);
 router.get("/", staff, validate(listExpensesSchema), controller.list);

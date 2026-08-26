@@ -13,6 +13,7 @@ import {
   Calendar,
   PhoneForwarded,
 } from "lucide-react";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 const LEAD_STATUS_COLORS = {
   NEW: "#5542F6", CONTACTED: "#3B82F6", QUALIFIED: "#20C997",
@@ -308,6 +309,8 @@ export default function SalesDashboardContent({ stats }) {
           )}
         </div>
       </div>
+      <ExpenseTiles basePath="/sales" />
+
     </div>
   );
 }

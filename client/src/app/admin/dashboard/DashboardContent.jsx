@@ -17,6 +17,7 @@ import {
   Loader2,
   Check,
 } from "lucide-react";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 /* ─── Period Options ─── */
 const PERIODS = [
@@ -693,6 +694,8 @@ export default function DashboardContent({ stats: initialStats }) {
           )}
         </div>
       </div>
+      <ExpenseTiles basePath="/admin" />
+
     </div>
   );
 }

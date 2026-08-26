@@ -1406,6 +1406,14 @@ export async function deleteExpenseCategoryAPI(id, accessToken) {
   return request(`/api/expenses/categories/${id}`, { method: "DELETE", token: accessToken });
 }
 
+export async function getProjectExpenseSummaryAPI(projectId, accessToken) {
+  return request(`/api/expenses/project/${projectId}/summary`, { method: "GET", token: accessToken });
+}
+
+export async function getExpenseStatsAPI(accessToken) {
+  return request("/api/expenses/stats", { method: "GET", token: accessToken });
+}
+
 export async function getExpensesAPI(params, accessToken) {
   const qs = new URLSearchParams(params || {}).toString();
   return request(`/api/expenses${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });

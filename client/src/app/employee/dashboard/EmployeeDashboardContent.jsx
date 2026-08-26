@@ -5,6 +5,7 @@ import {
   ListChecks, Clock, AlertTriangle, CheckCircle2, ArrowRight, CalendarDays,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 const STATUS_BAR = [
   { key: "new", label: "New", color: "bg-slate-300 dark:bg-slate-600" },
@@ -199,6 +200,8 @@ export default function EmployeeDashboardContent({ stats }) {
           )}
         </div>
       </div>
+      <ExpenseTiles basePath="/employee" />
+
     </div>
   );
 }

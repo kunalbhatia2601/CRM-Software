@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { useSite } from "@/context/SiteContext";
+import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 const STATUS_BAR = [
   { key: "draft", label: "Draft", color: "bg-slate-300 dark:bg-slate-600" },
@@ -282,6 +283,8 @@ export default function FinanceDashboardContent({ stats }) {
           <p className="text-sm text-slate-400 text-center py-8">No invoices yet.</p>
         )}
       </div>
+      <ExpenseTiles basePath="/finance" />
+
     </div>
   );
 }
