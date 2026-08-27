@@ -8,6 +8,7 @@ import {
   createCampaignSchema, updateCampaignSchema, listCampaignsSchema,
   idParamSchema, upsertStatSchema, listStatsSchema, statDateParamSchema,
   ledgerQuerySchema, addBudgetEntrySchema, entryIdParamSchema, overviewQuerySchema,
+  analyticsQuerySchema, projectAnalyticsSchema,
 } from "./campaign.validation.js";
 
 const router = Router();
@@ -24,6 +25,10 @@ router.get("/types", readers, controller.listTypes);
 router.post("/types", adminOnly, validate(createTypeSchema), controller.createType);
 router.patch("/types/:id", adminOnly, validate(updateTypeSchema), controller.updateType);
 router.delete("/types/:id", adminOnly, validate(idParamSchema), controller.deleteType);
+
+// ─── Analytics ─── (named routes before "/:id")
+router.get("/analytics", readers, validate(analyticsQuerySchema), controller.analytics);
+router.get("/analytics/project/:projectId", readers, validate(projectAnalyticsSchema), controller.projectAnalytics);
 
 // ─── Ad budget ─── (named routes before "/:id")
 // Marketing spends the budget; only the money roles may release funds into it.

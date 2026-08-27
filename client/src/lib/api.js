@@ -1535,3 +1535,13 @@ export async function addAdBudgetEntryAPI(projectId, data, accessToken) {
 export async function deleteAdBudgetEntryAPI(entryId, accessToken) {
   return request(`/api/campaigns/budget/entries/${entryId}`, { method: "DELETE", token: accessToken });
 }
+
+export async function getCampaignAnalyticsAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/analytics${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getProjectCampaignAnalyticsAPI(projectId, params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/analytics/project/${projectId}${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}

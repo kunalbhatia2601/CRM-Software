@@ -69,6 +69,21 @@ class CampaignController {
     return ok(res, "Results removed");
   });
 
+  // ─── Analytics ───
+  analytics = catchAsync(async (req, res) => {
+    const data = await campaignService.analytics(req.query);
+    return ok(res, "Campaign analytics retrieved", data);
+  });
+
+  projectAnalytics = catchAsync(async (req, res) => {
+    const data = await campaignService.analytics({
+      projectId: req.params.projectId,
+      from: req.query.from,
+      to: req.query.to,
+    });
+    return ok(res, "Project campaign analytics retrieved", data);
+  });
+
   // ─── Ad budget ledger ───
   ledger = catchAsync(async (req, res) => {
     const now = new Date();

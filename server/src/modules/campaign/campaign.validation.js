@@ -141,3 +141,21 @@ export const overviewQuerySchema = z.object({
     month: z.coerce.number().int().min(1).max(12).optional(),
   }),
 });
+
+// ─── Analytics ────────────────────────────────────────
+
+export const analyticsQuerySchema = z.object({
+  query: z.object({
+    projectId: z.string().optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+  }),
+});
+
+export const projectAnalyticsSchema = z.object({
+  params: z.object({ projectId: z.string().min(1) }),
+  query: z.object({
+    from: z.string().optional(),
+    to: z.string().optional(),
+  }),
+});

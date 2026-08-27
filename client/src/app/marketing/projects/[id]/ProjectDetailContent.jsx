@@ -19,6 +19,7 @@ import ProjectInvoicesSection from "@/components/invoices/ProjectInvoicesSection
 import ProjectExpensesSection from "@/components/expenses/ProjectExpensesSection";
 import ProjectExpenseTile from "@/components/expenses/ProjectExpenseTile";
 import KanbanBoard from "@/components/project/KanbanBoard";
+import CampaignAnalytics from "@/components/campaigns/CampaignAnalytics";
 import Toast from "@/components/ui/Toast";
 
 const STATUS_COLORS = {
@@ -130,6 +131,8 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
   const { format } = useSite();
   const [toast, setToast] = useState(null);
   const [planningView, setPlanningView] = useState("list"); // "list" | "kanban"
+  // Marketing works two ways on a project: delivery, and campaign performance.
+  const [mainTab, setMainTab] = useState("overview"); // "overview" | "analytics"
   const [tasks, setTasks] = useState(initialTasks);
   const [steps, setSteps] = useState(initialSteps);
   const [milestones, setMilestones] = useState(initialMilestones);
@@ -237,6 +240,31 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
           </div>
         </div>
       </div>
+
+      {/* Overview vs campaign analysis */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800">
+        {[
+          { id: "overview", label: "Overview" },
+          { id: "analytics", label: "Marketing Analysis" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setMainTab(t.id)}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              mainTab === t.id
+                ? "border-[#5542F6] text-[#5542F6]"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {mainTab === "analytics" ? (
+        <CampaignAnalytics projectId={project.id} />
+      ) : (
+        <>
 
       {/* Key Detail Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -596,6 +624,8 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

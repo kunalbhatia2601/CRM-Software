@@ -392,6 +392,248 @@ class CampaignService {
     await prisma.campaignDailyStat.delete({ where: { id: existing.id } });
   }
 
+  // ─── Analytics ───────────────────────────────────────
+
+  /**
+   * Deep analysis over a set of campaigns.
+   *
+   * Metric keys are summed by name across campaign types, so a project running
+   * Meta ads and Reels reports one `reach` series rather than two. Keys that
+   * stay at zero are dropped — a Reel has no `impressions` to report.
+   *
+   * @param {object} opts { projectId?, from?, to? }
+   */
+  async analytics({ projectId, from, to } = {}) {
+    const now = new Date();
+    // Default window: last 90 days, roughly a quarter of activity.
+    const start = from ? toDay(from) : toDay(new Date(now.getTime() - 89 * 86400000));
+    const end = to ? toDay(to) : toDay(now);
+
+    const where = { status: { notIn: ["CANCELLED"] } };
+    if (projectId) where.projectId = projectId;
+
+    const campaigns = await prisma.campaign.findMany({
+      where,
+      include: {
+        type: { select: { id: true, name: true, platform: true, icon: true, metricSchema: true, derivedMetrics: true } },
+        project: { select: { id: true, name: true } },
+        dailyStats: { where: { date: { gte: start, lte: end } }, orderBy: { date: "asc" } },
+      },
+      orderBy: { startDate: "desc" },
+    });
+
+    const emptyResult = {
+      range: { from: start, to: end },
+      empty: true,
+      totals: { spend: 0, leads: 0, qualified: 0, won: 0, revenue: 0, cpl: null, costPerWon: null, roi: null, roas: null },
+      metricTotals: {}, metricKeys: [], series: [], funnel: [],
+      campaigns: [], platforms: [], pacing: null, weekly: [], dayOfWeek: [],
+    };
+    if (campaigns.length === 0) return emptyResult;
+
+    const campaignIds = campaigns.map((c) => c.id);
+
+    // Attribution: leads credited to these campaigns, and what became of them.
+    const leads = await prisma.lead.findMany({
+      where: { campaignId: { in: campaignIds } },
+      select: {
+        id: true, campaignId: true, status: true, createdAt: true,
+        deal: { select: { id: true, stage: true, value: true } },
+      },
+    });
+
+    const leadsOf = (id) => leads.filter((l) => l.campaignId === id);
+    const isQualified = (l) => ["QUALIFIED", "CONVERTED"].includes(l.status);
+    const isWon = (l) => l.deal?.stage === "WON";
+    const revenueOf = (l) => (isWon(l) ? num(l.deal.value) : 0);
+
+    // ── Daily series, merged across campaigns ──
+    const dayMap = new Map();
+    const metricTotals = {};
+
+    for (const c of campaigns) {
+      for (const st of c.dailyStats) {
+        const key = st.date.toISOString().slice(0, 10);
+        const row = dayMap.get(key) || { date: key, spend: 0, leads: 0 };
+        row.spend += num(st.spend);
+        for (const [k, v] of Object.entries(st.metrics || {})) {
+          const n = Number(v) || 0;
+          row[k] = (row[k] || 0) + n;
+          metricTotals[k] = (metricTotals[k] || 0) + n;
+        }
+        dayMap.set(key, row);
+      }
+    }
+
+    // Leads land on the day they arrived, so the chart can show them against
+    // the spend that produced them.
+    for (const l of leads) {
+      const key = toDay(l.createdAt).toISOString().slice(0, 10);
+      const row = dayMap.get(key);
+      if (row) row.leads += 1;
+    }
+
+    const series = [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Human labels for the metric keys that actually carry data.
+    const labelFor = {};
+    for (const c of campaigns) {
+      for (const m of c.type?.metricSchema || []) labelFor[m.id] = m.label;
+    }
+    const metricKeys = Object.entries(metricTotals)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => ({ id: k, label: labelFor[k] || k, total: v }));
+
+    // ── Totals + funnel ──
+    const totalSpend = series.reduce((sum, d) => sum + d.spend, 0);
+    const qualified = leads.filter(isQualified).length;
+    const won = leads.filter(isWon).length;
+    const revenue = leads.reduce((sum, l) => sum + revenueOf(l), 0);
+
+    const funnel = [
+      { id: "impressions", label: "Impressions", value: metricTotals.impressions || metricTotals.reach || 0 },
+      { id: "clicks", label: "Clicks", value: metricTotals.clicks || 0 },
+      { id: "leads", label: "Leads", value: leads.length },
+      { id: "qualified", label: "Qualified", value: qualified },
+      { id: "won", label: "Won", value: won },
+    ].filter((s) => s.value > 0 || s.id === "leads");
+
+    // ── Per-campaign comparison ──
+    const campaignRows = campaigns.map((c) => {
+      const spend = c.dailyStats.reduce((sum, st) => sum + num(st.spend), 0);
+      const own = leadsOf(c.id);
+      const ownWon = own.filter(isWon);
+      const ownRevenue = own.reduce((sum, l) => sum + revenueOf(l), 0);
+
+      const totals = {};
+      for (const st of c.dailyStats) {
+        for (const [k, v] of Object.entries(st.metrics || {})) {
+          totals[k] = (totals[k] || 0) + (Number(v) || 0);
+        }
+      }
+
+      return {
+        id: c.id,
+        reference: c.reference,
+        name: c.name,
+        status: c.status,
+        type: c.type,
+        project: c.project,
+        budgetAllocated: num(c.budgetAllocated),
+        startDate: c.startDate,
+        endDate: c.endDate,
+        spend,
+        days: c.dailyStats.length,
+        leads: own.length,
+        qualified: own.filter(isQualified).length,
+        won: ownWon.length,
+        revenue: ownRevenue,
+        cpl: own.length > 0 ? spend / own.length : null,
+        costPerWon: ownWon.length > 0 ? spend / ownWon.length : null,
+        roi: spend > 0 ? ((ownRevenue - spend) / spend) * 100 : null,
+        derived: computeDerived(c.type?.derivedMetrics, { ...totals, spend }),
+      };
+    });
+
+    // ── By platform ──
+    const platformMap = new Map();
+    for (const row of campaignRows) {
+      const key = row.type?.platform || "OTHER";
+      const prev = platformMap.get(key) || { platform: key, spend: 0, leads: 0, won: 0, revenue: 0, campaigns: 0 };
+      prev.spend += row.spend;
+      prev.leads += row.leads;
+      prev.won += row.won;
+      prev.revenue += row.revenue;
+      prev.campaigns += 1;
+      platformMap.set(key, prev);
+    }
+    const platforms = [...platformMap.values()].sort((a, b) => b.spend - a.spend);
+
+    // ── Pacing: is spend on track against what is allocated? ──
+    const allocated = campaigns.reduce((sum, c) => sum + num(c.budgetAllocated), 0);
+    let pacing = null;
+    if (allocated > 0) {
+      const spentAll = campaignRows.reduce((sum, r) => sum + r.spend, 0);
+      const daysRecorded = series.length || 1;
+      const dailyRate = spentAll / daysRecorded;
+
+      const ends = campaigns
+        .filter((c) => c.status === "ACTIVE" && c.endDate)
+        .map((c) => new Date(c.endDate).getTime());
+      const daysRemaining = ends.length
+        ? Math.max(0, Math.ceil((Math.max(...ends) - now.getTime()) / 86400000))
+        : null;
+
+      pacing = {
+        allocated,
+        spent: spentAll,
+        remaining: allocated - spentAll,
+        dailyRate,
+        daysRemaining,
+        projected: daysRemaining !== null ? spentAll + dailyRate * daysRemaining : null,
+        usedPct: (spentAll / allocated) * 100,
+      };
+    }
+
+    // ── Weekly efficiency: does cost per lead rise as spend scales? ──
+    const weekMap = new Map();
+    for (const d of series) {
+      const dt = new Date(`${d.date}T00:00:00Z`);
+      const offset = (dt.getUTCDay() + 6) % 7;   // Monday-based week
+      const monday = new Date(dt);
+      monday.setUTCDate(monday.getUTCDate() - offset);
+      const key = monday.toISOString().slice(0, 10);
+      const prev = weekMap.get(key) || { week: key, spend: 0, leads: 0 };
+      prev.spend += d.spend;
+      prev.leads += d.leads || 0;
+      weekMap.set(key, prev);
+    }
+    const weekly = [...weekMap.values()]
+      .sort((a, b) => a.week.localeCompare(b.week))
+      .map((w) => ({ ...w, cpl: w.leads > 0 ? w.spend / w.leads : null }));
+
+    // ── Day of week: when does the audience actually respond? ──
+    const dowNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dow = dowNames.map((label) => ({ label, spend: 0, leads: 0, days: 0 }));
+    for (const d of series) {
+      const idx = new Date(`${d.date}T00:00:00Z`).getUTCDay();
+      dow[idx].spend += d.spend;
+      dow[idx].leads += d.leads || 0;
+      dow[idx].days += 1;
+    }
+    const dayOfWeek = dow.map((d) => ({
+      ...d,
+      avgSpend: d.days > 0 ? d.spend / d.days : 0,
+      avgLeads: d.days > 0 ? d.leads / d.days : 0,
+    }));
+
+    return {
+      range: { from: start, to: end },
+      empty: series.length === 0,
+      totals: {
+        spend: totalSpend,
+        leads: leads.length,
+        qualified,
+        won,
+        revenue,
+        cpl: leads.length > 0 ? totalSpend / leads.length : null,
+        costPerWon: won > 0 ? totalSpend / won : null,
+        roi: totalSpend > 0 ? ((revenue - totalSpend) / totalSpend) * 100 : null,
+        roas: totalSpend > 0 ? revenue / totalSpend : null,
+      },
+      metricTotals,
+      metricKeys,
+      series,
+      funnel,
+      campaigns: campaignRows,
+      platforms,
+      pacing,
+      weekly,
+      dayOfWeek,
+    };
+  }
+
   // ─── Ad budget ledger ────────────────────────────────
 
   /** Find or create the ledger for one project-month. */

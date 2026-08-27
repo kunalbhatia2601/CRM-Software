@@ -5,6 +5,7 @@ import {
   getCampaignsAPI, getCampaignAPI, createCampaignAPI, updateCampaignAPI, deleteCampaignAPI,
   getCampaignStatsAPI, upsertCampaignStatAPI, deleteCampaignStatAPI, getProjectAdBudgetAPI,
   getAdBudgetOverviewAPI, getAdBudgetLedgerAPI, addAdBudgetEntryAPI, deleteAdBudgetEntryAPI,
+  getCampaignAnalyticsAPI, getProjectCampaignAnalyticsAPI,
 } from "@/lib/api";
 import { getToken } from "@/lib/session";
 
@@ -98,4 +99,16 @@ export async function addAdBudgetEntry(projectId, data) {
 
 export async function deleteAdBudgetEntry(entryId) {
   return call((t) => deleteAdBudgetEntryAPI(entryId, t), "Failed to remove entry");
+}
+
+// ─── Analytics ───
+
+/** Agency-wide campaign analysis. Pass projectId to narrow it. */
+export async function getCampaignAnalytics(params = {}) {
+  return call((t) => getCampaignAnalyticsAPI(params, t), "Failed to load analytics");
+}
+
+/** Deep analysis for one project's campaigns. */
+export async function getProjectCampaignAnalytics(projectId, params = {}) {
+  return call((t) => getProjectCampaignAnalyticsAPI(projectId, params, t), "Failed to load analytics");
 }
