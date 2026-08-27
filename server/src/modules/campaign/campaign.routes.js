@@ -7,6 +7,7 @@ import {
   createTypeSchema, updateTypeSchema,
   createCampaignSchema, updateCampaignSchema, listCampaignsSchema,
   idParamSchema, upsertStatSchema, listStatsSchema, statDateParamSchema,
+  ledgerQuerySchema, addBudgetEntrySchema, entryIdParamSchema, overviewQuerySchema,
 } from "./campaign.validation.js";
 
 const router = Router();
@@ -24,8 +25,15 @@ router.post("/types", adminOnly, validate(createTypeSchema), controller.createTy
 router.patch("/types/:id", adminOnly, validate(updateTypeSchema), controller.updateType);
 router.delete("/types/:id", adminOnly, validate(idParamSchema), controller.deleteType);
 
-// ─── Budget ─── (named route before "/:id")
+// ─── Ad budget ─── (named routes before "/:id")
+// Marketing spends the budget; only the money roles may release funds into it.
+const funders = authorize("OWNER", "ADMIN", "FINANCE_MANAGER");
+
+router.get("/budget/overview", readers, validate(overviewQuerySchema), controller.budgetOverview);
 router.get("/budget/project/:projectId", readers, controller.projectBudget);
+router.get("/budget/project/:projectId/ledger", readers, validate(ledgerQuerySchema), controller.ledger);
+router.post("/budget/project/:projectId/entries", funders, validate(addBudgetEntrySchema), controller.addEntry);
+router.delete("/budget/entries/:entryId", funders, validate(entryIdParamSchema), controller.deleteEntry);
 
 // ─── Campaigns ───
 router.post("/", marketing, validate(createCampaignSchema), controller.create);

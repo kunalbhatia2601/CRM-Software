@@ -17,6 +17,7 @@ const navItems = [
   { name: "Clients", href: "/finance/clients", icon: "Building2" },
   { name: "Projects", href: "/finance/projects", icon: "FolderKanban" },
   { name: "Payroll", href: "/finance/payroll", icon: "Wallet" },
+  { name: "Ad Budget", href: "/finance/ad-budget", icon: "Megaphone" },
   { name: "Meetings", href: "/finance/meetings", icon: "Calendar" },
   { name: "My Attendance", href: "/finance/my-attendance", icon: "Clock" },
   { name: "Apply Leave", href: "/finance/my-leaves", icon: "FileText" },

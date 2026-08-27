@@ -24,6 +24,7 @@ const navItems = [
     ],
   },
   { name: "Campaigns", href: "/admin/campaigns", icon: "Megaphone" },
+  { name: "Ad Budget", href: "/admin/ad-budget", icon: "Wallet" },
   {
     name: "Expenses",
     href: "/admin/expenses",

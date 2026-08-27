@@ -105,3 +105,39 @@ export const listStatsSchema = z.object({
 export const statDateParamSchema = z.object({
   params: z.object({ id: z.string().min(1), date: z.string().min(1) }),
 });
+
+// ─── Ad budget ────────────────────────────────────────
+
+const fundSources = ["CLIENT_PAID", "AGENCY_ALLOTTED"];
+
+export const ledgerQuerySchema = z.object({
+  params: z.object({ projectId: z.string().min(1) }),
+  query: z.object({
+    year: z.coerce.number().int().min(2000).max(2200).optional(),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+  }),
+});
+
+export const addBudgetEntrySchema = z.object({
+  params: z.object({ projectId: z.string().min(1) }),
+  body: z.object({
+    source: z.enum(fundSources),
+    amount: z.coerce.number().positive("Amount must be more than zero"),
+    taxAmount: z.coerce.number().min(0).optional(),
+    note: z.string().max(2000).optional().nullable(),
+    reference: z.string().max(200).optional().nullable(),
+    periodYear: z.coerce.number().int().min(2000).max(2200).optional(),
+    periodMonth: z.coerce.number().int().min(1).max(12).optional(),
+  }),
+});
+
+export const entryIdParamSchema = z.object({
+  params: z.object({ entryId: z.string().min(1) }),
+});
+
+export const overviewQuerySchema = z.object({
+  query: z.object({
+    year: z.coerce.number().int().min(2000).max(2200).optional(),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+  }),
+});

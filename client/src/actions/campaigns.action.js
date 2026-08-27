@@ -4,6 +4,7 @@ import {
   getCampaignTypesAPI, createCampaignTypeAPI, updateCampaignTypeAPI, deleteCampaignTypeAPI,
   getCampaignsAPI, getCampaignAPI, createCampaignAPI, updateCampaignAPI, deleteCampaignAPI,
   getCampaignStatsAPI, upsertCampaignStatAPI, deleteCampaignStatAPI, getProjectAdBudgetAPI,
+  getAdBudgetOverviewAPI, getAdBudgetLedgerAPI, addAdBudgetEntryAPI, deleteAdBudgetEntryAPI,
 } from "@/lib/api";
 import { getToken } from "@/lib/session";
 
@@ -78,4 +79,23 @@ export async function deleteCampaignStat(id, date) {
 
 export async function getProjectAdBudget(projectId, params = {}) {
   return call((t) => getProjectAdBudgetAPI(projectId, params, t), "Failed to load ad budget");
+}
+
+/** Every project holding ad budget for a period. */
+export async function getAdBudgetOverview(params = {}) {
+  return call((t) => getAdBudgetOverviewAPI(params, t), "Failed to load ad budget");
+}
+
+/** One project's ledger: funds released, and the campaigns drawing on them. */
+export async function getAdBudgetLedger(projectId, params = {}) {
+  return call((t) => getAdBudgetLedgerAPI(projectId, params, t), "Failed to load ledger");
+}
+
+/** Release funds into a project's ad budget. Money roles only. */
+export async function addAdBudgetEntry(projectId, data) {
+  return call((t) => addAdBudgetEntryAPI(projectId, data, t), "Failed to release funds");
+}
+
+export async function deleteAdBudgetEntry(entryId) {
+  return call((t) => deleteAdBudgetEntryAPI(entryId, t), "Failed to remove entry");
 }

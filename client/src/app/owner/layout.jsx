@@ -16,6 +16,7 @@ const navItems = [
   { name: "Dashboard", href: "/owner/dashboard", icon: "LayoutDashboard" },
   { name: "Calendar", href: "/owner/calendar", icon: "Calendar" },
   { name: "Campaigns", href: "/owner/campaigns", icon: "Megaphone" },
+  { name: "Ad Budget", href: "/owner/ad-budget", icon: "Wallet" },
   {
     name: "Expenses",
     href: "/owner/expenses",

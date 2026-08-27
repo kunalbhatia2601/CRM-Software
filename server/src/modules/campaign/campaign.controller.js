@@ -69,6 +69,33 @@ class CampaignController {
     return ok(res, "Results removed");
   });
 
+  // ─── Ad budget ledger ───
+  ledger = catchAsync(async (req, res) => {
+    const now = new Date();
+    const year = req.query.year ? Number(req.query.year) : now.getFullYear();
+    const month = req.query.month ? Number(req.query.month) : now.getMonth() + 1;
+    const data = await campaignService.ledger(req.params.projectId, year, month);
+    return ok(res, "Ad budget ledger retrieved", data);
+  });
+
+  addEntry = catchAsync(async (req, res) => {
+    const data = await campaignService.addEntry(req.params.projectId, req.body, req.user);
+    return created(res, "Funds released", data);
+  });
+
+  deleteEntry = catchAsync(async (req, res) => {
+    const data = await campaignService.removeEntry(req.params.entryId, req.user);
+    return ok(res, "Entry removed", data);
+  });
+
+  budgetOverview = catchAsync(async (req, res) => {
+    const now = new Date();
+    const year = req.query.year ? Number(req.query.year) : now.getFullYear();
+    const month = req.query.month ? Number(req.query.month) : now.getMonth() + 1;
+    const rows = await campaignService.budgetOverview(year, month);
+    return ok(res, "Ad budget overview retrieved", rows);
+  });
+
   // ─── Budget ───
   projectBudget = catchAsync(async (req, res) => {
     const { year, month } = req.query;

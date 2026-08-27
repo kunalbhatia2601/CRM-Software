@@ -392,6 +392,178 @@ class CampaignService {
     await prisma.campaignDailyStat.delete({ where: { id: existing.id } });
   }
 
+  // ─── Ad budget ledger ────────────────────────────────
+
+  /** Find or create the ledger for one project-month. */
+  async #ledgerFor(projectId, year, month) {
+    const existing = await prisma.adBudgetLedger.findUnique({
+      where: { projectId_periodYear_periodMonth: { projectId, periodYear: year, periodMonth: month } },
+    });
+    if (existing) return existing;
+    return prisma.adBudgetLedger.create({
+      data: { projectId, periodYear: year, periodMonth: month },
+    });
+  }
+
+  /**
+   * Money released into a project's ad budget for a period, plus the campaigns
+   * drawing on it. Everything the ledger screen needs in one call.
+   */
+  async ledger(projectId, year, month) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, name: true, client: { select: { id: true, companyName: true } } },
+    });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    const [ledgerRow, campaigns, budget] = await Promise.all([
+      prisma.adBudgetLedger.findUnique({
+        where: { projectId_periodYear_periodMonth: { projectId, periodYear: year, periodMonth: month } },
+        include: {
+          entries: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              createdBy: { select: { id: true, firstName: true, lastName: true } },
+              approvedBy: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
+        },
+      }),
+      prisma.campaign.findMany({
+        where: { projectId, status: { notIn: ["CANCELLED"] } },
+        select: {
+          id: true, reference: true, name: true, status: true, budgetAllocated: true,
+          type: { select: { name: true, icon: true } },
+        },
+        orderBy: { startDate: "desc" },
+      }),
+      getProjectBudget(projectId, year, month),
+    ]);
+
+    // Spend per campaign, so the screen shows committed vs actually used.
+    const spendRows = await prisma.campaignDailyStat.groupBy({
+      by: ["campaignId"],
+      where: { campaignId: { in: campaigns.map((c) => c.id) } },
+      _sum: { spend: true },
+    });
+    const spendOf = (id) => num(spendRows.find((r) => r.campaignId === id)?._sum.spend);
+
+    return {
+      project,
+      period: { year, month },
+      budget,
+      entries: (ledgerRow?.entries || []).map((e) => ({
+        ...e,
+        amount: num(e.amount),
+        taxAmount: num(e.taxAmount),
+      })),
+      campaigns: campaigns.map((c) => ({
+        ...c,
+        budgetAllocated: num(c.budgetAllocated),
+        spend: spendOf(c.id),
+      })),
+    };
+  }
+
+  /**
+   * Release funds into a project's ad budget.
+   *
+   * Client payments and agency allotments live side by side, tagged by source,
+   * so how much the agency has subsidised is always answerable.
+   */
+  async addEntry(projectId, data, user) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    const now = new Date();
+    const year = data.periodYear || now.getFullYear();
+    const month = data.periodMonth || now.getMonth() + 1;
+
+    const ledgerRow = await this.#ledgerFor(projectId, year, month);
+
+    await prisma.adBudgetEntry.create({
+      data: {
+        ledgerId: ledgerRow.id,
+        source: data.source,
+        amount: num(data.amount),
+        taxAmount: num(data.taxAmount),
+        note: data.note || null,
+        reference: data.reference || null,
+        // Releasing money is a decision, so it is attributable to a person.
+        approvedById: user.id,
+        approvedAt: new Date(),
+        createdById: user.id,
+      },
+    });
+
+    return this.ledger(projectId, year, month);
+  }
+
+  /**
+   * Remove a funding entry. Refused when it would drop available below what is
+   * already committed to campaigns — you cannot un-fund money already spent.
+   */
+  async removeEntry(entryId, user) {
+    const entry = await prisma.adBudgetEntry.findUnique({
+      where: { id: entryId },
+      include: { ledger: true },
+    });
+    if (!entry) throw ApiError.notFound("Entry not found");
+
+    const { projectId, periodYear, periodMonth } = entry.ledger;
+    const budget = await getProjectBudget(projectId, periodYear, periodMonth);
+
+    if (budget.funded - num(entry.amount) < budget.allocated) {
+      throw ApiError.badRequest(
+        "Removing this would leave less funding than is already allocated to campaigns. " +
+        "Reduce campaign allocations first."
+      );
+    }
+
+    await prisma.adBudgetEntry.delete({ where: { id: entryId } });
+    return this.ledger(projectId, periodYear, periodMonth);
+  }
+
+  /**
+   * Every project holding ad budget, for the overview screen.
+   * Only projects with funding or campaigns are worth listing.
+   */
+  async budgetOverview(year, month) {
+    const [ledgers, campaigns] = await Promise.all([
+      prisma.adBudgetLedger.findMany({
+        where: { OR: [{ periodYear: { lt: year } }, { periodYear: year, periodMonth: { lte: month } }] },
+        select: { projectId: true },
+        distinct: ["projectId"],
+      }),
+      prisma.campaign.findMany({
+        where: { status: { notIn: ["CANCELLED"] } },
+        select: { projectId: true },
+        distinct: ["projectId"],
+      }),
+    ]);
+
+    const projectIds = [...new Set([
+      ...ledgers.map((l) => l.projectId),
+      ...campaigns.map((c) => c.projectId),
+    ])];
+    if (projectIds.length === 0) return [];
+
+    const projects = await prisma.project.findMany({
+      where: { id: { in: projectIds } },
+      select: { id: true, name: true, client: { select: { id: true, companyName: true } } },
+      orderBy: { name: "asc" },
+    });
+
+    const rows = await Promise.all(
+      projects.map(async (p) => ({
+        project: p,
+        budget: await getProjectBudget(p.id, year, month),
+      }))
+    );
+
+    return rows;
+  }
+
   /** Budget position for a project, for the ad-budget screen. */
   async projectBudget(projectId, year, month) {
     const now = new Date();

@@ -1513,3 +1513,25 @@ export async function getProjectAdBudgetAPI(projectId, params, accessToken) {
   const qs = new URLSearchParams(params || {}).toString();
   return request(`/api/campaigns/budget/project/${projectId}${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
 }
+
+/* ───────── Ad Budget ───────── */
+
+export async function getAdBudgetOverviewAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/budget/overview${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getAdBudgetLedgerAPI(projectId, params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/budget/project/${projectId}/ledger${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function addAdBudgetEntryAPI(projectId, data, accessToken) {
+  return request(`/api/campaigns/budget/project/${projectId}/entries`, {
+    method: "POST", body: JSON.stringify(data), token: accessToken,
+  });
+}
+
+export async function deleteAdBudgetEntryAPI(entryId, accessToken) {
+  return request(`/api/campaigns/budget/entries/${entryId}`, { method: "DELETE", token: accessToken });
+}
