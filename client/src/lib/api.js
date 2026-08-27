@@ -1545,3 +1545,22 @@ export async function getProjectCampaignAnalyticsAPI(projectId, params, accessTo
   const qs = new URLSearchParams(params || {}).toString();
   return request(`/api/campaigns/analytics/project/${projectId}${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
 }
+
+/* ───────── Payment Accounts ───────── */
+
+export async function getPaymentAccountsAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/payment-accounts${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function createPaymentAccountAPI(data, accessToken) {
+  return request("/api/payment-accounts", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function updatePaymentAccountAPI(id, data, accessToken) {
+  return request(`/api/payment-accounts/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deletePaymentAccountAPI(id, accessToken) {
+  return request(`/api/payment-accounts/${id}`, { method: "DELETE", token: accessToken });
+}

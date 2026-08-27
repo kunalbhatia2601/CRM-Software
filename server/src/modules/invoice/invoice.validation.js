@@ -24,6 +24,7 @@ export const createInvoiceSchema = z.object({
     issueDate: z.string().optional().nullable(),
     dueDate: z.string().optional().nullable(),
     notes: z.string().max(5000).optional().nullable(),
+    paymentAccountId: z.string().optional().nullable(),
     terms: z.string().max(5000).optional().nullable(),
   }),
 });
@@ -43,6 +44,7 @@ export const updateInvoiceSchema = z.object({
     issueDate: z.string().optional().nullable(),
     dueDate: z.string().optional().nullable(),
     notes: z.string().max(5000).optional().nullable(),
+    paymentAccountId: z.string().optional().nullable(),
     terms: z.string().max(5000).optional().nullable(),
   }),
 });

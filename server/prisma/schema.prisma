@@ -611,6 +611,13 @@ model Invoice {
   createdById   String        @map("created_by_id")
   createdBy     User          @relation("InvoiceCreator", fields: [createdById], references: [id])
 
+  /// Chosen payment account, and a snapshot of its details. The snapshot is
+  /// what the client was actually told to pay into — editing or deactivating
+  /// the account later must not rewrite an invoice already sent.
+  paymentAccountId String?         @map("payment_account_id")
+  paymentAccount   PaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  paymentDetails   Json?           @map("payment_details")
+
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
@@ -1306,6 +1313,44 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Payment Accounts ────────────────────────────────
+
+enum PaymentAccountType {
+  BANK
+  UPI
+}
+
+/// Where clients send money. Multiple accounts can exist; one is picked per
+/// invoice, and its details are snapshotted onto that invoice at issue time.
+model PaymentAccount {
+  id    String             @id @default(cuid())
+  type  PaymentAccountType
+  label String                              // "HDFC Current", "Business UPI"
+
+  // BANK
+  bankName          String? @map("bank_name")
+  accountNumber     String? @map("account_number")
+  ifscCode          String? @map("ifsc_code")
+  accountHolderName String? @map("account_holder_name")
+  branch            String?
+
+  // UPI
+  upiId   String? @map("upi_id")
+  upiName String? @map("upi_name")
+
+  isActive  Boolean @default(true) @map("is_active")
+  /// Pre-selected when a new invoice is created.
+  isDefault Boolean @default(false) @map("is_default")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  invoices Invoice[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_accounts")
+}
+
 // ─── Marketing: Campaigns & Ad Budget ────────────────
 
 enum CampaignPlatform {

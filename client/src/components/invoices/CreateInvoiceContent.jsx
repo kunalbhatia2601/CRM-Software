@@ -8,6 +8,7 @@ import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { getProject } from "@/actions/projects.action";
 import { createInvoice, getInvoiceConfig } from "@/actions/invoices.action";
+import { getPaymentAccounts } from "@/actions/paymentAccounts.action";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -32,6 +33,19 @@ export default function CreateInvoiceContent({ basePath }) {
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [terms, setTerms] = useState("");
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [paymentAccountId, setPaymentAccountId] = useState("");
+
+  useEffect(() => {
+    getPaymentAccounts().then((res) => {
+      if (!res.success) return;
+      setPaymentAccounts(res.data);
+      const fallback = res.data.find((a) => a.isDefault);
+      if (fallback) setPaymentAccountId((prev) => prev || fallback.id);
+    });
+  }, []);
+
+  const selectedAccount = paymentAccounts.find((a) => a.id === paymentAccountId) || null;
 
   const showToast = (type, message) => setToast({ type, message });
 
@@ -115,6 +129,7 @@ export default function CreateInvoiceContent({ basePath }) {
         dueDate: dueDate || null,
         notes: notes || null,
         terms: terms || null,
+        paymentAccountId: paymentAccountId || null,
       });
       if (res.success) {
         router.push(`${basePath}/invoices/${res.data.id}`);
@@ -200,6 +215,39 @@ export default function CreateInvoiceContent({ basePath }) {
                 </div>
               ))}
             </div>
+          </div>
+
+
+          {/* Where the client pays */}
+          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Payment account</label>
+            {paymentAccounts.length === 0 ? (
+              <p className="text-xs text-slate-400 italic mt-2">
+                No payment accounts set up yet. Add one in settings so the client knows where to pay.
+              </p>
+            ) : (
+              <>
+                <select
+                  className={`${inputClass} mt-1.5`}
+                  value={paymentAccountId}
+                  onChange={(e) => setPaymentAccountId(e.target.value)}
+                >
+                  <option value="">No payment details on this invoice</option>
+                  {paymentAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} · {a.type === "BANK" ? a.bankName : a.upiId}
+                    </option>
+                  ))}
+                </select>
+                {selectedAccount && (
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    {selectedAccount.type === "BANK"
+                      ? `${selectedAccount.accountHolderName} · ${selectedAccount.accountNumber} · ${selectedAccount.ifscCode}`
+                      : `${selectedAccount.upiName} · ${selectedAccount.upiId}`}
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Notes + terms */}

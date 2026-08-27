@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import * as LucideIcons from "lucide-react";
 import {
   Wallet, Loader2, Plus, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Building2, Trash2, AlertCircle, Check, Megaphone, TrendingUp,
+  Building2, Trash2, AlertCircle, Check, Megaphone, TrendingUp, X
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
@@ -15,6 +15,7 @@ import { useSite } from "@/context/SiteContext";
 import {
   getAdBudgetOverview, getAdBudgetLedger, addAdBudgetEntry, deleteAdBudgetEntry,
 } from "@/actions/campaigns.action";
+import { getProjectOptions } from "@/actions/projects.action";
 
 // Marketing spends the pot; only these roles put money into it.
 const FUNDER_ROLES = ["OWNER", "ADMIN", "FINANCE_MANAGER"];
@@ -68,6 +69,13 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
+  const [projects, setProjects] = useState([]);
+  const [newFund, setNewFund] = useState(null);   // { projectId } when open
+
+  useEffect(() => {
+    if (canFund) getProjectOptions().then(setProjects);
+  }, [canFund]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await getAdBudgetOverview({ year, month });
@@ -99,13 +107,17 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
     setExpandedId(null); setLedger(null);
   };
 
-  const submitFunds = async () => {
+  const submitFunds = async (projectId, { inline = true } = {}) => {
+    if (!projectId) {
+      setToast({ type: "error", message: "Pick a project first" });
+      return;
+    }
     if (!(Number(form.amount) > 0)) {
       setToast({ type: "error", message: "Amount must be more than zero" });
       return;
     }
     setSaving(true);
-    const res = await addAdBudgetEntry(funding.projectId, {
+    const res = await addAdBudgetEntry(projectId, {
       source: form.source,
       amount: Number(form.amount),
       taxAmount: Number(form.taxAmount) || 0,
@@ -116,8 +128,9 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
     });
     setSaving(false);
     if (res.success) {
-      setLedger(res.data);
+      if (inline) setLedger(res.data);
       setFunding(null);
+      setNewFund(null);
       setForm({ source: "CLIENT_PAID", amount: "", taxAmount: "", reference: "", note: "" });
       setToast({ type: "success", message: "Funds released" });
       load();
@@ -154,7 +167,87 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
         title="Ad Budget"
         description="Held per project. Client payments and agency top-ups, tracked separately."
         breadcrumbs={[{ label: "Dashboard", href: `${basePath}/dashboard` }, { label: "Ad Budget" }]}
+        actions={
+          canFund && !newFund && (
+            <button
+              onClick={() => { setNewFund({ projectId: "" }); setExpandedId(null); }}
+              className="flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4]"
+            >
+              <Plus className="w-4 h-4" /> Release Funds
+            </button>
+          )
+        }
       />
+
+      {/* Fund any project — including one with no campaigns yet, which would
+          not otherwise appear in the list below. */}
+      {newFund && (
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Release funds · {MONTHS[month - 1]} {year}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Client payments and agency top-ups both land here, tagged by source.
+              </p>
+            </div>
+            <button onClick={() => setNewFund(null)}>
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Project *</label>
+              <select className={inputClass} value={newFund.projectId}
+                onChange={(e) => setNewFund({ projectId: e.target.value })}>
+                <option value="">Select a project…</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Source</label>
+              <select className={inputClass} value={form.source}
+                onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                <option value="CLIENT_PAID">Client paid</option>
+                <option value="AGENCY_ALLOTTED">Agency allotted</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Amount *</label>
+              <input dir="ltr" type="number" min="0" step="0.01" className={inputClass}
+                value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Tax</label>
+              <input dir="ltr" type="number" min="0" step="0.01" className={inputClass}
+                value={form.taxAmount} onChange={(e) => setForm({ ...form, taxAmount: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Reference</label>
+              <input dir="ltr" className={inputClass} placeholder="Payment ref / approval"
+                value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-slate-500 mb-1 block">Note</label>
+              <input dir="ltr" className={inputClass}
+                value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button onClick={() => submitFunds(newFund.projectId, { inline: false })} disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Release
+            </button>
+            <button onClick={() => setNewFund(null)}
+              className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Period nav + totals */}
       <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
@@ -208,7 +301,7 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
             No project holds ad budget for {MONTHS[month - 1]} {year}.
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            Create a campaign, or release funds against a project, to start tracking.
+            Use <b>Release Funds</b> above to fund a project, or create a campaign.
           </p>
         </div>
       ) : (
@@ -305,7 +398,7 @@ export default function AdBudgetContent({ basePath = "/marketing" }) {
                                 value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
                             </div>
                             <div className="flex items-center gap-2">
-                              <button onClick={submitFunds} disabled={saving}
+                              <button onClick={() => submitFunds(funding.projectId)} disabled={saving}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4] disabled:opacity-60">
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Release
                               </button>

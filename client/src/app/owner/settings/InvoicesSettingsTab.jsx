@@ -5,6 +5,7 @@ import { Check, AlertCircle, ImageIcon, Loader2, Trash2, Percent, Receipt } from
 import SettingsCard from "@/components/settings/SettingsCard";
 import { updateSystemSettings } from "@/actions/settings.action";
 import { useUpload } from "@/hooks/useUpload";
+import PaymentAccountsSettings from "@/components/invoices/PaymentAccountsSettings";
 
 export default function InvoicesSettingsTab({ initialData }) {
   const [isPending, startTransition] = useTransition();
@@ -156,6 +157,11 @@ export default function InvoicesSettingsTab({ initialData }) {
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
           Save Invoice Settings
         </button>
+      </div>
+
+      {/* Saved independently — each account writes on its own. */}
+      <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+        <PaymentAccountsSettings />
       </div>
     </div>
   );

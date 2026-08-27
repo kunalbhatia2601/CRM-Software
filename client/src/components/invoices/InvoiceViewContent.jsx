@@ -23,6 +23,8 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
   const router = useRouter();
   const site = useSite();
   const { format } = site;
+  // The snapshot taken when the account was chosen — not the live record.
+  const pay = invoice.paymentDetails || null;
   const [invoice, setInvoice] = useState(initial);
   const [toast, setToast] = useState(null);
   const [marking, setMarking] = useState(false);
@@ -192,6 +194,32 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
               )}
             </div>
           </div>
+
+          {/* Where to pay — read from the invoice's own snapshot, never the
+              live account, so a later edit cannot change a sent invoice. */}
+          {pay && (
+            <div className="border-t border-slate-100 pt-6 mb-6">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                Payment Details
+              </p>
+              {pay.type === "BANK" ? (
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm max-w-lg">
+                  <div className="flex justify-between"><span className="text-slate-400">Bank</span><span className="text-slate-700 font-medium">{pay.bankName}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Account name</span><span className="text-slate-700 font-medium">{pay.accountHolderName}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Account no.</span><span className="text-slate-700 font-mono font-medium">{pay.accountNumber}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">IFSC</span><span className="text-slate-700 font-mono font-medium">{pay.ifscCode}</span></div>
+                  {pay.branch && (
+                    <div className="flex justify-between col-span-2"><span className="text-slate-400">Branch</span><span className="text-slate-700">{pay.branch}</span></div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm max-w-lg">
+                  <div className="flex justify-between"><span className="text-slate-400">UPI ID</span><span className="text-slate-700 font-mono font-medium">{pay.upiId}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Name</span><span className="text-slate-700 font-medium">{pay.upiName}</span></div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes + terms */}
           {(invoice.notes || invoice.terms) && (

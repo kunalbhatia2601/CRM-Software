@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { updateInvoice } from "@/actions/invoices.action";
+import { getPaymentAccounts } from "@/actions/paymentAccounts.action";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -81,6 +82,7 @@ export default function EditInvoiceContent({ basePath, invoice }) {
         dueDate: dueDate || null,
         notes: notes || null,
         terms: terms || null,
+        paymentAccountId: paymentAccountId || null,
       });
       if (res.success) {
         router.push(`${basePath}/invoices/${invoice.id}`);

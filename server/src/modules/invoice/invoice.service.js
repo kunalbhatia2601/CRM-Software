@@ -1,9 +1,11 @@
 import prisma from "../../utils/prisma.js";
+import { snapshotOf } from "../payment-account/payment-account.service.js";
 import { ApiError } from "../../utils/apiError.js";
 import notificationService from "../notification/notification.service.js";
 
 const INVOICE_INCLUDE = {
   items: { orderBy: { position: "asc" } },
+  paymentAccount: { select: { id: true, label: true, type: true, isActive: true } },
   project: {
     select: { id: true, name: true, status: true },
   },
@@ -14,6 +16,32 @@ const INVOICE_INCLUDE = {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
 };
+
+/**
+ * Resolve the payment account for an invoice and snapshot its details.
+ *
+ * Falls back to the default account when none is named, so an invoice never
+ * goes out with no way to pay it if a default exists.
+ *
+ * @returns {Promise<{paymentAccountId: string|null, paymentDetails: object|null}>}
+ */
+async function resolvePaymentAccount(paymentAccountId) {
+  const account = paymentAccountId
+    ? await prisma.paymentAccount.findUnique({ where: { id: paymentAccountId } })
+    : await prisma.paymentAccount.findFirst({ where: { isDefault: true, isActive: true } });
+
+  if (paymentAccountId && !account) {
+    throw ApiError.badRequest("Payment account not found");
+  }
+  if (paymentAccountId && !account.isActive) {
+    throw ApiError.badRequest("That payment account is no longer active");
+  }
+
+  return {
+    paymentAccountId: account?.id || null,
+    paymentDetails: snapshotOf(account),
+  };
+}
 
 /**
  * Round to 2 decimals (money).
@@ -108,6 +136,7 @@ class InvoiceService {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         notes: data.notes || null,
         terms: data.terms || null,
+        ...(await resolvePaymentAccount(data.paymentAccountId)),
         createdById,
         items: { create: lineItems },
       },
@@ -262,6 +291,11 @@ class InvoiceService {
     if (data.issueDate !== undefined) updateData.issueDate = data.issueDate ? new Date(data.issueDate) : existing.issueDate;
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     if (data.notes !== undefined) updateData.notes = data.notes;
+    // Changing the account re-snapshots it, so the invoice always shows the
+    // details that were current when it was last edited.
+    if (data.paymentAccountId !== undefined) {
+      Object.assign(updateData, await resolvePaymentAccount(data.paymentAccountId));
+    }
     if (data.terms !== undefined) updateData.terms = data.terms;
 
     // If line items / discount / tax change → recompute totals + replace items
