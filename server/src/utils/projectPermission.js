@@ -6,7 +6,7 @@ import { ApiError } from "./apiError.js";
  *
  * Checks whether a user has a specific permission on a project's tasks or milestones.
  * Permission hierarchy:
- *   1. OWNER / ADMIN / ACCOUNT_MANAGER / FINANCE_MANAGER → always full access
+ *   1. OWNER / ADMIN / ACCOUNT_MANAGER / FINANCE_MANAGER / MARKETING_MANAGER → full access
  *   2. Project Account Manager → always full access
  *   3. Team Lead (of a team assigned to the project) → always full access
  *   4. Team Member → based on their `permissions` JSON in TeamMember table
@@ -28,7 +28,7 @@ export async function checkProjectPermission(userId, projectId, resource, action
 
   // Roles that manage delivery across the whole agency get full access to every
   // project's plan, regardless of which project they are attached to.
-  if (["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER"].includes(user.role)) return true;
+  if (["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER", "MARKETING_MANAGER"].includes(user.role)) return true;
 
   // 2. Check if user is the project's account manager
   const project = await prisma.project.findUnique({
@@ -278,7 +278,7 @@ export async function getProjectCapabilities(userId, projectId) {
   }
 
   // Same list as checkProjectPermission — full plan access by role.
-  const isManagerRole = ["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER"].includes(user.role);
+  const isManagerRole = ["OWNER", "ADMIN", "ACCOUNT_MANAGER", "FINANCE_MANAGER", "MARKETING_MANAGER"].includes(user.role);
   const isAccountManager = project.accountManagerId === userId;
 
   if (isManagerRole || isAccountManager) {

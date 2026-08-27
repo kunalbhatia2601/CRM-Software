@@ -14,6 +14,7 @@ enum Role {
   SALES_MANAGER
   ACCOUNT_MANAGER
   FINANCE_MANAGER
+  MARKETING_MANAGER
   HR
   EMPLOYEE
   CLIENT
@@ -194,6 +195,13 @@ model User {
   paidExpenses         Expense[]      @relation("ExpensePayer")
   expenseEvents        ExpenseEvent[] @relation("ExpenseEventActor")
 
+  // Marketing
+  managedCampaigns     Campaign[]          @relation("CampaignManager")
+  createdCampaigns     Campaign[]          @relation("CampaignCreator")
+  campaignDailyStats   CampaignDailyStat[] @relation("CampaignStatAuthor")
+  approvedAdBudgets    AdBudgetEntry[]     @relation("AdBudgetApprover")
+  createdAdBudgets     AdBudgetEntry[]     @relation("AdBudgetCreator")
+
   // Comments
   comments             Comment[]      @relation("CommentAuthor")
 
@@ -286,6 +294,11 @@ model Lead {
   // Who created this lead
   createdById   String       @map("created_by_id")
   createdBy     User         @relation("LeadCreator", fields: [createdById], references: [id])
+
+  // Campaign that produced this lead. First-touch: set at creation, and only
+  // marketing or an admin may change it afterwards.
+  campaignId    String?      @map("campaign_id")
+  campaign      Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   // Converted deal
   deal Deal?
@@ -464,6 +477,8 @@ model Project {
   deliverables    Deliverable[]
 
   expenses    Expense[]
+  campaigns   Campaign[]
+  adBudgets   AdBudgetLedger[]
 
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -1291,6 +1306,187 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Marketing: Campaigns & Ad Budget ────────────────
+
+enum CampaignPlatform {
+  META
+  GOOGLE_ADS
+  LINKEDIN
+  YOUTUBE
+  INSTAGRAM
+  EMAIL
+  SEO
+  OTHER
+}
+
+enum CampaignObjective {
+  LEAD_GENERATION
+  BRAND_AWARENESS
+  TRAFFIC
+  ENGAGEMENT
+  CONVERSIONS
+  APP_INSTALLS
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+/// Where ad money came from. The agency is never bound by what a client funds.
+enum AdFundSource {
+  CLIENT_PAID
+  AGENCY_ALLOTTED
+}
+
+/// Defines which metrics a campaign captures each day. Adding a platform is a
+/// row here, not a migration — same pattern as ExpenseCategory.fieldSchema.
+model CampaignType {
+  id       String           @id @default(cuid())
+  name     String           @unique
+  platform CampaignPlatform
+  icon     String?
+
+  /// Array<{ id, label, unit?, type: "count"|"currency"|"percent"|"duration", required? }>
+  metricSchema   Json
+  /// Array<{ id, label, formula, format? }> — computed on read, never stored
+  derivedMetrics Json?
+
+  isActive  Boolean @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  campaigns Campaign[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("campaign_types")
+}
+
+model Campaign {
+  id        String @id @default(cuid())
+  reference String @unique              // CMP-2026-0001
+  name      String
+  description String? @db.Text
+
+  typeId    String       @map("type_id")
+  type      CampaignType @relation(fields: [typeId], references: [id])
+
+  objective CampaignObjective @default(LEAD_GENERATION)
+  status    CampaignStatus    @default(DRAFT)
+
+  /// Every campaign belongs to a project — that is where its budget lives.
+  /// In-house marketing runs against an internal project.
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  startDate DateTime  @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+
+  /// Committed to this campaign. Capped by the project's available budget.
+  budgetAllocated Decimal  @default(0) @map("budget_allocated") @db.Decimal(12, 2)
+  dailyCap        Decimal? @map("daily_cap") @db.Decimal(12, 2)
+
+  /// Alert thresholds. Null falls back to the global defaults.
+  overspendThreshold Decimal? @map("overspend_threshold") @db.Decimal(5, 2)
+  minCplTarget       Decimal? @map("min_cpl_target") @db.Decimal(12, 2)
+  /// Which alerts have already fired, so the cron does not repeat itself.
+  alertsSent         Json?    @map("alerts_sent")
+
+  managerId String @map("manager_id")
+  manager   User   @relation("CampaignManager", fields: [managerId], references: [id])
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("CampaignCreator", fields: [createdById], references: [id])
+
+  dailyStats CampaignDailyStat[]
+  /// Leads credited to this campaign — the backbone of ROI.
+  leads      Lead[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([status])
+  @@index([startDate])
+  @@map("campaigns")
+}
+
+/// One row per campaign per day. Spend and platform metrics are entered
+/// manually; totals on the campaign are derived from these.
+model CampaignDailyStat {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  /// Answers to the campaign type's metricSchema
+  metrics Json?
+  spend   Decimal  @default(0) @db.Decimal(12, 2)
+  note    String?  @db.Text
+
+  enteredById String @map("entered_by_id")
+  enteredBy   User   @relation("CampaignStatAuthor", fields: [enteredById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// A day can be corrected, never duplicated.
+  @@unique([campaignId, date])
+  @@index([campaignId])
+  @@map("campaign_daily_stats")
+}
+
+/// Ad budget pot for one project, for one month.
+model AdBudgetLedger {
+  id        String  @id @default(cuid())
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  periodYear  Int @map("period_year")
+  periodMonth Int @map("period_month")   // 1-12
+
+  entries AdBudgetEntry[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([projectId, periodYear, periodMonth])
+  @@index([projectId])
+  @@map("ad_budget_ledgers")
+}
+
+/// Money in. Client payments and agency allotments sit side by side, tagged by
+/// source, so subsidy is always visible.
+model AdBudgetEntry {
+  id       String         @id @default(cuid())
+  ledgerId String         @map("ledger_id")
+  ledger   AdBudgetLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+
+  source    AdFundSource
+  amount    Decimal  @db.Decimal(12, 2)
+  taxAmount Decimal  @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  note      String?  @db.Text
+  reference String?                        // client payment ref / approval note
+
+  /// Releasing funds is a spending decision, so it is attributable.
+  approvedById String?   @map("approved_by_id")
+  approvedBy   User?     @relation("AdBudgetApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime? @map("approved_at")
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("AdBudgetCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ledgerId])
+  @@map("ad_budget_entries")
+}
+
 // ─── Expenses ────────────────────────────────────────
 
 enum ExpenseStatus {

@@ -17,14 +17,14 @@ const router = Router();
 
 router.use(authenticate);
 
-const projectAccess = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER", "FINANCE_MANAGER", "CLIENT", "EMPLOYEE");
+const projectAccess = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER", "FINANCE_MANAGER", "MARKETING_MANAGER", "CLIENT", "EMPLOYEE");
 
 router.post("/", authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER"), validate(createProjectSchema), projectController.createProject);
 // Attribution picker — every staff role, HR included. Declared before "/:id"
 // so it is not swallowed by the id route.
 const staffPickerAccess = authorize(
   "OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER",
-  "FINANCE_MANAGER", "HR", "EMPLOYEE"
+  "FINANCE_MANAGER", "MARKETING_MANAGER", "HR", "EMPLOYEE"
 );
 router.get("/options", staffPickerAccess, projectController.getProjectOptions);
 

@@ -6,6 +6,7 @@ const roles = [
   "SALES_MANAGER",
   "ACCOUNT_MANAGER",
   "FINANCE_MANAGER",
+  "MARKETING_MANAGER",
   "HR",
   "EMPLOYEE",
   "CLIENT",

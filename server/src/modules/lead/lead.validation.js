@@ -18,6 +18,7 @@ export const createLeadSchema = z.object({
     estimatedValue: z.coerce.number().min(0).optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     assigneeId: z.string().optional().nullable(),
+    campaignId: z.string().optional().nullable(),
     followUpAt: z.coerce.date().optional().nullable(),
   }),
 });
@@ -36,6 +37,7 @@ export const updateLeadSchema = z.object({
     estimatedValue: z.coerce.number().min(0).optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     assigneeId: z.string().optional().nullable(),
+    campaignId: z.string().optional().nullable(),
     followUpAt: z.coerce.date().optional().nullable(),
   }),
 });
@@ -58,6 +60,7 @@ export const listLeadsSchema = z.object({
     source: z.enum(sources).optional(),
     priority: z.enum(priorities).optional(),
     assigneeId: z.string().optional(),
+    campaignId: z.string().optional(),
     search: z.string().optional(),
     sortBy: z
       .enum(["createdAt", "companyName", "contactName", "status", "priority", "estimatedValue"])

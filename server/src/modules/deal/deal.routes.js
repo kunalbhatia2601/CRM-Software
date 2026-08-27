@@ -17,7 +17,7 @@ const router = Router();
 
 router.use(authenticate);
 
-const dealAccess = authorize("OWNER", "ADMIN", "SALES_MANAGER");
+const dealAccess = authorize("OWNER", "ADMIN", "SALES_MANAGER", "MARKETING_MANAGER");
 
 router.post("/", dealAccess, validate(createDealSchema), dealController.createDeal);
 router.get("/", dealAccess, validate(listDealsSchema), dealController.listDeals);

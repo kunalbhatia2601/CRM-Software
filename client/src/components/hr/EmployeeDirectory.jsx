@@ -9,12 +9,14 @@ import { getUserDirectory } from "@/actions/users.action";
 const ROLE_LABELS = {
   OWNER: "Owner", ADMIN: "Admin", SALES_MANAGER: "Sales Manager",
   ACCOUNT_MANAGER: "Account Manager", FINANCE_MANAGER: "Finance Manager",
+  MARKETING_MANAGER: "Marketing Manager",
   HR: "HR", EMPLOYEE: "Employee",
 };
 
 const ROLE_STYLES = {
   OWNER: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
   ADMIN: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  MARKETING_MANAGER: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   HR: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
   EMPLOYEE: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };

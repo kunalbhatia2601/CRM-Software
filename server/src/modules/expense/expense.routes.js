@@ -16,7 +16,7 @@ router.use(authenticate);
 // Clients have no business in the expense system at all.
 const staff = authorize(
   "OWNER", "ADMIN", "SALES_MANAGER", "ACCOUNT_MANAGER",
-  "FINANCE_MANAGER", "HR", "EMPLOYEE"
+  "FINANCE_MANAGER", "MARKETING_MANAGER", "HR", "EMPLOYEE"
 );
 const adminOnly = authorize("OWNER", "ADMIN");
 

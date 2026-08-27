@@ -13,6 +13,7 @@ const ROLE_DASHBOARD_MAP = {
   SALES_MANAGER: "/sales/dashboard",
   ACCOUNT_MANAGER: "/accounts/dashboard",
   FINANCE_MANAGER: "/finance/dashboard",
+  MARKETING_MANAGER: "/marketing/dashboard",
   HR: "/hr/dashboard",
   EMPLOYEE: "/employee/dashboard",
   CLIENT: "/client/dashboard",

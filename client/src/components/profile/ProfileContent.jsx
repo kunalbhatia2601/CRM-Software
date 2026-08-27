@@ -115,6 +115,7 @@ export default function ProfileContent({ user }) {
     SALES_MANAGER: "Sales Manager",
     ACCOUNT_MANAGER: "Account Manager",
     FINANCE_MANAGER: "Finance Manager",
+    MARKETING_MANAGER: "Marketing Manager",
     HR: "Human Resources",
     EMPLOYEE: "Employee",
     CLIENT: "Client",

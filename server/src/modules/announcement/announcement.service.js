@@ -13,7 +13,7 @@ function audienceWhere(audience) {
     case "EMPLOYEES":
       return { ...base, role: "EMPLOYEE" };
     case "MANAGERS":
-      return { ...base, role: { in: ["SALES_MANAGER", "ACCOUNT_MANAGER", "FINANCE_MANAGER"] } };
+      return { ...base, role: { in: ["SALES_MANAGER", "ACCOUNT_MANAGER", "FINANCE_MANAGER", "MARKETING_MANAGER"] } };
     case "HR":
       return { ...base, role: "HR" };
     case "ALL":

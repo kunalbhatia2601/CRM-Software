@@ -16,6 +16,7 @@ import EmployeeDocuments from "./EmployeeDocuments";
 const ROLE_LABELS = {
   OWNER: "Owner", ADMIN: "Admin", SALES_MANAGER: "Sales Manager",
   ACCOUNT_MANAGER: "Account Manager", FINANCE_MANAGER: "Finance Manager",
+  MARKETING_MANAGER: "Marketing Manager",
   HR: "HR", EMPLOYEE: "Employee", CLIENT: "Client",
 };
 const EMP_TYPE_LABELS = {

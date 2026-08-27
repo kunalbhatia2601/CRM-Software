@@ -18,6 +18,7 @@ const ROLES = [
   { value: "SALES_MANAGER", label: "Sales Manager" },
   { value: "ACCOUNT_MANAGER", label: "Account Manager" },
   { value: "FINANCE_MANAGER", label: "Finance Manager" },
+  { value: "MARKETING_MANAGER", label: "Marketing Manager" },
   { value: "HR", label: "HR" },
   { value: "EMPLOYEE", label: "Employee" },
   { value: "CLIENT", label: "Client" },

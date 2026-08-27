@@ -17,7 +17,7 @@ const router = Router();
 router.use(authenticate);
 
 // Owner + Admin + Sales Manager can access leads
-const leadAccess = authorize("OWNER", "ADMIN", "SALES_MANAGER");
+const leadAccess = authorize("OWNER", "ADMIN", "SALES_MANAGER", "MARKETING_MANAGER");
 
 router.post("/", leadAccess, validate(createLeadSchema), leadController.createLead);
 router.get("/", leadAccess, validate(listLeadsSchema), leadController.listLeads);

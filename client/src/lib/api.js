@@ -1455,3 +1455,61 @@ export async function payExpenseAPI(id, data, accessToken) {
 export async function cancelExpenseAPI(id, accessToken) {
   return request(`/api/expenses/${id}/cancel`, { method: "POST", body: JSON.stringify({}), token: accessToken });
 }
+
+/* ───────── Campaigns ───────── */
+
+export async function getCampaignTypesAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/types${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function createCampaignTypeAPI(data, accessToken) {
+  return request("/api/campaigns/types", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function updateCampaignTypeAPI(id, data, accessToken) {
+  return request(`/api/campaigns/types/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteCampaignTypeAPI(id, accessToken) {
+  return request(`/api/campaigns/types/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getCampaignsAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function getCampaignAPI(id, accessToken) {
+  return request(`/api/campaigns/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createCampaignAPI(data, accessToken) {
+  return request("/api/campaigns", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function updateCampaignAPI(id, data, accessToken) {
+  return request(`/api/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteCampaignAPI(id, accessToken) {
+  return request(`/api/campaigns/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getCampaignStatsAPI(id, params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/${id}/stats${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function upsertCampaignStatAPI(id, data, accessToken) {
+  return request(`/api/campaigns/${id}/stats`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteCampaignStatAPI(id, date, accessToken) {
+  return request(`/api/campaigns/${id}/stats/${date}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getProjectAdBudgetAPI(projectId, params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/campaigns/budget/project/${projectId}${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}

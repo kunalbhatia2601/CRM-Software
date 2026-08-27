@@ -23,6 +23,7 @@ const navItems = [
       { name: "Add Lead", href: "/admin/leads/create" },
     ],
   },
+  { name: "Campaigns", href: "/admin/campaigns", icon: "Megaphone" },
   {
     name: "Expenses",
     href: "/admin/expenses",

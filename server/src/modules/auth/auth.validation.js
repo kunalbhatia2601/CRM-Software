@@ -17,6 +17,7 @@ export const registerSchema = z.object({
         "SALES_MANAGER",
         "ACCOUNT_MANAGER",
         "FINANCE_MANAGER",
+        "MARKETING_MANAGER",
         "HR",
         "EMPLOYEE",
         "CLIENT",

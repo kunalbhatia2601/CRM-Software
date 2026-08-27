@@ -31,7 +31,7 @@ class LeadController {
    * PATCH /api/leads/:id
    */
   updateLead = catchAsync(async (req, res) => {
-    const lead = await leadService.updateLead(req.params.id, req.body);
+    const lead = await leadService.updateLead(req.params.id, req.body, req.user);
     return ok(res, "Lead updated successfully", lead);
   });
 

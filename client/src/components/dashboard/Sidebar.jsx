@@ -29,6 +29,7 @@ const ROLE_PREFIX_MAP = {
   SALES_MANAGER: "/sales",
   ACCOUNT_MANAGER: "/accounts",
   FINANCE_MANAGER: "/finance",
+  MARKETING_MANAGER: "/marketing",
   HR: "/hr",
   EMPLOYEE: "/employee",
   CLIENT: "/client",

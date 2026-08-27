@@ -16,7 +16,7 @@ router.use(authenticate);
 
 // Finance reads clients for billing contacts and outstanding chases, but every
 // write below stays with the roles that own the relationship.
-const clientAccess = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER", "FINANCE_MANAGER");
+const clientAccess = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER", "FINANCE_MANAGER", "MARKETING_MANAGER");
 
 router.get("/dropdown", authorize("OWNER", "ADMIN"), clientController.listAllForDropdown);
 router.post("/", authorize("OWNER", "ADMIN"), validate(createClientSchema), clientController.createClient);

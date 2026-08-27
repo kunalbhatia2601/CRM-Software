@@ -15,6 +15,10 @@ const LEAD_INCLUDE = {
   assignee: {
     select: { id: true, firstName: true, lastName: true, email: true, role: true },
   },
+  // Attribution: which campaign produced this lead.
+  campaign: {
+    select: { id: true, reference: true, name: true, type: { select: { name: true, platform: true } } },
+  },
   createdBy: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
@@ -68,7 +72,7 @@ class LeadService {
   /**
    * List leads with pagination, filters, search, sort
    */
-  async listLeads({ page, limit, status, source, priority, assigneeId, search, sortBy, sortOrder }) {
+  async listLeads({ page, limit, status, source, priority, assigneeId, campaignId, search, sortBy, sortOrder }) {
     const skip = (page - 1) * limit;
     const where = {};
 
@@ -76,6 +80,7 @@ class LeadService {
     if (source) where.source = source;
     if (priority) where.priority = priority;
     if (assigneeId) where.assigneeId = assigneeId;
+    if (campaignId) where.campaignId = campaignId;
 
     if (search) {
       where.OR = [
@@ -126,7 +131,10 @@ class LeadService {
   /**
    * Update lead details (not status — use updateStatus for that)
    */
-  async updateLead(id, data) {
+  /**
+   * @param {object} user acting user — attribution edits are role-gated
+   */
+  async updateLead(id, data, user = null) {
     const lead = await prisma.lead.findUnique({ where: { id } });
 
     if (!lead) {
@@ -147,6 +155,20 @@ class LeadService {
       }
       if (assignee.role === "CLIENT") {
         throw ApiError.badRequest("Leads cannot be assigned to a client");
+      }
+    }
+
+    // First-touch attribution: a lead's campaign is set when it is created.
+    // Letting anyone edit it later would silently rewrite ROI history, so only
+    // marketing and admins may change it.
+    if (data.campaignId !== undefined && (data.campaignId || null) !== lead.campaignId) {
+      const allowed = ["OWNER", "ADMIN", "MARKETING_MANAGER"];
+      if (user && !allowed.includes(user.role)) {
+        throw ApiError.forbidden("Only marketing or an admin can change a lead's campaign");
+      }
+      if (data.campaignId) {
+        const campaign = await prisma.campaign.findUnique({ where: { id: data.campaignId } });
+        if (!campaign) throw ApiError.badRequest("Campaign not found");
       }
     }
 

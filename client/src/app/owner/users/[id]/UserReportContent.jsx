@@ -63,6 +63,12 @@ const ROLE_CONFIG = {
     sections: ["deals", "projects"],
     description: "Oversees financial aspects of deals and project budgets.",
   },
+  MARKETING_MANAGER: {
+    label: "Marketing Manager",
+    color: "from-orange-500 to-amber-600",
+    sections: ["leads", "deals", "clients", "projects"],
+    description: "Runs campaigns and the leads they produce.",
+  },
   HR: {
     label: "HR",
     color: "from-pink-500 to-rose-600",
