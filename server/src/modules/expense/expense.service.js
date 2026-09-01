@@ -85,7 +85,7 @@ const HOURS_PER_MONTH = HOURS_PER_DAY * 22;
  *
  * @returns {{cost: number, hours: number, startedAt: Date|null, at: Date|null}}
  */
-function costOfTask(task) {
+export function costOfTask(task) {
   const rate = num(task.internalCostAmount);
   const type = task.internalCostType;
   if (!rate || !type || type === "NONE") {

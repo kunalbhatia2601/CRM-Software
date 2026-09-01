@@ -125,14 +125,17 @@ export async function getHrDashboardStats() {
 /**
  * Fetches the FINANCE_MANAGER billing dashboard statistics.
  */
-export async function getFinanceDashboardStats() {
+/**
+ * @param {object} params { preset: "all"|"month"|"year"|"custom", from?, to? }
+ */
+export async function getFinanceDashboardStats(params = {}) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("accessToken")?.value;
 
   if (!accessToken) return null;
 
   try {
-    const res = await getFinanceDashboardStatsAPI(accessToken);
+    const res = await getFinanceDashboardStatsAPI(accessToken, params);
     if (res.success) return res.data;
     return null;
   } catch {

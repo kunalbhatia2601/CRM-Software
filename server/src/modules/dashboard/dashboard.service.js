@@ -1,4 +1,5 @@
 import prisma from "../../utils/prisma.js";
+import { costOfTask } from "../expense/expense.service.js";
 
 /**
  * Computes start/end date boundaries for the current and previous periods.
@@ -833,8 +834,173 @@ export async function getHrDashboardStats() {
  * Money is stored as Decimal, so every aggregate is converted with Number()
  * before it leaves this function; Decimal instances do not survive JSON.
  */
-export async function getFinanceDashboardStats() {
+/**
+ * Company-wide profit and loss.
+ *
+ * Income has two readings and they answer different questions:
+ *   - contracted: what projects are worth (project budgets)
+ *   - billed / collected: what has actually been invoiced and received
+ *
+ * Cost is the sum of three streams that until now lived apart: staff expense
+ * claims, team time on tasks, and money spent on ads.
+ */
+/**
+ * Turn a range request into concrete bounds.
+ *
+ * @param {object} range { preset: "all"|"month"|"year"|"custom", from?, to? }
+ * @returns {{from: Date|null, to: Date|null, label: string}} null bounds mean all time
+ */
+export function resolveRange(range = {}) {
   const now = new Date();
+  const preset = range.preset || "all";
+
+  if (preset === "month") {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1),
+      to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+      label: "This month",
+    };
+  }
+  if (preset === "year") {
+    return {
+      from: new Date(now.getFullYear(), 0, 1),
+      to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
+      label: "This year",
+    };
+  }
+  if (preset === "custom" && (range.from || range.to)) {
+    const from = range.from ? new Date(range.from) : null;
+    const to = range.to ? new Date(range.to) : null;
+    if (to) to.setHours(23, 59, 59, 999);
+    return { from, to, label: "Custom range" };
+  }
+  return { from: null, to: null, label: "All time" };
+}
+
+/** Prisma date filter, or undefined when the range is unbounded. */
+function dateFilter({ from, to }) {
+  if (!from && !to) return undefined;
+  return { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
+}
+
+async function getProfitAndLoss(range = { from: null, to: null }) {
+  const num = (v) => Number(v || 0);
+
+  const window = dateFilter(range);
+
+  const [projects, expenseRows, tasks, adSpend, invoiceAgg, collectedAgg] = await Promise.all([
+    // Contracted value is dated by when the project started.
+    prisma.project.aggregate({
+      where: {
+        status: { notIn: ["CANCELLED"] },
+        ...(window ? { startDate: window } : {}),
+      },
+      _sum: { budget: true },
+      _count: { id: true },
+    }),
+
+    // Approved and settled claims only — pending money is not yet spent.
+    prisma.expense.groupBy({
+      by: ["status"],
+      where: {
+        status: { in: ["APPROVED", "PAID", "PENDING"] },
+        ...(window ? { expenseDate: window } : {}),
+      },
+      _sum: { totalAmount: true },
+    }),
+
+    // Every task carrying a rate, with the feedback trail costOfTask needs.
+    // Team time counts in the period the work finished. A running task has no
+    // completion date, so it only appears in the all-time view.
+    prisma.task.findMany({
+      where: {
+        internalCostType: { not: "NONE" },
+        ...(window ? { completedAt: window } : {}),
+      },
+      select: {
+        completedAt: true,
+        internalCostAmount: true,
+        internalCostType: true,
+        feedbacks: { select: { statusAfter: true, createdAt: true } },
+      },
+    }),
+
+    prisma.campaignDailyStat.aggregate({
+      where: window ? { date: window } : {},
+      _sum: { spend: true },
+    }),
+
+    // Billed is dated by issue; collected is dated by payment, so they need
+    // separate queries once a range is applied.
+    prisma.invoice.aggregate({
+      where: {
+        status: { notIn: ["DRAFT", "CANCELLED"] },
+        ...(window ? { issueDate: window } : {}),
+      },
+      _sum: { total: true, amountPaid: true },
+    }),
+
+    prisma.invoicePayment.aggregate({
+      where: window ? { paidAt: window } : {},
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const expenseOf = (st) => num(expenseRows.find((r) => r.status === st)?._sum.totalAmount);
+  const expensesSettled = expenseOf("APPROVED") + expenseOf("PAID");
+  const expensesPending = expenseOf("PENDING");
+
+  const taskCost = tasks.reduce((sum, t) => sum + costOfTask(t).cost, 0);
+  const adSpendTotal = num(adSpend._sum.spend);
+
+  const totalCost = expensesSettled + taskCost + adSpendTotal;
+
+  const contracted = num(projects._sum.budget);
+  const billed = num(invoiceAgg._sum.total);
+  // Within a range, "collected" means money that arrived in that window —
+  // which is a different set of invoices from the ones issued in it.
+  const collected = window
+    ? num(collectedAgg._sum.amount)
+    : num(invoiceAgg._sum.amountPaid);
+
+  const pct = (value, base) => (base > 0 ? Math.round((value / base) * 100) : null);
+
+  return {
+    income: {
+      contracted,
+      projectCount: projects._count.id,
+      billed,
+      collected,
+      // Invoiced but not yet paid — owed to us.
+      receivable: billed - collected,
+      // Contracted but not yet invoiced — still to bill.
+      unbilled: Math.max(0, contracted - billed),
+    },
+    cost: {
+      expenses: expensesSettled,
+      expensesPending,
+      taskCost,
+      adSpend: adSpendTotal,
+      total: totalCost,
+    },
+    profit: {
+      // What is actually in the bank against what has been spent.
+      realised: collected - totalCost,
+      realisedMargin: pct(collected - totalCost, collected),
+      // Everything invoiced, settled or not.
+      billedProfit: billed - totalCost,
+      billedMargin: pct(billed - totalCost, billed),
+      // The full book of work, if every project bills in full.
+      projected: contracted - totalCost,
+      projectedMargin: pct(contracted - totalCost, contracted),
+    },
+  };
+}
+
+export async function getFinanceDashboardStats(rangeInput = {}) {
+  const now = new Date();
+  const range = resolveRange(rangeInput);
+  const window = dateFilter(range);
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -857,6 +1023,7 @@ export async function getFinanceDashboardStats() {
   ] = await Promise.all([
     prisma.invoice.groupBy({
       by: ["status"],
+      where: window ? { issueDate: window } : {},
       _count: { id: true },
       _sum: { total: true, amountPaid: true },
     }),
@@ -889,6 +1056,7 @@ export async function getFinanceDashboardStats() {
     }),
 
     prisma.invoice.findMany({
+      where: window ? { issueDate: window } : {},
       take: 8,
       orderBy: { issueDate: "desc" },
       select: {
@@ -916,6 +1084,8 @@ export async function getFinanceDashboardStats() {
     prisma.project.count(),
     prisma.client.count(),
   ]);
+
+  const pnl = await getProfitAndLoss(range);
 
   const statusRow = (s) => byStatus.find((r) => r.status === s);
   const countOf = (s) => statusRow(s)?._count.id ?? 0;
@@ -1000,6 +1170,8 @@ export async function getFinanceDashboardStats() {
       projects: projectCount,
       clients: clientCount,
     },
+    pnl,
+    range: { preset: rangeInput.preset || "all", label: range.label, from: range.from, to: range.to },
     trend: months,
     topDebtors,
     recentInvoices: recentInvoices.map(shape),

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Wallet, TrendingUp, AlertTriangle, PieChart, ArrowRight, ReceiptText,
-  Building2, CalendarDays, ArrowUpRight,
+  Wallet, TrendingUp, TrendingDown, AlertTriangle, PieChart, ArrowRight, ReceiptText,
+  Building2, CalendarDays, ArrowUpRight, Briefcase, Clock, Megaphone, Scale, Loader2,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { useSite } from "@/context/SiteContext";
+import { getFinanceDashboardStats } from "@/actions/dashboard.action";
 import ExpenseTiles from "@/components/expenses/ExpenseTiles";
 
 const STATUS_BAR = [
@@ -86,8 +88,42 @@ function FmtMoney({ amount, className = "" }) {
   return <span className={className}>{format(Number(amount) || 0, { decimals: 0 })}</span>;
 }
 
-export default function FinanceDashboardContent({ stats }) {
+const PRESETS = [
+  { id: "all", label: "All time" },
+  { id: "month", label: "This month" },
+  { id: "year", label: "This year" },
+  { id: "custom", label: "Custom range" },
+];
+
+const iso = (d) => d.toISOString().slice(0, 10);
+
+export default function FinanceDashboardContent({ stats: initial }) {
   const { format } = useSite();
+
+  // All time on load; the server-rendered payload already covers it.
+  const [stats, setStats] = useState(initial);
+  const [preset, setPreset] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (params) => {
+    setLoading(true);
+    const res = await getFinanceDashboardStats(params);
+    if (res) setStats(res);
+    setLoading(false);
+  }, []);
+
+  const applyPreset = (id) => {
+    setPreset(id);
+    // A custom range waits for both dates before it fetches anything.
+    if (id !== "custom") load({ preset: id });
+  };
+
+  useEffect(() => {
+    if (preset !== "custom" || !from || !to) return;
+    load({ preset: "custom", from, to });
+  }, [preset, from, to, load]);
 
   // The action returns null on an auth blip or API failure — show a plain
   // message rather than a wall of zeros that reads like real data.
@@ -105,6 +141,7 @@ export default function FinanceDashboardContent({ stats }) {
   const t = stats?.totals || {};
   const c = stats?.counts || {};
   const trend = stats?.trend || [];
+  const pnl = stats?.pnl || null;
   const debtors = stats?.topDebtors || [];
 
   // Scale bars to the busiest month so a quiet month still reads.
@@ -119,6 +156,170 @@ export default function FinanceDashboardContent({ stats }) {
           Billing, collections and what is still owed.
         </p>
       </div>
+
+      {/* Period */}
+      <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => applyPreset(p.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  preset === p.id
+                    ? "bg-[#5542F6] text-white border-[#5542F6]"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-[#5542F6]"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {preset === "custom" && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date" max={to || iso(new Date())} value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-50 outline-none focus:ring-2 focus:ring-[#5542F6]"
+              />
+              <span className="text-xs text-slate-400">to</span>
+              <input
+                type="date" min={from} max={iso(new Date())} value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-50 outline-none focus:ring-2 focus:ring-[#5542F6]"
+              />
+              {(!from || !to) && <span className="text-[11px] text-slate-400">Pick both dates</span>}
+            </div>
+          )}
+
+          <span className="ml-auto text-xs text-slate-400 flex items-center gap-2">
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Showing <b className="text-slate-600 dark:text-slate-300">{stats?.range?.label || "All time"}</b>
+          </span>
+        </div>
+
+        {stats?.range?.preset && stats.range.preset !== "all" && (
+          <p className="text-[11px] text-slate-400 mt-2">
+            Outstanding, overdue and top-debtor figures always show the position as of today, not the period.
+          </p>
+        )}
+      </div>
+
+      {/* Profit and loss */}
+      {pnl && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon={Briefcase}
+              tone="indigo"
+              label="Contracted income"
+              value={format(pnl.income.contracted, { decimals: 0 })}
+              sub={`${pnl.income.projectCount} project${pnl.income.projectCount === 1 ? "" : "s"} · ${format(pnl.income.unbilled, { decimals: 0 })} not yet invoiced`}
+            />
+            <StatCard
+              icon={ReceiptText}
+              tone="slate"
+              label="Invoiced income"
+              value={format(pnl.income.billed, { decimals: 0 })}
+              sub={`${format(pnl.income.collected, { decimals: 0 })} received · ${format(pnl.income.receivable, { decimals: 0 })} owed`}
+              href="/finance/invoices"
+            />
+            <StatCard
+              icon={Wallet}
+              tone="amber"
+              label="Total expenses"
+              value={format(pnl.cost.total, { decimals: 0 })}
+              sub="Claims + team time + ad spend"
+            />
+            <StatCard
+              icon={pnl.profit.billedProfit >= 0 ? TrendingUp : TrendingDown}
+              tone={pnl.profit.billedProfit >= 0 ? "emerald" : "red"}
+              label="Profit on invoiced"
+              value={format(pnl.profit.billedProfit, { decimals: 0 })}
+              sub={pnl.profit.billedMargin === null ? "nothing invoiced yet" : `${pnl.profit.billedMargin}% margin`}
+            />
+          </div>
+
+          {/* Where the cost actually goes, and the three profit readings */}
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3 flex items-center gap-2">
+                <Scale className="w-4 h-4 text-[#5542F6]" /> Cost breakdown
+              </h2>
+              {(() => {
+                const rows = [
+                  { label: "Staff expense claims", value: pnl.cost.expenses, icon: ReceiptText, color: "bg-[#5542F6]" },
+                  { label: "Team time on tasks", value: pnl.cost.taskCost, icon: Clock, color: "bg-emerald-500" },
+                  { label: "Ad spend", value: pnl.cost.adSpend, icon: Megaphone, color: "bg-amber-500" },
+                ];
+                const max = Math.max(1, ...rows.map((r) => r.value));
+                return (
+                  <div className="space-y-3">
+                    {rows.map(({ label, value, icon: Icon, color }) => (
+                      <div key={label}>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            <Icon className="w-3.5 h-3.5 text-slate-400" /> {label}
+                          </span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
+                            {format(value, { decimals: 0 })}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className={`h-full rounded-full ${color}`} style={{ width: `${(value / max) * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-sm">
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">Total</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-50 tabular-nums">
+                        {format(pnl.cost.total, { decimals: 0 })}
+                      </span>
+                    </div>
+                    {pnl.cost.expensesPending > 0 && (
+                      <p className="text-[11px] text-amber-600">
+                        {format(pnl.cost.expensesPending, { decimals: 0 })} in claims awaiting approval, not counted above.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#5542F6]" /> Profit &amp; loss
+              </h2>
+              <div className="space-y-2.5">
+                {[
+                  { label: "Realised", hint: "money received − cost", value: pnl.profit.realised, margin: pnl.profit.realisedMargin },
+                  { label: "On invoiced", hint: "invoiced − cost", value: pnl.profit.billedProfit, margin: pnl.profit.billedMargin },
+                  { label: "Projected", hint: "full contract book − cost", value: pnl.profit.projected, margin: pnl.profit.projectedMargin },
+                ].map((r) => (
+                  <div key={r.label} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{r.label}</p>
+                      <p className="text-[11px] text-slate-400">{r.hint}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-bold tabular-nums ${r.value >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {format(r.value, { decimals: 0 })}
+                      </p>
+                      {r.margin !== null && (
+                        <p className="text-[11px] text-slate-400">{r.margin}% margin</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                Realised is the honest cash position; projected assumes every project bills in full.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Headline numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

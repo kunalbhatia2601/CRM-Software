@@ -1164,8 +1164,9 @@ export async function getUserDirectoryAPI(accessToken) {
 
 /* ───────── HR Dashboard Stats ───────── */
 
-export async function getFinanceDashboardStatsAPI(accessToken) {
-  return request("/api/dashboard/finance-stats", { method: "GET", token: accessToken });
+export async function getFinanceDashboardStatsAPI(accessToken, params) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/dashboard/finance-stats${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
 }
 
 export async function getHrDashboardStatsAPI(accessToken) {

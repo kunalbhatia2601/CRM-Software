@@ -108,7 +108,11 @@ export async function getHrStats(_req, res, next) {
  */
 export async function getFinanceStats(req, res, next) {
   try {
-    const stats = await getFinanceDashboardStats();
+    const stats = await getFinanceDashboardStats({
+      preset: req.query.preset,
+      from: req.query.from,
+      to: req.query.to,
+    });
     return ok(res, "Finance dashboard statistics fetched", stats);
   } catch (error) {
     next(error);
