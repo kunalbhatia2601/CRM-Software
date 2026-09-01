@@ -217,6 +217,7 @@ model User {
 
   // Invoices created
   createdInvoices Invoice[] @relation("InvoiceCreator")
+  recordedPayments InvoicePayment[] @relation("InvoicePaymentRecorder")
 
   // Announcements created
   createdAnnouncements Announcement[] @relation("AnnouncementCreator")
@@ -617,6 +618,8 @@ model Invoice {
   paymentAccountId String?         @map("payment_account_id")
   paymentAccount   PaymentAccount? @relation(fields: [paymentAccountId], references: [id], onDelete: SetNull)
   paymentDetails   Json?           @map("payment_details")
+
+  payments InvoicePayment[]
 
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -1313,6 +1316,44 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Invoice Payments ────────────────────────────────
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  CARD
+  OTHER
+}
+
+/// One receipt against an invoice. Recorded rather than derived, so partial
+/// payments keep their own reference numbers and audit trail — `amountPaid` on
+/// the invoice is recomputed from these.
+model InvoicePayment {
+  id        String  @id @default(cuid())
+  invoiceId String  @map("invoice_id")
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount Decimal       @db.Decimal(12, 2)
+  method PaymentMethod
+  paidAt DateTime      @map("paid_at")
+
+  /// The number a client would quote: UTR, transaction id, cheque number.
+  referenceNo String? @map("reference_no")
+  /// Method-specific extras — cheque bank and date, UPI id, card last four.
+  details     Json?
+  note        String? @db.Text
+
+  recordedById String @map("recorded_by_id")
+  recordedBy   User   @relation("InvoicePaymentRecorder", fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([invoiceId])
+  @@map("invoice_payments")
+}
+
 // ─── Payment Accounts ────────────────────────────────
 
 enum PaymentAccountType {

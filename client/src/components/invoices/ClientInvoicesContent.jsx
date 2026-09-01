@@ -42,7 +42,7 @@ export default function ClientInvoicesContent() {
     return data.invoices;
   }, [data.invoices, filter]);
 
-  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—");
+  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
   const isOverdue = (inv) =>
     inv.dueDate && inv.status !== "PAID" && inv.status !== "CANCELLED" && new Date(inv.dueDate) < new Date();

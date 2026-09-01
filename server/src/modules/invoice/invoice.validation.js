@@ -66,3 +66,25 @@ export const listInvoicesSchema = z.object({
 export const getInvoiceSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
+
+// ─── Payments ─────────────────────────────────────────
+
+const paymentMethods = ["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "CARD", "OTHER"];
+
+export const addPaymentSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    amount: z.coerce.number().positive("Payment amount must be more than zero"),
+    method: z.enum(paymentMethods),
+    paidAt: z.string().optional().nullable(),
+    /// UTR, transaction id or cheque number, depending on the method.
+    referenceNo: z.string().max(120).optional().nullable(),
+    /// Method extras: cheque bank/date, UPI id, card last four.
+    details: z.record(z.string(), z.any()).optional().nullable(),
+    note: z.string().max(2000).optional().nullable(),
+  }),
+});
+
+export const paymentIdParamSchema = z.object({
+  params: z.object({ id: z.string().min(1), paymentId: z.string().min(1) }),
+});

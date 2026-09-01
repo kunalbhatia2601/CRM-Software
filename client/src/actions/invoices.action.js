@@ -9,6 +9,8 @@ import {
   updateInvoiceAPI,
   deleteInvoiceAPI,
   getInvoiceConfigAPI,
+  addInvoicePaymentAPI,
+  deleteInvoicePaymentAPI,
 } from "@/lib/api";
 import { getToken } from "@/lib/session";
 
@@ -106,5 +108,31 @@ export async function getMyInvoices() {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to fetch invoices" };
+  }
+}
+
+/** Record money received against an invoice. */
+export async function addInvoicePayment(id, data) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await addInvoicePaymentAPI(id, data, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to record payment" };
+  }
+}
+
+/** Remove a wrongly-entered receipt. The invoice re-derives from what is left. */
+export async function deleteInvoicePayment(id, paymentId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await deleteInvoicePaymentAPI(id, paymentId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to remove payment" };
   }
 }

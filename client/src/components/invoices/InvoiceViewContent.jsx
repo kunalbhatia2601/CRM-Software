@@ -6,6 +6,16 @@ import { ArrowLeft, Printer, Loader2, CheckCircle2, Pencil } from "lucide-react"
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { updateInvoice, getInvoiceConfig } from "@/actions/invoices.action";
+import RecordPaymentModal from "@/components/invoices/RecordPaymentModal";
+
+const PAYMENT_METHOD_LABEL = {
+  UPI: "UPI",
+  BANK_TRANSFER: "Bank Transfer",
+  CASH: "Cash",
+  CHEQUE: "Cheque",
+  CARD: "Card",
+  OTHER: "Other",
+};
 
 const STATUS_STYLES = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -23,11 +33,12 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
   const router = useRouter();
   const site = useSite();
   const { format } = site;
-  // The snapshot taken when the account was chosen — not the live record.
-  const pay = invoice.paymentDetails || null;
   const [invoice, setInvoice] = useState(initial);
+  // The snapshot taken when the account was chosen — not the live record.
+  // Declared after `invoice` exists, or it reads it in the temporal dead zone.
+  const pay = invoice.paymentDetails || null;
   const [toast, setToast] = useState(null);
-  const [marking, setMarking] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [bg, setBg] = useState({ image: null, opacity: 0.05 });
 
   useEffect(() => {
@@ -39,16 +50,13 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
 
   const showToast = (type, message) => setToast({ type, message });
 
-  const markPaid = async () => {
-    setMarking(true);
-    const res = await updateInvoice(invoice.id, { amountPaid: Number(invoice.total) });
-    setMarking(false);
-    if (res.success) {
-      setInvoice(res.data);
-      showToast("success", "Marked as paid");
-    } else {
-      showToast("error", res.error || "Failed");
-    }
+  const onPaymentRecorded = (updated) => {
+    setInvoice(updated);
+    setPaying(false);
+    showToast(
+      "success",
+      updated.status === "PAID" ? "Invoice settled" : "Payment recorded"
+    );
   };
 
   // Set the PDF/print filename to INV_ID(4)-ProjectName, and collapse the
@@ -72,11 +80,19 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
     }, 500);
   };
 
-  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—");
+  const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
   return (
     <div className="p-6">
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+
+      {/* Outside the printable sheet on purpose. */}
+      <RecordPaymentModal
+        isOpen={paying}
+        invoice={invoice}
+        onClose={() => setPaying(false)}
+        onRecorded={onPaymentRecorded}
+      />
 
       {/* Toolbar — hidden on print */}
       <div className="flex items-center justify-between mb-6 print:hidden">
@@ -90,9 +106,8 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
             </button>
           )}
           {!readOnly && invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
-            <button onClick={markPaid} disabled={marking} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl disabled:opacity-60">
-              {marking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Mark Paid
+            <button onClick={() => setPaying(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl">
+              <CheckCircle2 className="w-4 h-4" /> Record Payment
             </button>
           )}
           <button onClick={handlePrint} className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4]">
@@ -195,7 +210,28 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
             </div>
           </div>
 
-          {/* Where to pay — read from the invoice's own snapshot, never the
+      {/* What has been received, and how */}
+      {invoice.payments?.length > 0 && (
+        <div className="border-t border-slate-100 pt-6 mb-6">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+            Payments Received
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {invoice.payments.map((pmt) => (
+                <tr key={pmt.id} className="border-b border-slate-50 last:border-0">
+                  <td className="py-2 pr-3 text-slate-600 whitespace-nowrap">{fmtDate(pmt.paidAt)}</td>
+                  <td className="py-2 px-2 text-slate-600">{PAYMENT_METHOD_LABEL[pmt.method] || pmt.method}</td>
+                  <td className="py-2 px-2 text-slate-500 font-mono text-xs">{pmt.referenceNo || "—"}</td>
+                  <td className="py-2 pl-2 text-right font-medium text-slate-800">{format(pmt.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Where to pay — read from the invoice's own snapshot, never the
               live account, so a later edit cannot change a sent invoice. */}
           {pay && (
             <div className="border-t border-slate-100 pt-6 mb-6">

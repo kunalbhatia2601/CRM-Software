@@ -1564,3 +1564,11 @@ export async function updatePaymentAccountAPI(id, data, accessToken) {
 export async function deletePaymentAccountAPI(id, accessToken) {
   return request(`/api/payment-accounts/${id}`, { method: "DELETE", token: accessToken });
 }
+
+export async function addInvoicePaymentAPI(id, data, accessToken) {
+  return request(`/api/invoices/${id}/payments`, { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function deleteInvoicePaymentAPI(id, paymentId, accessToken) {
+  return request(`/api/invoices/${id}/payments/${paymentId}`, { method: "DELETE", token: accessToken });
+}

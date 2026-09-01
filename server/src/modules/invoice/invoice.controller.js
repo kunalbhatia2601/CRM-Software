@@ -37,6 +37,16 @@ const deleteInvoice = catchAsync(async (req, res) => {
   return ok(res, "Invoice deleted successfully");
 });
 
+const addPayment = catchAsync(async (req, res) => {
+  const invoice = await invoiceService.addPayment(req.params.id, req.body, req.user.id);
+  return ok(res, "Payment recorded", invoice);
+});
+
+const deletePayment = catchAsync(async (req, res) => {
+  const invoice = await invoiceService.removePayment(req.params.id, req.params.paymentId);
+  return ok(res, "Payment removed", invoice);
+});
+
 export default {
   createInvoice,
   listInvoices,
@@ -45,4 +55,7 @@ export default {
   getInvoicesByProject,
   updateInvoice,
   deleteInvoice,
+  addPayment,
+  deletePayment,
 };
+

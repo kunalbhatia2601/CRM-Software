@@ -6,6 +6,10 @@ import notificationService from "../notification/notification.service.js";
 const INVOICE_INCLUDE = {
   items: { orderBy: { position: "asc" } },
   paymentAccount: { select: { id: true, label: true, type: true, isActive: true } },
+  payments: {
+    orderBy: { paidAt: "desc" },
+    include: { recordedBy: { select: { id: true, firstName: true, lastName: true } } },
+  },
   project: {
     select: { id: true, name: true, status: true },
   },
@@ -42,6 +46,20 @@ async function resolvePaymentAccount(paymentAccountId) {
     paymentDetails: snapshotOf(account),
   };
 }
+
+/** Details a given method actually needs, so a record is never half-useful. */
+const REQUIRED_BY_METHOD = {
+  UPI: [["referenceNo", "UTR / transaction reference"]],
+  BANK_TRANSFER: [["referenceNo", "UTR / transaction reference"]],
+  CHEQUE: [
+    ["referenceNo", "Cheque number"],
+    ["chequeBank", "Bank"],
+    ["chequeDate", "Cheque date"],
+  ],
+  CARD: [],
+  CASH: [],
+  OTHER: [],
+};
 
 /**
  * Round to 2 decimals (money).
@@ -353,6 +371,118 @@ class InvoiceService {
     const existing = await prisma.invoice.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("Invoice not found");
     await prisma.invoice.delete({ where: { id } });
+  }
+
+  // ─── Payments ────────────────────────────────────────
+
+  /**
+   * Recompute an invoice from its payment records.
+   *
+   * `amountPaid` is never written directly by this path — it is the sum of
+   * receipts, so removing a wrongly-entered payment corrects the invoice too.
+   */
+  async #syncFromPayments(tx, invoiceId) {
+    const invoice = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      select: { total: true, status: true },
+    });
+
+    const agg = await tx.invoicePayment.aggregate({
+      where: { invoiceId },
+      _sum: { amount: true },
+      _max: { paidAt: true },
+    });
+
+    const paid = round2(Number(agg._sum.amount || 0));
+    const total = Number(invoice.total);
+
+    let status = invoice.status;
+    let paidAt = null;
+
+    if (paid <= 0) {
+      // Back to whatever it was before money arrived.
+      status = ["PAID", "PARTIALLY_PAID"].includes(invoice.status) ? "SENT" : invoice.status;
+    } else if (paid >= total && total > 0) {
+      status = "PAID";
+      paidAt = agg._max.paidAt;
+    } else {
+      status = "PARTIALLY_PAID";
+    }
+
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: { amountPaid: paid, status, paidAt },
+    });
+  }
+
+  /**
+   * Record money received against an invoice.
+   *
+   * @param {string} id
+   * @param {object} data  { amount, method, paidAt, referenceNo, details, note }
+   * @param {string} userId
+   */
+  async addPayment(id, data, userId) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      select: { id: true, total: true, amountPaid: true, status: true },
+    });
+    if (!invoice) throw ApiError.notFound("Invoice not found");
+    if (invoice.status === "CANCELLED") {
+      throw ApiError.badRequest("A cancelled invoice cannot take payments");
+    }
+
+    const amount = round2(data.amount);
+    if (!(amount > 0)) throw ApiError.badRequest("Payment amount must be more than zero");
+
+    const outstanding = round2(Number(invoice.total) - Number(invoice.amountPaid));
+    if (amount > outstanding) {
+      throw ApiError.badRequest(
+        `That is more than the ${outstanding.toFixed(2)} still outstanding on this invoice`
+      );
+    }
+
+    // Method-specific details are what make a receipt traceable later.
+    const details = data.details || {};
+    const missing = (REQUIRED_BY_METHOD[data.method] || [])
+      .filter(([field]) => !String(data[field] ?? details[field] ?? "").trim())
+      .map(([, label]) => label);
+    if (missing.length > 0) {
+      throw ApiError.badRequest(`Missing for this payment method: ${missing.join(", ")}`);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.invoicePayment.create({
+        data: {
+          invoiceId: id,
+          amount,
+          method: data.method,
+          paidAt: data.paidAt ? new Date(data.paidAt) : new Date(),
+          referenceNo: data.referenceNo?.trim() || null,
+          details: Object.keys(details).length > 0 ? details : null,
+          note: data.note?.trim() || null,
+          recordedById: userId,
+        },
+      });
+      await this.#syncFromPayments(tx, id);
+    });
+
+    return prisma.invoice.findUnique({ where: { id }, include: INVOICE_INCLUDE });
+  }
+
+  /** Remove a wrongly-entered receipt; the invoice re-derives from what is left. */
+  async removePayment(invoiceId, paymentId) {
+    const payment = await prisma.invoicePayment.findUnique({ where: { id: paymentId } });
+    if (!payment || payment.invoiceId !== invoiceId) {
+      throw ApiError.notFound("Payment not found on this invoice");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.invoicePayment.delete({ where: { id: paymentId } });
+      await this.#syncFromPayments(tx, invoiceId);
+    });
+
+    return prisma.invoice.findUnique({ where: { id: invoiceId }, include: INVOICE_INCLUDE });
   }
 }
 
