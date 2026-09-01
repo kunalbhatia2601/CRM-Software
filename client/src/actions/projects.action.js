@@ -12,6 +12,7 @@ import {
   removeProjectServiceAPI,
   getProjectPermissionsAPI,
   getProjectOptionsAPI,
+  getProjectLedgerAPI,
 } from "@/lib/api";
 import { getAssignableStaff } from "./users.action";
 import { getClientsDropdown } from "./clients.action";
@@ -191,5 +192,18 @@ export async function getProjectOptions() {
     return res.success ? res.data || [] : [];
   } catch {
     return [];
+  }
+}
+
+/** Full financial history of a project. Owner, admin and finance only. */
+export async function getProjectLedger(projectId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await getProjectLedgerAPI(projectId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to load ledger" };
   }
 }

@@ -1,5 +1,6 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
+import { costOfTask } from "../expense/expense.service.js";
 
 /**
  * Compute the next billing date from a reference date + billing cycle.
@@ -219,6 +220,196 @@ class ProjectService {
     }
 
     return project;
+  }
+
+  /**
+   * Full financial history of one project, oldest first.
+   *
+   * Five streams that until now lived in separate screens: invoices issued,
+   * payments received, expense claims, team time on tasks, and ad spend. Each
+   * entry carries a signed amount so a running balance is just a sum.
+   */
+  async getLedger(projectId) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true, name: true, status: true, budget: true,
+        startDate: true, endDate: true, billingCycle: true,
+        client: { select: { id: true, companyName: true } },
+      },
+    });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    const [invoices, expenses, tasks, adStats] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { projectId, status: { not: "CANCELLED" } },
+        select: {
+          id: true, invoiceNumber: true, status: true, total: true, amountPaid: true,
+          issueDate: true, dueDate: true,
+          payments: {
+            select: {
+              id: true, amount: true, method: true, paidAt: true, referenceNo: true, note: true,
+              recordedBy: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+        orderBy: { issueDate: "asc" },
+      }),
+
+      prisma.expense.findMany({
+        where: { projectId, status: { in: ["APPROVED", "PAID", "PENDING"] } },
+        select: {
+          id: true, reference: true, title: true, totalAmount: true, status: true,
+          expenseDate: true, isBillable: true, invoiceId: true,
+          category: { select: { name: true, icon: true } },
+          submittedBy: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { expenseDate: "asc" },
+      }),
+
+      prisma.task.findMany({
+        where: { projectId, internalCostType: { not: "NONE" } },
+        select: {
+          id: true, title: true, status: true, completedAt: true, createdAt: true,
+          internalCostAmount: true, internalCostType: true,
+          assignee: { select: { firstName: true, lastName: true } },
+          feedbacks: {
+            where: { statusAfter: "IN_PROGRESS" },
+            select: { statusAfter: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+        },
+      }),
+
+      prisma.campaignDailyStat.findMany({
+        where: { campaign: { projectId }, spend: { gt: 0 } },
+        select: {
+          id: true, date: true, spend: true,
+          campaign: { select: { id: true, name: true, reference: true } },
+        },
+        orderBy: { date: "asc" },
+      }),
+    ]);
+
+    const num = (v) => Number(v || 0);
+
+    const invoiceEntries = invoices.flatMap((inv) => [
+      // Issuing an invoice books income; it does not move cash.
+      {
+        id: `inv-${inv.id}`,
+        kind: "INVOICE",
+        date: inv.issueDate,
+        title: `Invoice ${inv.invoiceNumber}`,
+        detail: inv.dueDate ? `Due ${inv.dueDate.toISOString().slice(0, 10)}` : null,
+        status: inv.status,
+        amount: num(inv.total),
+        direction: "IN",
+        refId: inv.id,
+      },
+      ...inv.payments.map((pmt) => ({
+        id: `pay-${pmt.id}`,
+        kind: "PAYMENT",
+        date: pmt.paidAt,
+        title: `Payment received · ${inv.invoiceNumber}`,
+        detail: [pmt.method?.replace(/_/g, " "), pmt.referenceNo].filter(Boolean).join(" · ") || null,
+        status: pmt.method,
+        amount: num(pmt.amount),
+        direction: "IN",
+        refId: inv.id,
+        by: pmt.recordedBy ? `${pmt.recordedBy.firstName} ${pmt.recordedBy.lastName}` : null,
+      })),
+    ]);
+
+    const expenseEntries = expenses.map((e) => ({
+      id: `exp-${e.id}`,
+      kind: "EXPENSE",
+      date: e.expenseDate,
+      title: e.title,
+      detail: [e.category?.name, e.reference, e.isBillable ? (e.invoiceId ? "billable · invoiced" : "billable") : null]
+        .filter(Boolean).join(" · "),
+      status: e.status,
+      amount: num(e.totalAmount),
+      direction: "OUT",
+      refId: e.id,
+      by: e.submittedBy ? `${e.submittedBy.firstName} ${e.submittedBy.lastName}` : null,
+    }));
+
+    const taskEntries = tasks
+      .map((t) => ({ task: t, ...costOfTask(t) }))
+      .filter((x) => x.cost > 0)
+      .map(({ task: t, cost, hours, at }) => ({
+        id: `task-${t.id}`,
+        kind: "TASK_COST",
+        // Costed on completion; a running task sits on the day it started.
+        date: at || t.createdAt,
+        title: t.title,
+        detail: `${Math.round(hours * 10) / 10}h${t.completedAt ? "" : " · still running"}`,
+        status: t.status,
+        amount: cost,
+        direction: "OUT",
+        refId: t.id,
+        by: t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}` : null,
+      }));
+
+    const adEntries = adStats.map((st) => ({
+      id: `ad-${st.id}`,
+      kind: "AD_SPEND",
+      date: st.date,
+      title: st.campaign?.name || "Ad spend",
+      detail: st.campaign?.reference || null,
+      status: null,
+      amount: num(st.spend),
+      direction: "OUT",
+      refId: st.campaign?.id || null,
+    }));
+
+    const entries = [...invoiceEntries, ...expenseEntries, ...taskEntries, ...adEntries];
+
+    entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Running balance of realised cash: payments in, costs out. Invoices are
+    // excluded — booking one moves no money.
+    let balance = 0;
+    for (const e of entries) {
+      if (e.kind !== "INVOICE") balance += e.direction === "IN" ? e.amount : -e.amount;
+      e.balance = balance;
+    }
+
+    const sumOf = (kind) => entries.filter((e) => e.kind === kind).reduce((s, e) => s + e.amount, 0);
+    const pendingExpense = expenses
+      .filter((e) => e.status === "PENDING")
+      .reduce((s, e) => s + num(e.totalAmount), 0);
+
+    const billed = sumOf("INVOICE");
+    const collected = sumOf("PAYMENT");
+    const expenseCost = sumOf("EXPENSE") - pendingExpense;
+    const taskCost = sumOf("TASK_COST");
+    const adSpend = sumOf("AD_SPEND");
+    const totalCost = expenseCost + taskCost + adSpend;
+    const contracted = num(project.budget);
+    const pct = (v, base) => (base > 0 ? Math.round((v / base) * 100) : null);
+
+    return {
+      project: { ...project, budget: contracted },
+      entries,
+      summary: {
+        contracted,
+        billed,
+        collected,
+        receivable: billed - collected,
+        unbilled: Math.max(0, contracted - billed),
+        cost: { expenses: expenseCost, pendingExpenses: pendingExpense, taskCost, adSpend, total: totalCost },
+        profit: {
+          realised: collected - totalCost,
+          realisedMargin: pct(collected - totalCost, collected),
+          billedProfit: billed - totalCost,
+          billedMargin: pct(billed - totalCost, billed),
+          projected: contracted - totalCost,
+          projectedMargin: pct(contracted - totalCost, contracted),
+        },
+      },
+    };
   }
 
   /**

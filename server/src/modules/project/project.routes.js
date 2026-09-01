@@ -31,6 +31,15 @@ router.get("/options", staffPickerAccess, projectController.getProjectOptions);
 router.get("/", projectAccess, validate(listProjectsSchema), projectController.listProjects);
 router.get("/:id", projectAccess, validate(getProjectSchema), projectController.getProjectById);
 router.get("/:id/permissions", projectAccess, validate(getProjectSchema), projectController.getPermissions);
+
+// Project ledger — income, costs and profit. Company financials, so the money
+// roles only.
+router.get(
+  "/:id/ledger",
+  authorize("OWNER", "ADMIN", "FINANCE_MANAGER"),
+  validate(getProjectSchema),
+  projectController.getLedger
+);
 router.patch("/:id", authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER"), validate(updateProjectSchema), projectController.updateProject);
 router.delete("/:id", authorize("OWNER"), validate(getProjectSchema), projectController.deleteProject);
 

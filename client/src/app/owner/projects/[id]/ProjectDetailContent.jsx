@@ -20,6 +20,7 @@ import ProjectExpensesSection from "@/components/expenses/ProjectExpensesSection
 import ProjectExpenseTile from "@/components/expenses/ProjectExpenseTile";
 import KanbanBoard from "@/components/project/KanbanBoard";
 import CampaignAnalytics from "@/components/campaigns/CampaignAnalytics";
+import ProjectLedger from "@/components/project/ProjectLedger";
 import Toast from "@/components/ui/Toast";
 
 const STATUS_COLORS = {
@@ -255,6 +256,7 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
         {[
           { id: "overview", label: "Overview" },
           { id: "analytics", label: "Marketing Analysis" },
+          { id: "ledger", label: "Project Ledger" },
         ].map((t) => (
           <button
             key={t.id}
@@ -272,6 +274,8 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
 
       {mainTab === "analytics" ? (
         <CampaignAnalytics projectId={project.id} />
+      ) : mainTab === "ledger" ? (
+        <ProjectLedger projectId={project.id} />
       ) : (
         <>
 

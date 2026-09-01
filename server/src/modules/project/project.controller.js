@@ -66,6 +66,12 @@ class ProjectController {
     return ok(res, "Project options retrieved", projects);
   });
 
+  /** Full financial history of a project — money roles only. */
+  getLedger = catchAsync(async (req, res) => {
+    const data = await projectService.getLedger(req.params.id);
+    return ok(res, "Project ledger retrieved", data);
+  });
+
   /** What the current user may do on this project — drives which controls render. */
   getPermissions = catchAsync(async (req, res) => {
     const caps = await getProjectCapabilities(req.user.id, req.params.id);
