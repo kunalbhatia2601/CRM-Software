@@ -95,6 +95,86 @@ const ASSIGNEE_SELF_STATUSES = ["ACKNOWLEDGED", "IN_PROGRESS", "IN_REVIEW"];
 /** Statuses only a reviewer may set: the sign-off end of the flow. */
 const REVIEWER_STATUSES = ["CLIENT_REVIEW", "COMPLETED"];
 
+/**
+ * Roll planning steps and milestones up from their tasks.
+ *
+ * A step or milestone is finished when every task under it is COMPLETED, and
+ * un-finished the moment one is reopened. Called after any status change so the
+ * plan never claims to be done while work is still open — and never stays done
+ * after work reopens.
+ *
+ * Containers with no tasks are left alone: "zero of zero complete" is not a
+ * statement anyone made about them.
+ *
+ * @param {object} tx           active transaction
+ * @param {string[]} stepIds
+ * @param {string[]} milestoneIds
+ * @returns {Promise<{steps: string[], milestones: string[]}>} what changed
+ */
+export async function rollUpPlan(tx, stepIds = [], milestoneIds = []) {
+  const changed = { steps: [], milestones: [] };
+
+  const steps = [...new Set(stepIds.filter(Boolean))];
+  const milestones = [...new Set(milestoneIds.filter(Boolean))];
+  if (steps.length === 0 && milestones.length === 0) return changed;
+
+  // One grouped count per container instead of a query each.
+  const [stepCounts, milestoneCounts, stepRows, milestoneRows] = await Promise.all([
+    steps.length
+      ? tx.task.groupBy({
+          by: ["planningStepId", "status"],
+          where: { planningStepId: { in: steps } },
+          _count: { id: true },
+        })
+      : [],
+    milestones.length
+      ? tx.task.groupBy({
+          by: ["milestoneId", "status"],
+          where: { milestoneId: { in: milestones } },
+          _count: { id: true },
+        })
+      : [],
+    steps.length
+      ? tx.planningStep.findMany({ where: { id: { in: steps } }, select: { id: true, status: true } })
+      : [],
+    milestones.length
+      ? tx.milestone.findMany({ where: { id: { in: milestones } }, select: { id: true, status: true } })
+      : [],
+  ]);
+
+  /** Decide a container's status from its task tally. */
+  const verdict = (rows, key, id) => {
+    const mine = rows.filter((r) => r[key] === id);
+    const total = mine.reduce((sum, r) => sum + r._count.id, 0);
+    if (total === 0) return null;
+    const done = mine.filter((r) => r.status === "COMPLETED").reduce((sum, r) => sum + r._count.id, 0);
+    if (done === total) return "COMPLETED";
+    // Some work has landed, so it is under way rather than pending.
+    return done > 0 ? "IN_PROGRESS" : null;
+  };
+
+  for (const step of stepRows) {
+    const next = verdict(stepCounts, "planningStepId", step.id);
+    if (!next || next === step.status) continue;
+    // Only auto-flip between the two states this rule owns.
+    if (step.status === "COMPLETED" || next === "COMPLETED") {
+      await tx.planningStep.update({ where: { id: step.id }, data: { status: next } });
+      changed.steps.push(step.id);
+    }
+  }
+
+  for (const ms of milestoneRows) {
+    const next = verdict(milestoneCounts, "milestoneId", ms.id);
+    if (!next || next === ms.status) continue;
+    if (ms.status === "COMPLETED" || next === "COMPLETED") {
+      await tx.milestone.update({ where: { id: ms.id }, data: { status: next } });
+      changed.milestones.push(ms.id);
+    }
+  }
+
+  return changed;
+}
+
 /** True when a submission payload carries something a reviewer can look at. */
 function hasWork(sub) {
   if (!sub) return false;
@@ -425,6 +505,14 @@ class TaskService {
           });
         }
 
+        // A completed task may finish its step or milestone; a reopened one
+        // may un-finish them.
+        await rollUpPlan(
+          tx,
+          [updateData.planningStepId ?? task.planningStepId],
+          [updateData.milestoneId ?? task.milestoneId]
+        );
+
         return tx.task.findUnique({
           where: { id },
           include: TASK_INCLUDE,
@@ -532,7 +620,7 @@ class TaskService {
 
     const tasks = await prisma.task.findMany({
       where: { id: { in: taskIds } },
-      select: { id: true, projectId: true, status: true, assigneeId: true },
+      select: { id: true, projectId: true, status: true, assigneeId: true, planningStepId: true, milestoneId: true },
     });
 
     if (tasks.length !== taskIds.length) throw ApiError.badRequest("Some tasks not found");
@@ -574,6 +662,12 @@ class TaskService {
             givenById: userId,
           })),
       });
+
+      await rollUpPlan(
+        tx,
+        tasks.map((t) => t.planningStepId),
+        tasks.map((t) => t.milestoneId)
+      );
     });
 
     return prisma.task.findMany({

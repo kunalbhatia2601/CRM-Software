@@ -1,6 +1,7 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 import notificationService from "../notification/notification.service.js";
+import { rollUpPlan } from "../task/task.service.js";
 
 // Normalize an id array: drop empties + duplicates.
 function uniqIds(arr) {
@@ -246,6 +247,19 @@ class DeliverableService {
           })),
         });
       }
+    }
+
+    // Client feedback moves linked tasks, so the plan re-rolls too.
+    if (linkedTaskIds.length > 0) {
+      const moved = await prisma.task.findMany({
+        where: { id: { in: linkedTaskIds } },
+        select: { planningStepId: true, milestoneId: true },
+      });
+      await rollUpPlan(
+        prisma,
+        moved.map((t) => t.planningStepId),
+        moved.map((t) => t.milestoneId)
+      );
     }
 
     // Tell the project's creator/team that the client responded

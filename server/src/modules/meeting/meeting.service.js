@@ -1,6 +1,7 @@
 import prisma from "../../utils/prisma.js";
 import notificationService from "../notification/notification.service.js";
 import { ApiError } from "../../utils/apiError.js";
+import { rollUpPlan } from "../task/task.service.js";
 
 const MEETING_INCLUDE = {
   lead: {
@@ -365,6 +366,9 @@ class MeetingService {
           }
 
           await tx.task.update({ where: { id: tf.taskId }, data: updateData });
+
+          // Finishing a task here can finish its step or milestone too.
+          await rollUpPlan(tx, [task.planningStepId], [task.milestoneId]);
         }
       }
 
