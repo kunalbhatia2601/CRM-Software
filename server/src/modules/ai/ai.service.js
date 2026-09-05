@@ -26,6 +26,9 @@ class AiService {
    * Tool definitions for CRM Copilot.
    * Each tool corresponds to a function the AI can call.
    */
+  /** model id → { useMaxCompletionTokens, noTemperature } learned from 400s. */
+  #modelQuirks = new Map();
+
   #tools = [
     // {
     //   name: "global_search",
@@ -286,7 +289,7 @@ class AiService {
    * Generate with tool calling support.
    * AI can call tools up to maxTurns times.
    */
-  async generateWithTools({ systemPromptSlug, userPrompt, maxTurns = 2 }) {
+  async generateWithTools({ systemPromptSlug, userPrompt, maxTurns = 2, history = [] }) {
     const config = await this.#getAiConfig();
 
     if (!config.aiProvider || config.aiProvider === "NONE") {
@@ -308,14 +311,266 @@ class AiService {
     const provider = config.aiProvider.toUpperCase();
 
     if (provider === "GEMINI") {
-      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns);
+      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns, history);
     } else if (provider === "OPENAI") {
-      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns);
+      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns, history);
     } else if (provider === "CUSTOM") {
-      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns);
+      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns, history);
     } else {
       throw ApiError.badRequest(`Unknown AI provider: ${config.aiProvider}`);
     }
+  }
+
+  /**
+   * Call OpenAI chat completions, adapting to what the chosen model accepts.
+   *
+   * Newer models reject `max_tokens` in favour of `max_completion_tokens`, and
+   * the reasoning models reject any `temperature` other than the default. Rather
+   * than keep a list of model names — which goes stale the moment a model ships
+   * — the rejected parameter is read out of the 400 and the call retried without
+   * it. What worked is remembered so the cost is paid once per process.
+   *
+   * @param {object} client OpenAI SDK client
+   * @param {object} body   chat.completions.create body
+   */
+  /**
+   * Learn a rejected parameter from a 400 and record how to avoid it.
+   *
+   * @returns {object|null} the updated quirks, or null if nothing was learned
+   */
+  #learnQuirk(message, quirks) {
+    const msg = String(message || "");
+    const next = { ...quirks };
+    let learned = false;
+
+    if (!next.useMaxCompletionTokens && /max_tokens/i.test(msg) && /max_completion_tokens|not supported|unsupported/i.test(msg)) {
+      next.useMaxCompletionTokens = true;
+      learned = true;
+    }
+    if (!next.noTemperature && /temperature/i.test(msg) && /unsupported|not support/i.test(msg)) {
+      next.noTemperature = true;
+      learned = true;
+    }
+    return learned ? next : null;
+  }
+
+  /** Apply learned quirks to a request body. */
+  #applyQuirks(body, quirks = {}) {
+    const out = { ...body };
+    if (quirks.useMaxCompletionTokens && out.max_tokens !== undefined) {
+      out.max_completion_tokens = out.max_tokens;
+      delete out.max_tokens;
+    }
+    if (quirks.noTemperature) delete out.temperature;
+    return out;
+  }
+
+  /**
+   * Call OpenAI chat completions, adapting to what the chosen model accepts.
+   *
+   * Newer models reject `max_tokens` in favour of `max_completion_tokens`, and
+   * the reasoning models reject any `temperature` other than the default. Rather
+   * than keep a list of model names — which goes stale the moment a model ships
+   * — the rejected parameter is read out of the 400 and the call retried. The
+   * API reports one bad parameter at a time, so this loops, and what it learns
+   * is remembered per model so the cost is paid once per process.
+   *
+   * @param {object} client OpenAI SDK client
+   * @param {object} body   chat.completions.create body
+   */
+  async #openAiChat(client, body) {
+    const key = body.model;
+    let quirks = this.#modelQuirks.get(key) || {};
+
+    // One attempt, plus one per parameter we might have to drop.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await client.chat.completions.create(this.#applyQuirks(body, quirks));
+      } catch (error) {
+        const learned = this.#learnQuirk(error?.message, quirks);
+        if (!learned) throw error;
+
+        quirks = learned;
+        this.#modelQuirks.set(key, quirks);
+      }
+    }
+
+    // Every known quirk applied and it still refused — let the real error out.
+    return client.chat.completions.create(this.#applyQuirks(body, quirks));
+  }
+
+  /**
+   * Same adaptation for an OpenAI-compatible server reached over plain fetch.
+   * Returns { res, data }; the caller decides what a non-ok response means.
+   */
+  async #customChat(config, body) {
+    const key = `custom:${body.model}`;
+    let quirks = this.#modelQuirks.get(key) || {};
+
+    const send = async (payload) => {
+      const res = await fetch(`${config.aiBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.aiApiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    };
+
+    let result = await send(this.#applyQuirks(body, quirks));
+
+    for (let attempt = 0; attempt < 2 && !result.res.ok; attempt++) {
+      const learned = this.#learnQuirk(result.data?.error?.message, quirks);
+      if (!learned) break;
+
+      quirks = learned;
+      this.#modelQuirks.set(key, quirks);
+      result = await send(this.#applyQuirks(body, quirks));
+    }
+
+    return result;
+  }
+
+  /**
+   * List the models the configured provider actually offers.
+   *
+   * Every provider publishes a catalogue, so the settings screen never has to
+   * ship a hand-maintained list that goes stale the moment a model ships.
+   *
+   * @param {object} override optional { provider, apiKey, baseUrl } so the UI can
+   *   list models for a key that has been typed but not saved yet.
+   */
+  async listModels(override = {}) {
+    const config = await this.#getAiConfig();
+
+    const provider = (override.provider || config.aiProvider || "NONE").toUpperCase();
+    // The settings screen shows the saved key masked ("sk-proj••••"). Sending
+    // that back would put non-ASCII into an Authorization header, so anything
+    // that is not a usable key falls back to the stored one.
+    const apiKey = this.#usableKey(override.apiKey) || config.aiApiKey;
+    const baseUrl = override.baseUrl || config.aiBaseUrl;
+
+    if (!provider || provider === "NONE") {
+      throw ApiError.badRequest("Pick an AI provider first.");
+    }
+    if (!apiKey && provider !== "CUSTOM") {
+      throw ApiError.badRequest("Enter an API key to load the model list.");
+    }
+    if (apiKey && !this.#usableKey(apiKey)) {
+      throw ApiError.badRequest(
+        "The saved API key looks masked or malformed. Paste the full key, then load the models."
+      );
+    }
+
+    if (provider === "GEMINI") return this.#listGeminiModels(apiKey);
+    if (provider === "OPENAI") return this.#listOpenAIModels(apiKey, config.aiBaseUrl);
+    if (provider === "CUSTOM") return this.#listCustomModels(apiKey, baseUrl);
+
+    throw ApiError.badRequest(`Unknown AI provider: ${provider}`);
+  }
+
+  /**
+   * An API key is only usable if it is printable ASCII — HTTP headers cannot
+   * carry anything else, and a masked key is the common way this goes wrong.
+   *
+   * @returns {string|null} the key, or null if it cannot be sent
+   */
+  #usableKey(key) {
+    if (!key || typeof key !== "string") return null;
+    const trimmed = key.trim();
+    if (!trimmed) return null;
+    return /^[\x20-\x7E]+$/.test(trimmed) ? trimmed : null;
+  }
+
+  /**
+   * Gemini publishes its catalogue over REST. Only models that can actually run
+   * a generateContent call are useful here — the list also carries embedding
+   * and token-counting models.
+   */
+  async #listGeminiModels(apiKey) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=200`
+    );
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw ApiError.badRequest(
+        `Gemini rejected the model list request (${res.status}). ${body.slice(0, 200)}`
+      );
+    }
+
+    const data = await res.json();
+    const models = (data.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map((m) => ({
+        // The API returns "models/gemini-2.5-flash"; the SDK wants the bare id.
+        id: String(m.name || "").replace(/^models\//, ""),
+        label: m.displayName || String(m.name || "").replace(/^models\//, ""),
+        description: m.description || null,
+        inputTokenLimit: m.inputTokenLimit ?? null,
+        outputTokenLimit: m.outputTokenLimit ?? null,
+      }))
+      .filter((m) => m.id);
+
+    return { provider: "GEMINI", count: models.length, models: this.#sortModels(models) };
+  }
+
+  /** OpenAI's /v1/models returns everything on the account, including non-chat models. */
+  async #listOpenAIModels(apiKey, baseUrl) {
+    const client = this.#getOpenAIClient(apiKey, baseUrl || undefined);
+    const res = await client.models.list();
+
+    const models = (res?.data || [])
+      .map((m) => ({
+        id: m.id,
+        label: m.id,
+        created: m.created ? new Date(m.created * 1000).toISOString() : null,
+      }))
+      .filter((m) => m.id && this.#isChatModel(m.id));
+
+    return { provider: "OPENAI", count: models.length, models: this.#sortModels(models) };
+  }
+
+  /** Any OpenAI-compatible server exposes GET {baseUrl}/models. */
+  async #listCustomModels(apiKey, baseUrl) {
+    if (!baseUrl) throw ApiError.badRequest("Set the Base URL before loading models.");
+
+    const url = `${baseUrl.replace(/\/+$/, "")}/models`;
+    const res = await fetch(url, {
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw ApiError.badRequest(
+        `${url} returned ${res.status}. ${body.slice(0, 200)}`
+      );
+    }
+
+    const data = await res.json();
+    // Most servers mirror OpenAI's { data: [...] }; a few return a bare array.
+    const rows = Array.isArray(data) ? data : data.data || data.models || [];
+    const models = rows
+      .map((m) => (typeof m === "string" ? { id: m, label: m } : { id: m.id || m.name, label: m.id || m.name }))
+      .filter((m) => m.id);
+
+    return { provider: "CUSTOM", count: models.length, models: this.#sortModels(models) };
+  }
+
+  /** Drop the models that cannot hold a chat: embeddings, audio, images, moderation. */
+  #isChatModel(id) {
+    return !/(embedding|whisper|tts|dall-e|moderation|audio|image|realtime|transcribe|search|similarity|edit)/i.test(id);
+  }
+
+  /** Newest-looking first, then alphabetical — the list is long. */
+  #sortModels(models) {
+    return [...models].sort((a, b) => {
+      if (a.created && b.created) return b.created.localeCompare(a.created);
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
   }
 
   /**
@@ -426,7 +681,7 @@ class AiService {
         };
       }
 
-      const completion = await client.chat.completions.create(requestBody);
+      const completion = await this.#openAiChat(client, requestBody);
 
       const text = completion.choices?.[0]?.message?.content || "";
 
@@ -478,16 +733,7 @@ class AiService {
       };
     }
 
-    const res = await fetch(`${config.aiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.aiApiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
+    const { res, data } = await this.#customChat(config, body);
 
     if (!res.ok) {
       console.error("[AiService:Custom] Error:", JSON.stringify(data));
@@ -778,7 +1024,7 @@ class AiService {
   /**
    * Gemini with tool calling (via function calling).
    */
-  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2) {
+  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
     const model = config.aiModel || "gemini-2.0-flash";
 
     try {
@@ -793,8 +1039,16 @@ class AiService {
         }]
       }));
 
+      // Earlier turns go in as their own messages. Folding them into the
+      // current question makes the model answer the wrong one.
       let messages = [
-        { role: "user", parts: [{ text: `${systemMessage}\n\n---\n\nUser Request:\n${userPrompt}` }] }
+        { role: "user", parts: [{ text: systemMessage }] },
+        { role: "model", parts: [{ text: "Understood. I will use the tools and answer from real data." }] },
+        ...history.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: String(m.content || "") }],
+        })),
+        { role: "user", parts: [{ text: userPrompt }] },
       ];
 
       // Allow a couple of tool rounds, then force a final text answer.
@@ -911,7 +1165,7 @@ class AiService {
   /**
    * OpenAI with tool calling (function calling).
    */
-  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2) {
+  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
     const model = config.aiModel || "gpt-4o-mini";
     const baseURL = config.aiBaseUrl || undefined;
 
@@ -923,13 +1177,17 @@ class AiService {
 
       let messages = [
         { role: "system", content: systemMessage },
-        { role: "user", content: userPrompt }
+        ...history.map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: String(m.content || ""),
+        })),
+        { role: "user", content: userPrompt },
       ];
 
       let turns = 0;
 
       while (turns < maxTurns) {
-        const completion = await client.chat.completions.create({
+        const completion = await this.#openAiChat(client, {
           model,
           messages,
           tools,
@@ -988,7 +1246,7 @@ class AiService {
    * Custom provider with tool calling.
    * Uses OpenAI-compatible function calling format.
    */
-  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2) {
+  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
     if (!config.aiBaseUrl) {
       throw ApiError.badRequest("Custom AI provider requires a Base URL in Settings.");
     }
@@ -1000,7 +1258,11 @@ class AiService {
 
     let messages = [
       { role: "system", content: systemMessage },
-      { role: "user", content: userPrompt }
+      ...history.map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: String(m.content || ""),
+      })),
+      { role: "user", content: userPrompt },
     ];
 
     let turns = 0;
@@ -1015,16 +1277,7 @@ class AiService {
         max_tokens: config.aiMaxTokens ?? 4096,
       };
 
-      const res = await fetch(`${config.aiBaseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.aiApiKey}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
+      const { res, data } = await this.#customChat(config, body);
 
       if (!res.ok) {
         const err = new Error(data.error?.message || JSON.stringify(data));

@@ -3,7 +3,7 @@ import authenticate from "../../middlewares/auth.middleware.js";
 import authorize from "../../middlewares/role.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import aiController from "./ai.controller.js";
-import { generateSchema, searchSchema } from "./ai.validation.js";
+import { generateSchema, searchSchema, listModelsSchema } from "./ai.validation.js";
 
 const router = Router();
 
@@ -15,6 +15,15 @@ router.post(
   authorize("OWNER", "ADMIN"),
   validate(generateSchema),
   aiController.generate
+);
+
+// Live model catalogue for the AI settings screen (OWNER/ADMIN).
+// POST because it may carry an unsaved API key, which has no place in a URL.
+router.post(
+  "/models",
+  authorize("OWNER", "ADMIN"),
+  validate(listModelsSchema),
+  aiController.listModels
 );
 
 // CRM Search Assistant (OWNER/ADMIN)

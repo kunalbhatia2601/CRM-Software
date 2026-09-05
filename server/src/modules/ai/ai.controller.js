@@ -20,6 +20,16 @@ class AiController {
   });
 
   /**
+   * POST /api/ai/models
+   * The provider's live model catalogue, so Settings never ships a stale list.
+   */
+  listModels = catchAsync(async (req, res) => {
+    const { provider, apiKey, baseUrl } = req.body || {};
+    const result = await aiService.listModels({ provider, apiKey, baseUrl });
+    return ok(res, "Models retrieved", result);
+  });
+
+  /**
    * POST /api/ai/search
    * CRM Search Assistant — natural language search with AI-powered answer.
    */

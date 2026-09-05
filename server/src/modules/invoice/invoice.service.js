@@ -27,7 +27,7 @@ const INVOICE_INCLUDE = {
  * Falls back to the default account when none is named, so an invoice never
  * goes out with no way to pay it if a default exists.
  *
- * @returns {Promise<{paymentAccountId: string|null, paymentDetails: object|null}>}
+ * @returns {Promise<{paymentAccountId: string|null, paymentDetails: object|null, account: object|null}>}
  */
 async function resolvePaymentAccount(paymentAccountId) {
   const account = paymentAccountId
@@ -44,8 +44,12 @@ async function resolvePaymentAccount(paymentAccountId) {
   return {
     paymentAccountId: account?.id || null,
     paymentDetails: snapshotOf(account),
+    account: account || null,
   };
 }
+
+/** Invoice series used when no payment account is attached. */
+const DEFAULT_INVOICE_PREFIX = "INV";
 
 /** Details a given method actually needs, so a record is never half-useful. */
 const REQUIRED_BY_METHOD = {
@@ -98,25 +102,60 @@ function computeTotals(items, discountAmount = 0, taxPercent = 0) {
 
 class InvoiceService {
   /**
-   * Generate the next sequential invoice number for the current year.
-   * Format: INV-<year>-<0001>
+   * Generate the next invoice number in a series.
+   *
+   * Each payment account keeps its own run of numbers, so billing from a second
+   * bank does not interleave with the first: "INV-2026-0007", "ABC-2026-0001".
+   * Invoices with no payment account fall back to the INV series.
+   *
+   * @param {string} series prefix from the payment account
+   * @param {number} attempt retry counter, used to skip a number already taken
    */
-  async #nextInvoiceNumber() {
+  async #nextInvoiceNumber(series = DEFAULT_INVOICE_PREFIX, attempt = 0) {
     const year = new Date().getFullYear();
-    const prefix = `INV-${year}-`;
+    const prefix = `${series}-${year}-`;
 
-    const last = await prisma.invoice.findFirst({
+    // Sort numerically rather than by string: past 9999 a plain desc sort puts
+    // "10000" below "9999" and the series would silently restart.
+    const rows = await prisma.invoice.findMany({
       where: { invoiceNumber: { startsWith: prefix } },
-      orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     });
 
-    let seq = 1;
-    if (last) {
-      const n = parseInt(last.invoiceNumber.slice(prefix.length), 10);
-      if (!Number.isNaN(n)) seq = n + 1;
+    let highest = 0;
+    for (const row of rows) {
+      const n = parseInt(row.invoiceNumber.slice(prefix.length), 10);
+      if (!Number.isNaN(n) && n > highest) highest = n;
     }
-    return `${prefix}${String(seq).padStart(4, "0")}`;
+
+    return `${prefix}${String(highest + 1 + attempt).padStart(4, "0")}`;
+  }
+
+  /**
+   * Create an invoice, taking the next number in its series.
+   *
+   * Numbering is read-then-write, so two invoices created at the same instant
+   * can pick the same number. The unique constraint catches that; this retries
+   * with the next one instead of failing the request.
+   *
+   * @param {string} series prefix for the number
+   * @param {(invoiceNumber: string) => object} buildArgs prisma create args
+   */
+  async #createWithNumber(series, buildArgs) {
+    const MAX_ATTEMPTS = 5;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const invoiceNumber = await this.#nextInvoiceNumber(series, attempt);
+      try {
+        return await prisma.invoice.create(buildArgs(invoiceNumber));
+      } catch (error) {
+        const isDuplicateNumber =
+          error?.code === "P2002" &&
+          (error.meta?.target || []).some((t) => String(t).includes("invoice_number"));
+
+        if (!isDuplicateNumber || attempt === MAX_ATTEMPTS - 1) throw error;
+      }
+    }
   }
 
   async createInvoice(data, createdById) {
@@ -132,9 +171,12 @@ class InvoiceService {
       data.taxPercent
     );
 
-    const invoiceNumber = await this.#nextInvoiceNumber();
+    // The account has to be resolved first — it decides which number series
+    // this invoice belongs to.
+    const { account, ...paymentFields } = await resolvePaymentAccount(data.paymentAccountId);
+    const series = account?.invoicePrefix || DEFAULT_INVOICE_PREFIX;
 
-    const invoice = await prisma.invoice.create({
+    const invoice = await this.#createWithNumber(series, (invoiceNumber) => ({
       data: {
         invoiceNumber,
         status: data.status || "DRAFT",
@@ -154,12 +196,12 @@ class InvoiceService {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         notes: data.notes || null,
         terms: data.terms || null,
-        ...(await resolvePaymentAccount(data.paymentAccountId)),
+        ...paymentFields,
         createdById,
         items: { create: lineItems },
       },
       include: INVOICE_INCLUDE,
-    });
+    }));
 
     // Notify the client's portal users (in-app) — fire-and-forget.
     this.#notifyClientOfInvoice(invoice, project).catch((err) =>
@@ -312,7 +354,10 @@ class InvoiceService {
     // Changing the account re-snapshots it, so the invoice always shows the
     // details that were current when it was last edited.
     if (data.paymentAccountId !== undefined) {
-      Object.assign(updateData, await resolvePaymentAccount(data.paymentAccountId));
+      // `account` is only there for the number series, which is fixed at
+      // creation — an issued invoice never gets renumbered.
+      const { account: _account, ...paymentFields } = await resolvePaymentAccount(data.paymentAccountId);
+      Object.assign(updateData, paymentFields);
     }
     if (data.terms !== undefined) updateData.terms = data.terms;
 

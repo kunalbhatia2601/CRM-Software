@@ -213,23 +213,18 @@ class CopilotService {
       },
     });
 
-    // Build conversation history for AI (keep last 50 messages)
-    const recentHistory = history.slice(-50);
-    const historyText = recentHistory.length > 0
-      ? "\n\nPrevious conversation:\n" + recentHistory
-          .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-          .join("\n")
-      : "";
-
-    // Prepare user prompt with history
-    const userPrompt = content + historyText;
+    // Recent turns are sent as their own messages, not glued onto the question.
+    // Twelve is enough for follow-ups ("what about the rest?") without burying
+    // the current question — or a correction — in a wall of older text.
+    const recentHistory = history.slice(-12);
 
     try {
-      // Call AI with tool calling - AI decides when to search/get stats
+      // Call AI with tool calling — the model decides when to query the CRM.
       const aiResponse = await aiService.generateWithTools({
         systemPromptSlug: "crm-copilot-assistant",
-        userPrompt,
-        maxTurns: 5, // tool rounds before a forced final text answer
+        userPrompt: content,
+        history: recentHistory,
+        maxTurns: 8, // tool rounds before a forced final text answer
       });
 
       // Parse AI response
@@ -288,6 +283,11 @@ class CopilotService {
         where: { id: conversationId },
         data: { updatedAt: new Date() },
       });
+
+      // Trim the tail so a long-running chat cannot grow without bound.
+      await this.pruneOldMessages(conversationId).catch((e) =>
+        console.error("[CopilotService] prune failed:", e.message)
+      );
 
       return {
         userMessage: { role: "user", content },

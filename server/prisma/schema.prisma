@@ -1428,6 +1428,9 @@ model PaymentAccount {
   // UPI
   upiId   String? @map("upi_id")
   upiName String? @map("upi_name")
+  /// Starts the invoice number for invoices billed to this account, so each
+  /// account keeps its own series: "INV-2026-0001", "ABC-2026-0001".
+  invoicePrefix String @default("INV") @map("invoice_prefix")
 
   isActive  Boolean @default(true) @map("is_active")
   /// Pre-selected when a new invoice is created.

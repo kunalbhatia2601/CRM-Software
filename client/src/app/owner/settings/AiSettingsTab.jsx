@@ -13,8 +13,9 @@ import {
   Sparkles,
   Zap,
   Cpu,
+  RefreshCw,
 } from "lucide-react";
-import { updateSystemSettings } from "@/actions/settings.action";
+import { updateSystemSettings, listAiModels } from "@/actions/settings.action";
 
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingsInput from "@/components/settings/SettingsInput";
@@ -30,6 +31,13 @@ const PROVIDERS = [
 ];
 
 const OTHER_SENTINEL = "__other__";
+
+/**
+ * A saved key comes back masked for display. Sending it anywhere is useless at
+ * best — the bullets are not valid in an HTTP header — so it is left out and
+ * the server falls back to the key it already has.
+ */
+const isMaskedKey = (key) => !key || /[^\x20-\x7E]/.test(key);
 
 const GEMINI_MODELS = [
   { value: "gemini-3.0-flash", label: "Gemini 3.0 Flash" },
@@ -108,11 +116,16 @@ export default function AiSettingsTab({ initialData }) {
 
   const isConfigured = initialData?.isAiConfigured || false;
 
+  // Live catalogue from the provider, replacing the presets once loaded.
+  const [liveModels, setLiveModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
   const update = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const handleProviderSelect = (providerId) => {
     update("aiProvider", providerId);
     setIsCustomModel(false);
+    setLiveModels([]);
     // Set default model when switching provider
     if (providerId === "GEMINI" && !form.aiModel?.startsWith("gemini")) {
       update("aiModel", "gemini-2.0-flash");
@@ -131,6 +144,38 @@ export default function AiSettingsTab({ initialData }) {
     } else {
       setIsCustomModel(false);
       update("aiModel", val);
+    }
+  };
+
+  /**
+   * Ask the provider what it actually offers. Sends the details currently on
+   * screen so an unsaved key still works.
+   */
+  const loadModels = async () => {
+    setLoadingModels(true);
+    const res = await listAiModels({
+      provider: form.aiProvider,
+      // Only send a key the user actually typed.
+      apiKey: isMaskedKey(form.aiApiKey) ? undefined : form.aiApiKey,
+      baseUrl: form.aiBaseUrl || undefined,
+    });
+    setLoadingModels(false);
+
+    if (!res.success) {
+      setLiveModels([]);
+      setToast({ type: "error", message: res.error });
+      return;
+    }
+
+    setLiveModels(res.data.models || []);
+    setToast({ type: "success", message: `Loaded ${res.data.count} models from ${res.data.provider}.` });
+
+    // The saved model may not be in the catalogue (renamed or retired) — keep
+    // the free-text box in that case rather than silently switching it.
+    if (form.aiModel && !(res.data.models || []).some((m) => m.id === form.aiModel)) {
+      setIsCustomModel(true);
+    } else {
+      setIsCustomModel(false);
     }
   };
 
@@ -157,6 +202,16 @@ export default function AiSettingsTab({ initialData }) {
   };
 
   const getModelOptions = () => {
+    // A loaded catalogue always beats the built-in presets, which go stale.
+    if (liveModels.length > 0) {
+      return [
+        ...liveModels.map((m) => ({
+          value: m.id,
+          label: m.label && m.label !== m.id ? `${m.label} — ${m.id}` : m.id,
+        })),
+        { value: OTHER_SENTINEL, label: "Other..." },
+      ];
+    }
     if (form.aiProvider === "GEMINI") return GEMINI_MODELS;
     if (form.aiProvider === "OPENAI") return OPENAI_MODELS;
     return [];
@@ -234,6 +289,24 @@ export default function AiSettingsTab({ initialData }) {
                 </button>
               }
             />
+
+            {/* Live catalogue — the presets below go stale as providers ship models. */}
+            <div className="flex items-center justify-between gap-3 -mb-2">
+              <p className="text-[11px] text-slate-400">
+                {liveModels.length > 0
+                  ? `Showing ${liveModels.length} models from your ${form.aiProvider} account.`
+                  : "Load the live model list from your provider."}
+              </p>
+              <button
+                type="button"
+                onClick={loadModels}
+                disabled={loadingModels}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingModels ? "animate-spin" : ""}`} />
+                {loadingModels ? "Loading…" : liveModels.length > 0 ? "Refresh models" : "Load models"}
+              </button>
+            </div>
 
             {form.aiProvider === "CUSTOM" || isCustomModel ? (
               <div className="flex flex-col gap-2">

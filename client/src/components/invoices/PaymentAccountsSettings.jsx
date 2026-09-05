@@ -17,6 +17,7 @@ const EMPTY = {
   type: "BANK", label: "",
   bankName: "", accountNumber: "", ifscCode: "", accountHolderName: "", branch: "",
   upiId: "", upiName: "",
+  invoicePrefix: "INV",
   isActive: true, isDefault: false, sortOrder: 0,
 };
 
@@ -55,16 +56,25 @@ export default function PaymentAccountsSettings() {
       bankName: a.bankName || "", accountNumber: a.accountNumber || "",
       ifscCode: a.ifscCode || "", accountHolderName: a.accountHolderName || "",
       branch: a.branch || "", upiId: a.upiId || "", upiName: a.upiName || "",
+      invoicePrefix: a.invoicePrefix || "INV",
       isActive: a.isActive, isDefault: a.isDefault, sortOrder: a.sortOrder ?? 0,
     });
   };
 
   const save = async () => {
     if (!form.label.trim()) { setToast({ type: "error", message: "Give this account a label" }); return; }
+
+    const prefix = form.invoicePrefix.trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,8}$/.test(prefix)) {
+      setToast({ type: "error", message: "Invoice prefix must be 2-8 letters or numbers" });
+      return;
+    }
+
     setSaving(true);
     const payload = {
       ...form,
       label: form.label.trim(),
+      invoicePrefix: prefix,
       sortOrder: Number(form.sortOrder) || 0,
     };
     const res = editingId
@@ -140,6 +150,24 @@ export default function PaymentAccountsSettings() {
             <input dir="ltr" className={inputClass} placeholder={isBank ? "HDFC Current" : "Business UPI"}
               value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
             <p className="text-[11px] text-slate-400 mt-1">Internal name, so you can tell accounts apart.</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">Invoice prefix *</label>
+            <input
+              dir="ltr"
+              className={`${inputClass} font-mono uppercase`}
+              placeholder="INV"
+              maxLength={8}
+              value={form.invoicePrefix}
+              onChange={(e) =>
+                setForm({ ...form, invoicePrefix: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase() })
+              }
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Starts this account's invoice numbers — {form.invoicePrefix || "INV"}-{new Date().getFullYear()}-0001.
+              Each account counts separately.
+            </p>
           </div>
 
           {isBank ? (

@@ -1615,3 +1615,11 @@ export async function clearReportOverrideAPI(id, path, accessToken) {
 export async function deleteReportAPI(id, accessToken) {
   return request(`/api/reports/${id}`, { method: "DELETE", token: accessToken });
 }
+
+/* ───────── AI ───────── */
+
+export async function listAiModelsAPI(data, accessToken) {
+  return request("/api/ai/models", {
+    method: "POST", body: JSON.stringify(data || {}), token: accessToken,
+  });
+}

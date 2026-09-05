@@ -8,6 +8,7 @@ import {
   getSettingsAPI,
   getAiSettings,
   updateSettingsAPI,
+  listAiModelsAPI,
   getEmailTemplatesAPI,
   getEmailTemplateAPI,
   updateEmailTemplateAPI,
@@ -164,5 +165,26 @@ export async function updateEmailTemplate(id, data) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to update template" };
+  }
+}
+
+/**
+ * The AI provider's live model catalogue.
+ *
+ * Accepts the provider details being edited so the list can be loaded from a
+ * key that has been typed but not saved yet.
+ */
+export async function listAiModels({ provider, apiKey, baseUrl } = {}) {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("accessToken")?.value;
+
+  if (!accessToken) return { success: false, error: "Not authenticated" };
+
+  try {
+    const res = await listAiModelsAPI({ provider, apiKey, baseUrl }, accessToken);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to load models" };
   }
 }

@@ -15,6 +15,19 @@ const base = {
   upiId: z.string().max(120).optional().nullable(),
   upiName: z.string().max(200).optional().nullable(),
 
+  /**
+   * Starts this account's invoice series. Letters and digits only — it becomes
+   * part of a document number, so no spaces, dashes or punctuation.
+   */
+  invoicePrefix: z
+    .string()
+    .trim()
+    .min(2, "Prefix needs at least 2 characters")
+    .max(8, "Prefix can be at most 8 characters")
+    .regex(/^[A-Za-z0-9]+$/, "Use letters and numbers only")
+    .transform((v) => v.toUpperCase())
+    .optional(),
+
   isActive: z.boolean().optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.coerce.number().int().optional(),

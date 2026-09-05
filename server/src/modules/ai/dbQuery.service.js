@@ -22,10 +22,16 @@ const ALLOWED_MODELS = new Set([
   "User", "Lead", "Deal", "Client", "Project", "Service",
   "DealService", "ProjectService", "Team", "TeamMember", "ProjectTeam",
   "Document", "Meeting", "MeetingTask", "FollowUp", "Sample",
-  "PlanningStep", "Task", "TaskFeedback", "Milestone", "Comment",
+  "LeadSample", "DealSample",
+  "PlanningStep", "Task", "TaskFeedback", "TaskSubmission", "Milestone", "Comment",
+  "Deliverable", "DeliverableFeedback",
+  "DeliverableMilestone", "DeliverablePlanningStep", "DeliverableTask",
   "Attendance", "LeaveType", "LeaveBalance", "LeaveRequest", "Holiday",
-  "Notification", "Invoice", "InvoiceItem", "Announcement", "Job",
-  "JobApplication", "PayrollRecord", "Site",
+  "Notification", "Invoice", "InvoiceItem", "InvoicePayment", "PaymentAccount",
+  "Expense", "ExpenseCategory", "ExpenseEvent",
+  "Campaign", "CampaignType", "CampaignDailyStat", "AdBudgetLedger", "AdBudgetEntry",
+  "ProjectReport",
+  "Announcement", "Job", "JobApplication", "PayrollRecord", "Site",
 ]);
 
 // Fields never returned to the AI (auth/secret material), stripped everywhere.
@@ -37,6 +43,8 @@ const DENY_FIELDS = new Set([
 // Sensitive models entirely blocked even if referenced via includes.
 const BLOCKED_MODELS = new Set([
   "RefreshToken", "Otp", "AuditLog", "Settings", "SystemPrompt", "EmailTemplate", "KpiConfig",
+  // The assistant's own chat logs are not CRM data.
+  "CopilotConversation", "CopilotMessage",
 ]);
 
 const READ_OPS = new Set(["findMany", "findUnique", "findFirst", "count", "groupBy", "aggregate"]);
@@ -111,8 +119,10 @@ class DbQueryService {
     for (const [k, v] of Object.entries(node)) {
       if (DENY_FIELDS.has(k)) continue;
       if (v && typeof v === "object" && (v.select || v.include || v.where || v.orderBy || v.take !== undefined)) {
-        // nested relation query object — allow take but don't force a default.
-        out[k] = this.#sanitizeArgs(v, { allowTake: true, defaultTake: undefined });
+        // Nested relation query object. A `take` is honoured if the caller asked
+        // for one, but never invented: Prisma rejects `take` on a to-one
+        // relation, and adding one would fail the whole query.
+        out[k] = this.#sanitizeArgs(v, { allowTake: true, defaultTake: null });
       } else {
         out[k] = v;
       }
@@ -124,6 +134,8 @@ class DbQueryService {
    * Sanitize an args object: enforce take cap, sanitize select/include, keep read-safe keys only.
    */
   #sanitizeArgs(args = {}, { allowTake = true, defaultTake = 25 } = {}) {
+    // NOTE: callers pass `defaultTake: null` for "no default". Passing
+    // `undefined` would silently fall back to the 25 above.
     const allowedKeys = new Set(["where", "select", "include", "orderBy", "take", "skip", "distinct", "by", "_count", "_sum", "_avg", "_min", "_max", "cursor"]);
     const out = {};
     for (const [k, v] of Object.entries(args)) {
@@ -186,9 +198,40 @@ class DbQueryService {
     const result = await delegate[operation](safeArgs);
     const clean = this.#sanitizeResult(result);
 
-    // Compact response for the AI.
-    if (Array.isArray(clean)) return { model, operation, count: clean.length, rows: clean };
-    return { model, operation, result: clean };
+    if (!Array.isArray(clean)) return { model, operation, result: clean };
+
+    // A row list is capped, so the caller must be told how many rows actually
+    // match. Reporting only the returned length reads as a total and silently
+    // turns "28 clients" into "25 clients".
+    let total = clean.length;
+    if (operation === "findMany") {
+      try {
+        total = await delegate.count({ where: safeArgs.where });
+      } catch {
+        // A model without a countable shape — fall back to what we returned.
+        total = clean.length;
+      }
+    }
+
+    const skipped = Number(safeArgs.skip) || 0;
+    const truncated = operation === "findMany" && skipped + clean.length < total;
+
+    return {
+      model,
+      operation,
+      returned: clean.length,
+      total,
+      truncated,
+      ...(truncated
+        ? {
+            warning:
+              `Only ${clean.length} of ${total} matching ${model} rows are in this result. ` +
+              `Do NOT state or count from these rows as if they were all of them. ` +
+              `Either page with skip/take (take is capped at ${MAX_TAKE}) or use operation "count"/"groupBy" for totals.`,
+          }
+        : {}),
+      rows: clean,
+    };
   }
 }
 
