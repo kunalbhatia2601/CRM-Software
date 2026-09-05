@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useMemo, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Trash2, Loader2, ReceiptText, ArrowLeft } from "lucide-react";
+import { Loader2, ReceiptText, ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { getProject } from "@/actions/projects.action";
 import { createInvoice, getInvoiceConfig } from "@/actions/invoices.action";
 import { getPaymentAccounts } from "@/actions/paymentAccounts.action";
+import InvoiceLineItems, { blankItem } from "./InvoiceLineItems";
+import InvoiceTotals from "./InvoiceTotals";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -61,12 +63,13 @@ export default function CreateInvoiceContent({ basePath }) {
         setProject(p);
         // Prefill line items from project services (price is snapshot INR)
         const svcItems = (p.projectServices || []).map((ps) => ({
+          uid: crypto.randomUUID(),
           name: ps.service?.name || "Service",
           description: Array.isArray(ps.service?.points) ? ps.service.points.join(", ") : "",
           quantity: Number(ps.quantity) || 1,
           unitPrice: Number(ps.price) || 0,
         }));
-        setItems(svcItems.length ? svcItems : [{ name: "", description: "", quantity: 1, unitPrice: 0 }]);
+        setItems(svcItems.length ? svcItems : [blankItem()]);
         // Prefill bill-to from client
         setBillTo({
           name: p.client?.companyName || "",
@@ -85,11 +88,6 @@ export default function CreateInvoiceContent({ basePath }) {
     })();
   }, [projectId]);
 
-  const updateItem = (idx, field, value) => {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-  };
-  const addItem = () => setItems((prev) => [...prev, { name: "", description: "", quantity: 1, unitPrice: 0 }]);
-  const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const totals = useMemo(() => {
     const subtotal = round2(items.reduce((s, it) => s + round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
@@ -97,7 +95,7 @@ export default function CreateInvoiceContent({ basePath }) {
     const taxable = Math.max(0, subtotal - disc);
     const taxAmt = round2((taxable * round2(taxPercent)) / 100);
     const total = round2(taxable + taxAmt);
-    return { subtotal, disc, taxAmt, total };
+    return { subtotal, disc, taxable, taxAmt, total };
   }, [items, discountAmount, taxPercent]);
 
   const handleSave = (status) => {
@@ -181,42 +179,12 @@ export default function CreateInvoiceContent({ basePath }) {
           </div>
 
           {/* Line items */}
-          <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Line Items</h3>
-              <button onClick={addItem} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg">
-                <Plus className="w-3.5 h-3.5" /> Add Item
-              </button>
-            </div>
-            <div className="space-y-3">
-              {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-start">
-                  <div className="col-span-5">
-                    <input className={inputClass} placeholder="Service / item name" value={it.name} onChange={(e) => updateItem(idx, "name", e.target.value)} />
-                    <input className={`${inputClass} mt-1.5 text-xs`} placeholder="Description (optional)" value={it.description} onChange={(e) => updateItem(idx, "description", e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" min="0" step="0.01" className={`${inputClass} text-right`} placeholder="Qty" value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} />
-                  </div>
-                  <div className="col-span-3">
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">{symbol}</span>
-                      <input type="number" min="0" step="0.01" className={`${inputClass} text-right pl-6`} placeholder="Unit price" value={it.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="col-span-1 text-right text-sm font-medium text-slate-700 dark:text-slate-300 pt-2">
-                    {round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0))}
-                  </div>
-                  <div className="col-span-1 flex justify-end pt-1.5">
-                    <button onClick={() => removeItem(idx)} className="p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          <InvoiceLineItems
+            items={items}
+            onChange={setItems}
+            symbol={symbol}
+            inputClass={inputClass}
+          />
 
           {/* Where the client pays */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
@@ -281,30 +249,16 @@ export default function CreateInvoiceContent({ basePath }) {
 
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-4">Summary</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>Subtotal</span><span>{format(totals.subtotal)}</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                <span>Discount</span>
-                <div className="relative w-28">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{symbol}</span>
-                  <input type="number" min="0" step="0.01" className={`${inputClass} text-right pl-5 py-1`} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                <span>Tax %</span>
-                <div className="w-28">
-                  <input type="number" min="0" max="100" step="0.01" className={`${inputClass} text-right py-1`} value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex justify-between text-slate-500 text-xs">
-                <span>Tax amount</span><span>{format(totals.taxAmt)}</span>
-              </div>
-              <div className="border-t border-slate-200 dark:border-slate-800 pt-2 mt-2 flex justify-between font-bold text-slate-900 dark:text-slate-50">
-                <span>Total</span><span>{format(totals.total)}</span>
-              </div>
-            </div>
+            <InvoiceTotals
+              totals={totals}
+              discountAmount={discountAmount}
+              onDiscountChange={setDiscountAmount}
+              taxPercent={taxPercent}
+              onTaxChange={setTaxPercent}
+              format={format}
+              symbol={symbol}
+              inputClass={inputClass}
+            />
           </div>
 
           <div className="space-y-2">

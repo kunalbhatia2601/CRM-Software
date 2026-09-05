@@ -12,6 +12,18 @@ import DataTable from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import Toast from "@/components/ui/Toast";
 
+/** How much of a description the list shows before cutting it off. */
+const DESCRIPTION_MAX = 200;
+
+/**
+ * Cut a description down for the list. The cell also truncates visually, but a
+ * very long description would still stretch the table before CSS could clamp it.
+ */
+function clamp(text) {
+  if (!text) return "";
+  return text.length > DESCRIPTION_MAX ? `${text.slice(0, DESCRIPTION_MAX).trimEnd()}…` : text;
+}
+
 export default function ServicesListContent({ initialData }) {
   const router = useRouter();
   const { format } = useSite();
@@ -119,7 +131,12 @@ export default function ServicesListContent({ initialData }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{val}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{row.description || "—"}</p>
+            <p
+              className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-md"
+              title={row.description || undefined}
+            >
+              {clamp(row.description) || "—"}
+            </p>
           </div>
         </div>
       ),

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Loader2, Save, ArrowLeft } from "lucide-react";
+import { Loader2, Save, ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { updateInvoice } from "@/actions/invoices.action";
 import { getPaymentAccounts } from "@/actions/paymentAccounts.action";
+import InvoiceLineItems from "./InvoiceLineItems";
+import InvoiceTotals from "./InvoiceTotals";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -25,6 +27,7 @@ export default function EditInvoiceContent({ basePath, invoice }) {
 
   const [items, setItems] = useState(
     (invoice.items || []).map((it) => ({
+      uid: it.id,
       name: it.name,
       description: it.description || "",
       quantity: Number(it.quantity) || 1,
@@ -43,19 +46,53 @@ export default function EditInvoiceContent({ basePath, invoice }) {
   const [dueDate, setDueDate] = useState(invoice.dueDate ? invoice.dueDate.split("T")[0] : "");
   const [notes, setNotes] = useState(invoice.notes || "");
   const [terms, setTerms] = useState(invoice.terms || "");
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [paymentAccountId, setPaymentAccountId] = useState(invoice.paymentAccountId || "");
+
+  useEffect(() => {
+    getPaymentAccounts().then((res) => {
+      if (res.success) setPaymentAccounts(res.data);
+    });
+  }, []);
+
+  const selectedAccount = paymentAccounts.find((a) => a.id === paymentAccountId) || null;
+
+  // The list only carries active accounts. If this invoice was raised against
+  // one that has since been retired, show it rather than letting the select
+  // fall through to "no payment details" and quietly clear it on save.
+  const retiredAccount =
+    paymentAccountId && !selectedAccount ? invoice.paymentAccount || { id: paymentAccountId } : null;
+
+  /**
+   * One line describing where the money goes. Falls back to the snapshot frozen
+   * onto the invoice, so an account that has since been retired still reads
+   * correctly instead of showing blanks.
+   */
+  const accountLine = (() => {
+    const a = selectedAccount;
+    if (a) {
+      return a.type === "BANK"
+        ? [a.accountHolderName, a.accountNumber, a.ifscCode].filter(Boolean).join(" · ")
+        : [a.upiName, a.upiId].filter(Boolean).join(" · ");
+    }
+    const snap = invoice.paymentDetails;
+    if (paymentAccountId && snap) {
+      return snap.type === "BANK"
+        ? [snap.accountHolderName, snap.accountNumber, snap.ifscCode].filter(Boolean).join(" · ")
+        : [snap.upiName, snap.upiId].filter(Boolean).join(" · ");
+    }
+    return null;
+  })();
 
   const showToast = (type, message) => setToast({ type, message });
 
-  const updateItem = (idx, field, value) => setItems((p) => p.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-  const addItem = () => setItems((p) => [...p, { name: "", description: "", quantity: 1, unitPrice: 0 }]);
-  const removeItem = (idx) => setItems((p) => p.filter((_, i) => i !== idx));
 
   const totals = useMemo(() => {
     const subtotal = round2(items.reduce((s, it) => s + round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
     const disc = round2(discountAmount);
     const taxable = Math.max(0, subtotal - disc);
     const taxAmt = round2((taxable * round2(taxPercent)) / 100);
-    return { subtotal, disc, taxAmt, total: round2(taxable + taxAmt) };
+    return { subtotal, disc, taxable, taxAmt, total: round2(taxable + taxAmt) };
   }, [items, discountAmount, taxPercent]);
 
   const handleSave = () => {
@@ -128,40 +165,44 @@ export default function EditInvoiceContent({ basePath, invoice }) {
             </div>
           </div>
 
+          <InvoiceLineItems
+            items={items}
+            onChange={setItems}
+            symbol={symbol}
+            inputClass={inputClass}
+          />
+
+          {/* Where the client pays */}
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Line Items</h3>
-              <button onClick={addItem} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg">
-                <Plus className="w-3.5 h-3.5" /> Add Item
-              </button>
-            </div>
-            <div className="space-y-3">
-              {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-start">
-                  <div className="col-span-5">
-                    <input className={inputClass} placeholder="Service / item name" value={it.name} onChange={(e) => updateItem(idx, "name", e.target.value)} />
-                    <input className={`${inputClass} mt-1.5 text-xs`} placeholder="Description (optional)" value={it.description} onChange={(e) => updateItem(idx, "description", e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" min="0" step="0.01" className={`${inputClass} text-right`} placeholder="Qty" value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} />
-                  </div>
-                  <div className="col-span-3">
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">{symbol}</span>
-                      <input type="number" min="0" step="0.01" className={`${inputClass} text-right pl-6`} placeholder="Unit price" value={it.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="col-span-1 text-right text-sm font-medium text-slate-700 dark:text-slate-300 pt-2">
-                    {round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0))}
-                  </div>
-                  <div className="col-span-1 flex justify-end pt-1.5">
-                    <button onClick={() => removeItem(idx)} className="p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Payment account</label>
+            {paymentAccounts.length === 0 ? (
+              <p className="text-xs text-slate-400 italic mt-2">
+                No payment accounts set up yet. Add one in settings so the client knows where to pay.
+              </p>
+            ) : (
+              <>
+                <select
+                  className={`${inputClass} mt-1.5`}
+                  value={paymentAccountId}
+                  onChange={(e) => setPaymentAccountId(e.target.value)}
+                >
+                  <option value="">No payment details on this invoice</option>
+                  {retiredAccount && (
+                    <option value={retiredAccount.id}>
+                      {retiredAccount.label || "Previous account"} · retired — pick another
+                    </option>
+                  )}
+                  {paymentAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} · {a.type === "BANK" ? a.bankName : a.upiId}
+                    </option>
+                  ))}
+                </select>
+                {accountLine && (
+                  <p className="text-[11px] text-slate-400 mt-1.5">{accountLine}</p>
+                )}
+              </>
+            )}
           </div>
 
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-3">
@@ -202,26 +243,16 @@ export default function EditInvoiceContent({ basePath, invoice }) {
 
           <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-4">Summary</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300"><span>Subtotal</span><span>{format(totals.subtotal)}</span></div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                <span>Discount</span>
-                <div className="relative w-28">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{symbol}</span>
-                  <input type="number" min="0" step="0.01" className={`${inputClass} text-right pl-5 py-1`} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                <span>Tax %</span>
-                <div className="w-28">
-                  <input type="number" min="0" max="100" step="0.01" className={`${inputClass} text-right py-1`} value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex justify-between text-slate-500 text-xs"><span>Tax amount</span><span>{format(totals.taxAmt)}</span></div>
-              <div className="border-t border-slate-200 dark:border-slate-800 pt-2 mt-2 flex justify-between font-bold text-slate-900 dark:text-slate-50">
-                <span>Total</span><span>{format(totals.total)}</span>
-              </div>
-            </div>
+            <InvoiceTotals
+              totals={totals}
+              discountAmount={discountAmount}
+              onDiscountChange={setDiscountAmount}
+              taxPercent={taxPercent}
+              onTaxChange={setTaxPercent}
+              format={format}
+              symbol={symbol}
+              inputClass={inputClass}
+            />
           </div>
 
           <button onClick={handleSave} disabled={isPending}
