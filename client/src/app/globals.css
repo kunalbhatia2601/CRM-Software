@@ -207,3 +207,44 @@ html {
 /* Hide scrollbar (copilot quick-suggestions row) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/**
+ * Printing a report.
+ *
+ * The dashboard shell pins itself to the viewport with h-screen + overflow-hidden,
+ * which would clip a printed report to a single page. These rules unpin it so the
+ * whole document flows, and drop the app chrome so what prints is the report.
+ */
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .h-screen {
+    height: auto !important;
+  }
+
+  .overflow-hidden,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* Keep a section and its heading on one page wherever the paper allows. */
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Borders read better than fills on paper. */
+  .shadow-md,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+}

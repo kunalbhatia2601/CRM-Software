@@ -36,7 +36,7 @@ export default function DashboardShell({ title, children, navItems }) {
 
         {/* ── Mobile Sidebar Drawer (hidden on lg+) ────────────── */}
         <div
-          className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:hidden ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
+          className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:hidden print:hidden ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
         >
           <Sidebar
@@ -49,7 +49,7 @@ export default function DashboardShell({ title, children, navItems }) {
         </div>
 
         {/* ── Desktop Sidebar (hidden below lg) ────────────────── */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block print:hidden">
           <Sidebar
             isCollapsed={isCollapsed}
             toggleCollapse={() => setIsCollapsed(!isCollapsed)}
@@ -60,7 +60,9 @@ export default function DashboardShell({ title, children, navItems }) {
 
         {/* ── Main Content Area ──────────────────────────────────── */}
         <div className="flex flex-col flex-1 w-full h-screen overflow-hidden">
-          <Header onMenuClick={toggleMobileSidebar} isMobile={isMobile} />
+          <div className="print:hidden">
+            <Header onMenuClick={toggleMobileSidebar} isMobile={isMobile} />
+          </div>
 
           {/* Scrollable Page Content */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">

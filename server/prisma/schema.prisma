@@ -218,6 +218,7 @@ model User {
   // Invoices created
   createdInvoices Invoice[] @relation("InvoiceCreator")
   recordedPayments InvoicePayment[] @relation("InvoicePaymentRecorder")
+  projectReports   ProjectReport[]  @relation("ProjectReportAuthor")
 
   // Announcements created
   createdAnnouncements Announcement[] @relation("AnnouncementCreator")
@@ -479,6 +480,7 @@ model Project {
 
   expenses    Expense[]
   campaigns   Campaign[]
+  reports     ProjectReport[]
   adBudgets   AdBudgetLedger[]
 
   createdAt       DateTime      @default(now()) @map("created_at")
@@ -1316,6 +1318,48 @@ model Task {
   @@index([dueDate])
   @@map("tasks")
 }
+// ─── Project Reports ─────────────────────────────────
+
+enum ProjectReportStatus {
+  DRAFT
+  FINAL
+}
+
+/// A monthly client audit report for one project.
+///
+/// `snapshot` is frozen at generation time — August's report must not change
+/// because September's data arrived. `overrides` holds hand-entered values in a
+/// separate layer, so the auto figure survives underneath and any manual edit
+/// can be reverted.
+model ProjectReport {
+  id        String  @id @default(cuid())
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  periodYear  Int @map("period_year")
+  periodMonth Int @map("period_month")   // 1-12
+
+  status ProjectReportStatus @default(DRAFT)
+
+  /// Auto-pulled data, section by section.
+  snapshot  Json
+  /// Manual edits keyed by "section.field" path.
+  overrides Json?
+  /// Free-text summary written by whoever signs the report off.
+  summary   String? @db.Text
+
+  generatedById String   @map("generated_by_id")
+  generatedBy   User     @relation("ProjectReportAuthor", fields: [generatedById], references: [id])
+  generatedAt   DateTime @default(now()) @map("generated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([projectId, periodYear, periodMonth])
+  @@index([projectId])
+  @@map("project_reports")
+}
+
 // ─── Invoice Payments ────────────────────────────────
 
 enum PaymentMethod {

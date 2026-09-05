@@ -1577,3 +1577,37 @@ export async function addInvoicePaymentAPI(id, data, accessToken) {
 export async function deleteInvoicePaymentAPI(id, paymentId, accessToken) {
   return request(`/api/invoices/${id}/payments/${paymentId}`, { method: "DELETE", token: accessToken });
 }
+
+/* ───────── Project Reports ───────── */
+
+export async function previewReportAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/reports/preview?${qs}`, { method: "GET", token: accessToken });
+}
+
+export async function listReportsAPI(params, accessToken) {
+  const qs = new URLSearchParams(params || {}).toString();
+  return request(`/api/reports${qs ? `?${qs}` : ""}`, { method: "GET", token: accessToken });
+}
+
+export async function generateReportAPI(data, accessToken) {
+  return request("/api/reports", { method: "POST", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function getReportAPI(id, accessToken) {
+  return request(`/api/reports/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function updateReportAPI(id, data, accessToken) {
+  return request(`/api/reports/${id}`, { method: "PATCH", body: JSON.stringify(data), token: accessToken });
+}
+
+export async function clearReportOverrideAPI(id, path, accessToken) {
+  return request(`/api/reports/${id}/clear-override`, {
+    method: "POST", body: JSON.stringify({ path }), token: accessToken,
+  });
+}
+
+export async function deleteReportAPI(id, accessToken) {
+  return request(`/api/reports/${id}`, { method: "DELETE", token: accessToken });
+}
