@@ -49,6 +49,25 @@ const STATUSES = [
   { id: "CLIENT_REVIEW", label: "Client Review" },
 ];
 
+/**
+ * Two views of the same page: work that is mine to do, and work I handed to
+ * someone else and still need to track.
+ */
+const SCOPES = [
+  {
+    id: "mine",
+    label: "My Tasks",
+    blurb: "All tasks assigned to you across all projects.",
+    empty: "No tasks assigned to you yet.",
+  },
+  {
+    id: "delegated",
+    label: "Assigned by Me",
+    blurb: "Work you assigned to others, and where each of them has got to.",
+    empty: "You have not assigned any tasks to others yet.",
+  },
+];
+
 const PRIORITIES = [
   { value: "", label: "All Priorities" },
   { value: "LOW", label: "Low" },
@@ -60,6 +79,7 @@ const PRIORITIES = [
 export default function EmployeeTasksContent({ initialTasks = [] }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [loading, setLoading] = useState(false);
+  const [scope, setScope] = useState("mine");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [toast, setToast] = useState(null);
   const [advancingId, setAdvancingId] = useState(null);
@@ -76,6 +96,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
       const filters = {};
       if (statusFilter !== "ALL") filters.status = statusFilter;
       if (priorityFilter) filters.priority = priorityFilter;
+      if (scope === "delegated") filters.scope = "delegated";
       const result = await getMyTasks(filters);
       if (result.success) setTasks(result.data);
     } catch {
@@ -83,7 +104,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, priorityFilter]);
+  }, [scope, statusFilter, priorityFilter]);
 
   useEffect(() => {
     fetchTasks();
@@ -121,6 +142,9 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
     }
   };
 
+  const activeScope = SCOPES.find((s) => s.id === scope) || SCOPES[0];
+  const isDelegated = scope === "delegated";
+
   // Group tasks by status
   const groupedTasks = STATUSES.filter((s) => s.id !== "ALL").reduce((acc, status) => {
     acc[status.id] = tasks.filter((t) => t.status === status.id);
@@ -144,8 +168,27 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
         }}
       />
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">My Tasks</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">All tasks assigned to you across all projects.</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Tasks</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{activeScope.blurb}</p>
+      </div>
+
+      {/* Mine vs delegated */}
+      <div className="border-b border-slate-200 dark:border-slate-800">
+        <div className="flex gap-1 -mb-px">
+          {SCOPES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setScope(s.id)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                scope === s.id
+                  ? "border-[#5542F6] text-[#5542F6]"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}
@@ -227,7 +270,13 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       <Badge value={task.status} />
                       <Badge value={task.priority} />
-                      {ASSIGNEE_NEXT[task.status] && (
+                      {isDelegated && task.assignee && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                          <User className="w-3 h-3" />
+                          {task.assignee.firstName} {task.assignee.lastName}
+                        </span>
+                      )}
+                      {!isDelegated && ASSIGNEE_NEXT[task.status] && (
                         <button
                           onClick={(e) => { e.stopPropagation(); advance(task); }}
                           disabled={advancingId === task.id}
@@ -385,7 +434,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
           <ListChecks className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
           <p className="text-slate-500 dark:text-slate-400">
-            {statusFilter === "ALL" ? "No tasks assigned to you yet." : `No ${statusFilter.replace("_", " ").toLowerCase()} tasks.`}
+            {statusFilter === "ALL" ? activeScope.empty : `No ${statusFilter.replace("_", " ").toLowerCase()} tasks.`}
           </p>
         </div>
       )}

@@ -420,6 +420,9 @@ export async function getEmployeeDashboardStats(userId) {
     recentTasks,
     dueSoonTasks,
     overdueTasks,
+    delegatedByStatus,
+    delegatedTasks,
+    delegatedOverdue,
   ] = await Promise.all([
     prisma.task.groupBy({
       by: ["status"],
@@ -475,10 +478,40 @@ export async function getEmployeeDashboardStats(userId) {
       orderBy: { dueDate: "asc" },
       select: TASK_FIELDS,
     }),
+
+    // Work handed to someone else. Self-assigned tasks are excluded so they do
+    // not show up twice, once under each heading.
+    prisma.task.groupBy({
+      by: ["status"],
+      where: { assignedById: userId, NOT: { assigneeId: userId } },
+      _count: { id: true },
+    }),
+
+    prisma.task.findMany({
+      where: { assignedById: userId, NOT: { assigneeId: userId } },
+      take: 6,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        ...TASK_FIELDS,
+        assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+      },
+    }),
+
+    prisma.task.count({
+      where: {
+        assignedById: userId,
+        NOT: { assigneeId: userId },
+        status: { in: OPEN_STATUSES },
+        dueDate: { lt: now },
+      },
+    }),
   ]);
 
   const statusCount = (status) => byStatus.find((r) => r.status === status)?._count.id ?? 0;
   const total = byStatus.reduce((sum, r) => sum + r._count.id, 0);
+
+  const delegatedCount = (status) =>
+    delegatedByStatus.find((r) => r.status === status)?._count.id ?? 0;
 
   // Build the seven day buckets, oldest first, so the chart never has gaps.
   const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
@@ -520,6 +553,18 @@ export async function getEmployeeDashboardStats(userId) {
     recentTasks,
     dueSoonTasks,
     overdueTasks,
+    delegated: {
+      total: delegatedByStatus.reduce((sum, r) => sum + r._count.id, 0),
+      new: delegatedCount("NEW"),
+      acknowledged: delegatedCount("ACKNOWLEDGED"),
+      inProgress: delegatedCount("IN_PROGRESS"),
+      inReview: delegatedCount("IN_REVIEW"),
+      clientReview: delegatedCount("CLIENT_REVIEW"),
+      completed: delegatedCount("COMPLETED"),
+      open: OPEN_STATUSES.reduce((sum, st) => sum + delegatedCount(st), 0),
+      overdue: delegatedOverdue,
+      tasks: delegatedTasks,
+    },
   };
 }
 

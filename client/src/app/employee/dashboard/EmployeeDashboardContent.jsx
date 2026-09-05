@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  ListChecks, Clock, AlertTriangle, CheckCircle2, ArrowRight, CalendarDays,
+  ListChecks, Clock, AlertTriangle, CheckCircle2, ArrowRight, CalendarDays, Send,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import ExpenseTiles from "@/components/expenses/ExpenseTiles";
@@ -69,10 +69,42 @@ function TaskLine({ task, overdue = false }) {
   );
 }
 
+/** One row of work that is out with someone else. */
+function DelegatedLine({ task }) {
+  const overdue =
+    task.dueDate && task.status !== "COMPLETED" && new Date(task.dueDate) < new Date();
+
+  return (
+    <Link
+      href={`/employee/tasks?task=${task.id}`}
+      className="flex items-center gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 rounded-lg px-2 -mx-2 transition-colors"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">{task.title}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <Badge value={task.status} />
+          {task.assignee && (
+            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {task.assignee.firstName} {task.assignee.lastName}
+            </span>
+          )}
+          {task.project && <span className="text-xs text-slate-400 truncate">{task.project.name}</span>}
+        </div>
+      </div>
+      {task.dueDate && (
+        <span className={`text-xs shrink-0 ${overdue ? "text-red-600 font-semibold" : "text-slate-400"}`}>
+          {formatDate(task.dueDate)}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default function EmployeeDashboardContent({ stats }) {
   const t = stats?.tasks || {};
   const week = stats?.last7Days || [];
   const totals = stats?.weekTotals || { completed: 0, assigned: 0 };
+  const delegated = stats?.delegated || null;
 
   // Scale the chart to its own busiest day so short bars stay readable.
   const peak = Math.max(1, ...week.map((d) => Math.max(d.completed, d.assigned)));
@@ -200,6 +232,51 @@ export default function EmployeeDashboardContent({ stats }) {
           )}
         </div>
       </div>
+      {/* Work handed to others */}
+      {delegated?.total > 0 && (
+        <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex items-center gap-2">
+                <Send className="w-4 h-4 text-[#5542F6]" /> Assigned by me
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {delegated.open} open of {delegated.total} · tracked with the people doing them
+              </p>
+            </div>
+            <Link
+              href="/employee/tasks"
+              className="text-xs text-[#5542F6] hover:underline flex items-center gap-1 shrink-0"
+            >
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {[
+              { label: "Open", value: delegated.open, cls: "text-slate-900 dark:text-slate-50" },
+              { label: "In review", value: delegated.inReview, cls: "text-amber-600" },
+              { label: "Overdue", value: delegated.overdue, cls: "text-red-600" },
+              { label: "Completed", value: delegated.completed, cls: "text-emerald-600" },
+            ].map(({ label, value, cls }) => (
+              <div
+                key={label}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-slate-50/50 dark:bg-slate-900/30"
+              >
+                <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                <p className={`text-lg font-bold mt-0.5 ${cls}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col">
+            {(delegated.tasks || []).map((task) => (
+              <DelegatedLine key={task.id} task={task} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <ExpenseTiles basePath="/employee" />
 
     </div>

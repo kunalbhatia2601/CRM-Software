@@ -711,10 +711,18 @@ class TaskService {
   }
 
   /**
-   * Get all tasks assigned to a specific user across all projects.
+   * A user's tasks across every project.
+   *
+   * `scope: "delegated"` flips this around to the work they handed to someone
+   * else — tasks they assigned but do not own — so a lead can track what is out
+   * with their team. Self-assigned tasks are excluded there; they already show
+   * under the default scope and would otherwise appear twice.
    */
   async getMyTasks(userId, filters = {}) {
-    const where = { assigneeId: userId };
+    const where =
+      filters.scope === "delegated"
+        ? { assignedById: userId, NOT: { assigneeId: userId } }
+        : { assigneeId: userId };
     if (filters.status) where.status = filters.status;
     if (filters.priority) where.priority = filters.priority;
     if (filters.projectId) where.projectId = filters.projectId;
