@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Eye, X } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -37,10 +37,24 @@ function generateCalendarGrid(currentDate) {
   return days;
 }
 
+/** Local YYYY-MM-DD key. Built from local parts so a date never shifts a day. */
+function dateKeyOf(d) {
+  const date = new Date(d);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** Midnight events are system dates (a due date, a milestone), not appointments. */
+function eventTime(date) {
+  const t = new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  return t === "12:00 am" || t === "12:00 AM" ? "All day" : t;
+}
+
 export default function CalendarContent({ initialEvents = [] }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState("calendar"); // calendar | list
   const [selectedEvent, setSelectedEvent] = useState(null);
+  // The day the user drilled into. Null means no day panel is open.
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -54,8 +68,7 @@ export default function CalendarContent({ initialEvents = [] }) {
   const eventsByDate = {};
   initialEvents.forEach(event => {
     if (!event.date) return;
-    const d = new Date(event.date);
-    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const dateKey = dateKeyOf(event.date);
 
     if (!eventsByDate[dateKey]) {
       eventsByDate[dateKey] = [];
@@ -140,11 +153,24 @@ export default function CalendarContent({ initialEvents = [] }) {
               if (!day) return <div key={i} className="border-b border-r last:border-r-0 border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20" />;
               
               const isToday = new Date().toDateString() === day.toDateString();
-              const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+              const dateKey = dateKeyOf(day);
               const dayEvents = eventsByDate[dateKey] || [];
 
               return (
-                <div key={i} className={`p-2 border-b border-r last:border-r-0 border-gray-100 dark:border-gray-700/50 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30 ${isToday ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''}`}>
+                <div
+                  key={i}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDay(day)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedDay(day);
+                    }
+                  }}
+                  title={`${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"} on ${day.toLocaleDateString("en-IN", { day: "numeric", month: "long" })}`}
+                  className={`p-2 border-b border-r last:border-r-0 border-gray-100 dark:border-gray-700/50 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 ${isToday ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''}`}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 dark:text-gray-300'}`}>
                       {day.getDate()}
@@ -155,7 +181,7 @@ export default function CalendarContent({ initialEvents = [] }) {
                     {dayEvents.slice(0, 3).map(event => (
                       <div 
                         key={event.id}
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); }}
                         className={`text-xs truncate px-1.5 py-1 rounded border cursor-pointer hover:opacity-80 ${getStatusColor(event.type)}`}
                         title={event.title}
                       >
@@ -224,6 +250,88 @@ export default function CalendarContent({ initialEvents = [] }) {
           )}
         </div>
       )}
+
+      {/* One day, in full */}
+      {selectedDay && (() => {
+        const dayEvents = eventsByDate[dateKeyOf(selectedDay)] || [];
+        const shiftDay = (delta) => {
+          const next = new Date(selectedDay);
+          next.setDate(next.getDate() + delta);
+          setSelectedDay(next);
+          // Follow the day across a month boundary so the grid behind agrees.
+          setCurrentDate(new Date(next.getFullYear(), next.getMonth(), 1));
+        };
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSelectedDay(null)}
+          >
+            <div
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden border dark:border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {selectedDay.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {dayEvents.length} event{dayEvents.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => shiftDay(-1)} title="Previous day"
+                    className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button onClick={() => shiftDay(1)} title="Next day"
+                    className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button onClick={() => setSelectedDay(null)} title="Close"
+                    className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                {dayEvents.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <CalendarIcon className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400">Nothing scheduled on this day.</p>
+                  </div>
+                ) : (
+                  dayEvents.map((event) => (
+                    <div key={event.id} className="p-5 flex items-start justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`mt-0.5 px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap ${getStatusColor(event.type)}`}>
+                          {event.type}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-base font-medium text-gray-900 dark:text-white">{event.title}</h4>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <span>{eventTime(event.date)}</span>
+                            {event.status && <span className="capitalize">{event.status.replace(/_/g, " ").toLowerCase()}</span>}
+                            {event.priority && <span className="capitalize">{event.priority.toLowerCase()} priority</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedEvent(event)}
+                        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 shrink-0"
+                      >
+                        <Eye className="w-4 h-4" /> Details
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

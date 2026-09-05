@@ -32,6 +32,11 @@ class FollowUpController {
     const followUps = await followUpService.getFollowUpsByLead(req.params.leadId);
     return ok(res, "Follow-ups retrieved", followUps);
   });
+
+  getByDeal = catchAsync(async (req, res) => {
+    const followUps = await followUpService.getFollowUpsByDeal(req.params.dealId);
+    return ok(res, "Follow-ups retrieved", followUps);
+  });
 }
 
 export default new FollowUpController();

@@ -11,7 +11,9 @@ export const createFollowUpSchema = z.object({
     dueAt: z.coerce.date({ required_error: "Due date is required" }),
     notes: z.string().max(5000).optional().nullable(),
     outcome: z.string().max(5000).optional().nullable(),
-    leadId: z.string().min(1, "Lead ID is required"),
+    // Exactly one of these; the service rejects zero or both.
+    leadId: z.string().min(1).optional().nullable(),
+    dealId: z.string().min(1).optional().nullable(),
   }),
 });
 
@@ -34,6 +36,7 @@ export const listFollowUpsSchema = z.object({
     type: z.enum(followUpTypes).optional(),
     status: z.enum(followUpStatuses).optional(),
     leadId: z.string().optional(),
+    dealId: z.string().optional(),
     search: z.string().optional(),
     sortBy: z.enum(["createdAt", "dueAt", "title", "status"]).optional().default("dueAt"),
     sortOrder: z.enum(["asc", "desc"]).optional().default("asc"),

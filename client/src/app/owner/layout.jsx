@@ -54,6 +54,7 @@ const navItems = [
       // { name: "Pipeline", href: "/owner/deals/pipeline" },
     ],
   },
+  { name: "Follow-ups", href: "/owner/follow-ups", icon: "PhoneForwarded" },
   {
     name: "Clients",
     href: "/owner/clients",

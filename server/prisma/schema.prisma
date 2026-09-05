@@ -343,6 +343,7 @@ model Deal {
   // Source lead
   leadId          String    @unique @map("lead_id")
   lead            Lead      @relation(fields: [leadId], references: [id])
+  followUps       FollowUp[]
 
   // Assigned sales person
   assigneeId      String?   @map("assignee_id")
@@ -1088,9 +1089,13 @@ model FollowUp {
   notes       String?        @db.Text
   outcome     String?        @db.Text
 
-  // Parent lead
-  leadId      String         @map("lead_id")
-  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  // Parent record: a follow-up hangs off exactly one of a lead or a deal.
+  // Both are optional at the column level; the service enforces the either/or.
+  leadId      String?        @map("lead_id")
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  dealId      String?        @map("deal_id")
+  deal        Deal?          @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   // Who created this follow-up
   createdById String         @map("created_by_id")
@@ -1100,6 +1105,7 @@ model FollowUp {
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
   @@index([leadId])
+  @@index([dealId])
   @@index([status])
   @@index([dueAt])
   @@index([createdById])

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
+import Pagination from "./Pagination";
 
 export default function DataTable({
   columns,
@@ -12,10 +13,6 @@ export default function DataTable({
   emptyMessage = "No data found",
   emptyIcon: EmptyIcon = Inbox,
 }) {
-  const { page = 1, totalPages = 1, total = 0, limit = 10 } = pagination || {};
-  const from = total === 0 ? 0 : (page - 1) * limit + 1;
-  const to = Math.min(page * limit, total);
-
   return (
     <div className="flex flex-col">
       {/* Table */}
@@ -69,55 +66,8 @@ export default function DataTable({
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-xs text-slate-400">
-            Showing {from}–{to} of {total}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPageChange?.(page - 1)}
-              disabled={page <= 1}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (page <= 3) {
-                pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = page - 2 + i;
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => onPageChange?.(pageNum)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-colors ${
-                    pageNum === page
-                      ? "bg-[#5542F6] text-white shadow-sm dark:shadow-none"
-                      : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => onPageChange?.(page + 1)}
-              disabled={page >= totalPages}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination pagination={pagination} onPageChange={onPageChange} />
+
     </div>
   );
 }

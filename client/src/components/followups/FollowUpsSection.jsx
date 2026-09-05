@@ -48,7 +48,11 @@ const STATUS_COLORS = {
   OVERDUE: "text-red-600",
 };
 
-export default function FollowUpsSection({ followUps: initialFollowUps = [], leadId, showToast }) {
+/**
+ * Follow-ups for one parent record. Pass either `leadId` or `dealId` — a
+ * follow-up hangs off exactly one of them, and the server rejects both.
+ */
+export default function FollowUpsSection({ followUps: initialFollowUps = [], leadId, dealId, showToast }) {
   const [followUps, setFollowUps] = useState(initialFollowUps);
   const [isPending, startTransition] = useTransition();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -99,13 +103,15 @@ export default function FollowUpsSection({ followUps: initialFollowUps = [], lea
         title: form.title.trim(),
         type: form.type,
         dueAt: form.dueAt,
-        leadId,
+        ...(dealId ? { dealId } : { leadId }),
       };
       if (form.notes) payload.notes = form.notes.trim();
 
       let result;
       if (editingFollowUp) {
+        // The parent never moves on an edit, and the update schema rejects it.
         delete payload.leadId;
+        delete payload.dealId;
         result = await updateFollowUp(editingFollowUp.id, payload);
       } else {
         result = await createFollowUp(payload);

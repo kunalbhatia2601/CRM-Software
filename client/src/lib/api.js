@@ -749,6 +749,10 @@ export async function getFollowUpsByLeadAPI(leadId, accessToken) {
   return request(`/api/follow-ups/lead/${leadId}`, { method: "GET", token: accessToken });
 }
 
+export async function getFollowUpsByDealAPI(dealId, accessToken) {
+  return request(`/api/follow-ups/deal/${dealId}`, { method: "GET", token: accessToken });
+}
+
 export async function createFollowUpAPI(data, accessToken) {
   return request("/api/follow-ups", {
     method: "POST",

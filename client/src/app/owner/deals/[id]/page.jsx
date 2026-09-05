@@ -1,14 +1,16 @@
 import { getDeal } from "@/actions/deals.action";
 import { getMeetingsByDeal } from "@/actions/meetings.action";
 import { getSamplesByDeal } from "@/actions/samples.action";
+import { getFollowUpsByDeal } from "@/actions/followups.action";
 import DealDetailContent from "./DealDetailContent";
 
 export default async function DealDetailPage({ params }) {
   const { id } = await params;
-  const [result, meetingsResult, samplesResult] = await Promise.all([
+  const [result, meetingsResult, samplesResult, followUpsResult] = await Promise.all([
     getDeal(id),
     getMeetingsByDeal(id),
     getSamplesByDeal(id),
+    getFollowUpsByDeal(id),
   ]);
 
   if (!result.success) {
@@ -24,6 +26,7 @@ export default async function DealDetailPage({ params }) {
       initialDeal={result.data}
       initialMeetings={meetingsResult.data || []}
       initialSamples={samplesResult.data || []}
+      initialFollowUps={followUpsResult.data || []}
     />
   );
 }

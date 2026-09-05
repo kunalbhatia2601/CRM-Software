@@ -4,6 +4,7 @@ import {
   getFollowUpsAPI,
   getFollowUpAPI,
   getFollowUpsByLeadAPI,
+  getFollowUpsByDealAPI,
   createFollowUpAPI,
   updateFollowUpAPI,
   deleteFollowUpAPI,
@@ -43,6 +44,19 @@ export async function getFollowUpsByLead(leadId) {
 
   try {
     const res = await getFollowUpsByLeadAPI(leadId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, data: [], error: res.message };
+  } catch (err) {
+    return { success: false, data: [], error: err.message };
+  }
+}
+
+export async function getFollowUpsByDeal(dealId) {
+  const token = await getToken();
+  if (!token) return { success: false, data: [] };
+
+  try {
+    const res = await getFollowUpsByDealAPI(dealId, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, data: [], error: res.message };
   } catch (err) {

@@ -38,6 +38,7 @@ import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import MeetingsSection from "@/components/meetings/MeetingsSection";
+import FollowUpsSection from "@/components/followups/FollowUpsSection";
 import SamplesSection from "@/components/samples/SamplesSection";
 
 /* ─── Stage flow config ─── */
@@ -72,7 +73,7 @@ function getStepIndex(stage) {
   return PIPELINE_STEPS.indexOf(stage);
 }
 
-export default function DealDetailContent({ initialDeal, initialMeetings = [], initialSamples = [] }) {
+export default function DealDetailContent({ initialDeal, initialMeetings = [], initialSamples = [], initialFollowUps = [] }) {
   const router = useRouter();
   const { format, formatCompact } = useSite();
   const [deal, setDeal] = useState(initialDeal);
@@ -653,6 +654,15 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
         showToast={showToast}
         readOnly={deal.stage === "WON"}
       />
+
+      {/* ═══ Follow-Ups ═══ */}
+      {!["WON", "LOST"].includes(deal.stage) && (
+        <FollowUpsSection
+          followUps={initialFollowUps}
+          dealId={deal.id}
+          showToast={showToast}
+        />
+      )}
 
       {/* ═══ Meetings ═══ */}
       <MeetingsSection

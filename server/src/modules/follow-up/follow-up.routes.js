@@ -18,6 +18,7 @@ router.use(authenticate);
 
 router.get("/", validate(listFollowUpsSchema), followUpController.list);
 router.get("/lead/:leadId", followUpController.getByLead);
+router.get("/deal/:dealId", followUpController.getByDeal);
 router.get("/:id", validate(getFollowUpSchema), followUpController.getById);
 
 router.post(

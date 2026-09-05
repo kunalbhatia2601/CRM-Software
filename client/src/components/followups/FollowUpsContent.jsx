@@ -18,6 +18,7 @@ import {
 import Badge from "@/components/ui/Badge";
 import { getFollowUps, updateFollowUp } from "@/actions/followups.action";
 import Toast from "@/components/ui/Toast";
+import Pagination from "@/components/ui/Pagination";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -36,10 +37,22 @@ const TYPE_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
+/** Follow-ups per page. */
+const PAGE_SIZE = 20;
+
 const typeIcons = { CALL: Phone, EMAIL: Mail, MEETING: CalendarIcon, TASK: ListChecks, OTHER: MoreHorizontal };
 
-export default function SalesFollowUpsContent({ initialData }) {
+/**
+ * Follow-ups across every lead, shared by the sales, owner and admin panels.
+ *
+ * @param {object} initialData server-rendered first page
+ * @param {string} basePath the panel this is mounted under, so lead links stay
+ *   inside it rather than bouncing the user into another role's routes
+ */
+export default function FollowUpsContent({ initialData, basePath = "/sales" }) {
   const [followUps, setFollowUps] = useState(initialData?.followUps || []);
+  const [pagination, setPagination] = useState(initialData?.pagination || {});
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -49,23 +62,32 @@ export default function SalesFollowUpsContent({ initialData }) {
   const fetchFollowUps = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page: 1, limit: 50, sortBy: "dueAt", sortOrder: "asc" };
+      const params = { page, limit: PAGE_SIZE, sortBy: "dueAt", sortOrder: "asc" };
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (typeFilter) params.type = typeFilter;
       const result = await getFollowUps(params);
-      if (result.success) setFollowUps(result.data.followUps || []);
+      if (result.success) {
+        setFollowUps(result.data.followUps || []);
+        setPagination(result.data.pagination || {});
+      }
     } catch {
       // silent
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, typeFilter]);
+  }, [page, search, statusFilter, typeFilter]);
 
   useEffect(() => {
     const timer = setTimeout(fetchFollowUps, 300);
     return () => clearTimeout(timer);
   }, [fetchFollowUps]);
+
+  // Changing a filter reshuffles the result set, so go back to the first page
+  // rather than landing on a page that no longer exists.
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeFilter]);
 
   const handleMarkComplete = async (id) => {
     const result = await updateFollowUp(id, { status: "COMPLETED" });
@@ -145,9 +167,16 @@ export default function SalesFollowUpsContent({ initialData }) {
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <Badge value={fu.status} />
                         <Badge value={fu.type} />
+                        {/* A follow-up hangs off a lead or a deal, never both. */}
                         {fu.lead && (
-                          <Link href={`/sales/leads/${fu.lead.id}`} className="text-xs text-[#5542F6] hover:underline">
+                          <Link href={`${basePath}/leads/${fu.lead.id}`} className="text-xs text-[#5542F6] hover:underline">
                             {fu.lead.companyName}
+                          </Link>
+                        )}
+                        {fu.deal && (
+                          <Link href={`${basePath}/deals/${fu.deal.id}`} className="text-xs text-[#5542F6] hover:underline">
+                            {fu.deal.title}
+                            {fu.deal.lead?.companyName ? ` · ${fu.deal.lead.companyName}` : ""}
                           </Link>
                         )}
                         {overdue && (
@@ -185,6 +214,8 @@ export default function SalesFollowUpsContent({ initialData }) {
           <p className="text-slate-500 dark:text-slate-400">No follow-ups found.</p>
         </div>
       )}
+
+      <Pagination pagination={pagination} onPageChange={setPage} />
     </div>
   );
 }

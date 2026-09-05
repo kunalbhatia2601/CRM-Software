@@ -5,22 +5,52 @@ const FOLLOWUP_INCLUDE = {
   lead: {
     select: { id: true, companyName: true, contactName: true, status: true },
   },
+  deal: {
+    select: {
+      id: true, title: true, stage: true,
+      lead: { select: { id: true, companyName: true, contactName: true } },
+    },
+  },
   createdBy: {
     select: { id: true, firstName: true, lastName: true, email: true, avatar: true },
   },
 };
 
 class FollowUpService {
+  /**
+   * A follow-up belongs to exactly one parent: a lead being chased, or a deal
+   * being worked. Once a lead converts, its chasing moves to the deal.
+   */
   async createFollowUp(data, createdById) {
-    // Validate lead exists
-    const lead = await prisma.lead.findUnique({ where: { id: data.leadId } });
-    if (!lead) throw ApiError.notFound("Lead not found");
-
-    if (lead.status === "CONVERTED") {
-      throw ApiError.badRequest("Cannot add follow-ups to a converted lead");
+    if (!data.leadId && !data.dealId) {
+      throw ApiError.badRequest("A follow-up needs a lead or a deal");
+    }
+    if (data.leadId && data.dealId) {
+      throw ApiError.badRequest("A follow-up belongs to either a lead or a deal, not both");
     }
 
-    const followUp = await prisma.followUp.create({
+    if (data.leadId) {
+      const lead = await prisma.lead.findUnique({ where: { id: data.leadId } });
+      if (!lead) throw ApiError.notFound("Lead not found");
+
+      if (lead.status === "CONVERTED") {
+        throw ApiError.badRequest("Cannot add follow-ups to a converted lead");
+      }
+    }
+
+    if (data.dealId) {
+      const deal = await prisma.deal.findUnique({
+        where: { id: data.dealId },
+        select: { id: true, stage: true },
+      });
+      if (!deal) throw ApiError.notFound("Deal not found");
+
+      if (["WON", "LOST"].includes(deal.stage)) {
+        throw ApiError.badRequest("Cannot add follow-ups to a closed deal");
+      }
+    }
+
+    return prisma.followUp.create({
       data: {
         title: data.title,
         type: data.type || "CALL",
@@ -28,22 +58,22 @@ class FollowUpService {
         dueAt: data.dueAt,
         notes: data.notes || null,
         outcome: data.outcome || null,
-        leadId: data.leadId,
+        leadId: data.leadId || null,
+        dealId: data.dealId || null,
         createdById,
       },
       include: FOLLOWUP_INCLUDE,
     });
-
-    return followUp;
   }
 
-  async listFollowUps({ page, limit, type, status, leadId, search, sortBy, sortOrder }) {
+  async listFollowUps({ page, limit, type, status, leadId, dealId, search, sortBy, sortOrder }) {
     const skip = (page - 1) * limit;
     const where = {};
 
     if (type) where.type = type;
     if (status) where.status = status;
     if (leadId) where.leadId = leadId;
+    if (dealId) where.dealId = dealId;
 
     if (search) {
       where.OR = [
@@ -110,6 +140,14 @@ class FollowUpService {
   async getFollowUpsByLead(leadId) {
     return prisma.followUp.findMany({
       where: { leadId },
+      include: FOLLOWUP_INCLUDE,
+      orderBy: { dueAt: "asc" },
+    });
+  }
+
+  async getFollowUpsByDeal(dealId) {
+    return prisma.followUp.findMany({
+      where: { dealId },
       include: FOLLOWUP_INCLUDE,
       orderBy: { dueAt: "asc" },
     });

@@ -42,6 +42,7 @@ const navItems = [
       { name: "All Deals", href: "/admin/deals" },
     ],
   },
+  { name: "Follow-ups", href: "/admin/follow-ups", icon: "PhoneForwarded" },
   {
     name: "Clients",
     href: "/admin/clients",
