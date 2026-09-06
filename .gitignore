@@ -188,6 +188,17 @@ next-env.d.ts
 *.docx*
 *.doc*
 
+# ...but those patterns also match source files that merely name a format,
+# e.g. invoice.pdf.js. Git ignores them silently, so the code is only missing
+# once the server crashes on deploy.
+!*.pdf.js
+!*.csv.js
+!*.xlsx.js
+!*.docx.js
+!*.doc.js
+!*.pdf.jsx
+!*.csv.jsx
+
 uploads/
 
 .claude
