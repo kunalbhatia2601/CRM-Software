@@ -73,6 +73,9 @@ class SettingsService {
       invoiceDefaultDiscount: Number(s.invoiceDefaultDiscount ?? 0),
       invoiceDefaultNotes: s.invoiceDefaultNotes || "",
       invoiceDefaultTerms: s.invoiceDefaultTerms || "",
+      // The mailbox invoices are sent from — the send dialog blind-copies it by
+      // default so a record stays in the agency's own inbox.
+      senderEmail: s.smtpEmail || null,
     };
   }
 

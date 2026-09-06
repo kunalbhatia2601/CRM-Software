@@ -11,7 +11,7 @@ const CACHE_TTL = 600; // 10 minutes
  * Default templates seeded on first access.
  * Body uses Handlebars-style {{variable}} placeholders.
  */
-const DEFAULT_TEMPLATES = [
+export const DEFAULT_TEMPLATES = [
   {
     slug: "login-otp",
     name: "Login OTP",
@@ -153,6 +153,71 @@ const DEFAULT_TEMPLATES = [
     <!-- Footer -->
     <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #f1f5f9;text-align:center;">
       <p style="margin:0;color:#94a3b8;font-size:11px;">&copy; {{siteName}} — All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+  },
+  {
+    slug: "invoice-sent",
+    name: "Invoice Sent to Client",
+    subject: "Invoice {{invoiceNumber}} from {{siteName}}",
+    description: "Sent from an invoice with the Send to Client button.",
+    variables: JSON.stringify([
+      "siteName", "senderName", "senderEmail", "clientName", "invoiceNumber",
+      "issueDate", "dueDate", "total", "amountDue", "projectName", "message",
+      "itemsHtml", "paymentDetailsHtml", "notes", "terms",
+    ]),
+    body: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:640px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);padding:32px;">
+      <p style="margin:0;color:#94a3b8;font-size:12px;letter-spacing:1px;text-transform:uppercase;">Invoice</p>
+      <h1 style="margin:6px 0 0;color:#ffffff;font-size:24px;font-weight:700;">{{invoiceNumber}}</h1>
+      <p style="margin:8px 0 0;color:#cbd5e1;font-size:13px;">from {{siteName}}</p>
+    </div>
+
+    <div style="padding:32px;">
+      <p style="margin:0 0 16px;color:#334155;font-size:15px;">Hello <strong>{{clientName}}</strong>,</p>
+      <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">{{message}}</p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;font-size:13px;">Project</td>
+          <td style="padding:6px 0;color:#334155;font-size:13px;text-align:right;">{{projectName}}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;font-size:13px;">Issue date</td>
+          <td style="padding:6px 0;color:#334155;font-size:13px;text-align:right;">{{issueDate}}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#94a3b8;font-size:13px;">Due date</td>
+          <td style="padding:6px 0;color:#334155;font-size:13px;text-align:right;">{{dueDate}}</td>
+        </tr>
+      </table>
+
+      {{itemsHtml}}
+
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;text-align:center;margin:24px 0;">
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Amount due</p>
+        <p style="margin:0;color:#0f172a;font-size:30px;font-weight:800;">{{amountDue}}</p>
+        <p style="margin:6px 0 0;color:#94a3b8;font-size:12px;">Invoice total {{total}}</p>
+      </div>
+
+      <p style="margin:0 0 24px;color:#64748b;font-size:13px;text-align:center;">
+        The full invoice is attached to this email as <strong>{{invoiceNumber}}.pdf</strong>.
+      </p>
+
+      {{paymentDetailsHtml}}
+
+      <p style="margin:24px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">{{notes}}</p>
+      <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">{{terms}}</p>
+    </div>
+
+    <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #f1f5f9;text-align:center;">
+      <p style="margin:0;color:#94a3b8;font-size:11px;">Sent by {{senderName}} &lt;{{senderEmail}}&gt; &middot; &copy; {{siteName}}</p>
     </div>
   </div>
 </body>

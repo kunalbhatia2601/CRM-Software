@@ -9,6 +9,7 @@ import {
   updateInvoiceAPI,
   deleteInvoiceAPI,
   getInvoiceConfigAPI,
+  sendInvoiceEmailAPI,
   addInvoicePaymentAPI,
   deleteInvoicePaymentAPI,
 } from "@/lib/api";
@@ -134,5 +135,18 @@ export async function deleteInvoicePayment(id, paymentId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to remove payment" };
+  }
+}
+
+/** Email the invoice to the client. */
+export async function sendInvoiceEmail(id, data) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await sendInvoiceEmailAPI(id, data, token);
+    if (res.success) return { success: true, data: res.data, message: res.message };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to send invoice" };
   }
 }

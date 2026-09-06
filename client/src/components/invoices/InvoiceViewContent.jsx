@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Loader2, CheckCircle2, Pencil } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, CheckCircle2, Pencil, Mail } from "lucide-react";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
-import { updateInvoice, getInvoiceConfig } from "@/actions/invoices.action";
+import { updateInvoice, getInvoiceConfig, sendInvoiceEmail } from "@/actions/invoices.action";
 import RecordPaymentModal from "@/components/invoices/RecordPaymentModal";
+import SendInvoiceModal from "@/components/invoices/SendInvoiceModal";
 
 /** A4 in millimetres, and the print margin the @page rule uses. */
 const A4 = { width: 210, height: 297, margin: 12 };
@@ -50,6 +51,9 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
   const [toast, setToast] = useState(null);
   const [paying, setPaying] = useState(false);
   const [bg, setBg] = useState({ image: null, opacity: 0.05 });
+  const [senderEmail, setSenderEmail] = useState(null);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sending, setSending] = useState(false);
 
   // How many A4 sheets the invoice currently spans, so the preview can show the
   // same page breaks — and the same repeated watermark — that printing gives.
@@ -66,7 +70,10 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
   useEffect(() => {
     (async () => {
       const res = await getInvoiceConfig();
-      if (res.success) setBg({ image: res.data.invoiceBgImage || null, opacity: res.data.invoiceBgOpacity ?? 0.05 });
+      if (res.success) {
+        setBg({ image: res.data.invoiceBgImage || null, opacity: res.data.invoiceBgOpacity ?? 0.05 });
+        setSenderEmail(res.data.senderEmail || null);
+      }
     })();
   }, []);
 
@@ -122,6 +129,22 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
 
   // Set the PDF/print filename to INV_ID(4)-ProjectName, and collapse the
   // browser's footer URL to just the invoice id, then restore both after.
+  /** Email the invoice. A draft is moved to Sent by the server, so reflect that. */
+  const handleSend = async (payload) => {
+    setSending(true);
+    const res = await sendInvoiceEmail(invoice.id, payload);
+    setSending(false);
+
+    if (!res.success) {
+      setToast({ type: "error", message: res.error || "Failed to send invoice" });
+      return;
+    }
+
+    setSendOpen(false);
+    setToast({ type: "success", message: res.message || `Invoice sent to ${res.data?.to}` });
+    if (invoice.status === "DRAFT") setInvoice((prev) => ({ ...prev, status: "SENT" }));
+  };
+
   const handlePrint = () => {
     const idPart = (invoice.invoiceNumber || invoice.id || "").toString().slice(-4);
     const projName = (invoice.project?.name || "invoice").replace(/[^\w-]+/g, "_");
@@ -155,6 +178,15 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
         onRecorded={onPaymentRecorded}
       />
 
+      <SendInvoiceModal
+        isOpen={sendOpen}
+        invoice={invoice}
+        senderEmail={senderEmail}
+        sending={sending}
+        onClose={() => setSendOpen(false)}
+        onSend={handleSend}
+      />
+
       {/* Toolbar — hidden on print */}
       <div className="flex items-center justify-between mb-6 print:hidden">
         <button onClick={() => router.push(`${basePath}/invoices`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
@@ -169,6 +201,14 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
           {!readOnly && invoice.status !== "PAID" && invoice.status !== "CANCELLED" && (
             <button onClick={() => setPaying(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl">
               <CheckCircle2 className="w-4 h-4" /> Record Payment
+            </button>
+          )}
+          {!readOnly && invoice.status !== "CANCELLED" && (
+            <button
+              onClick={() => setSendOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#5542F6] bg-[#5542F6]/10 hover:bg-[#5542F6]/20 rounded-xl"
+            >
+              <Mail className="w-4 h-4" /> Send to Client
             </button>
           )}
           <button onClick={handlePrint} className="inline-flex items-center gap-2 px-4 py-2 bg-[#5542F6] text-white text-sm font-semibold rounded-xl hover:bg-[#4636d4]">

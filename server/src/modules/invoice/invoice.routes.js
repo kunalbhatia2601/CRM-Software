@@ -9,6 +9,7 @@ import {
   getInvoiceSchema,
   addPaymentSchema,
   paymentIdParamSchema,
+  sendInvoiceSchema,
 } from "./invoice.validation.js";
 import controller from "./invoice.controller.js";
 
@@ -31,6 +32,8 @@ router.patch("/:id", canManage, validate(updateInvoiceSchema), controller.update
 router.delete("/:id", canManage, validate(getInvoiceSchema), controller.deleteInvoice);
 
 // Recording money received — same roles that manage the invoice.
+router.post("/:id/send", canManage, validate(sendInvoiceSchema), controller.sendInvoice);
+
 router.post("/:id/payments", canManage, validate(addPaymentSchema), controller.addPayment);
 router.delete("/:id/payments/:paymentId", canManage, validate(paymentIdParamSchema), controller.deletePayment);
 

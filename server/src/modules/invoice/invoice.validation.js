@@ -88,3 +88,15 @@ export const addPaymentSchema = z.object({
 export const paymentIdParamSchema = z.object({
   params: z.object({ id: z.string().min(1), paymentId: z.string().min(1) }),
 });
+
+/** Emailing an invoice to the client. Recipients default to the bill-to address. */
+export const sendInvoiceSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    to: z.string().email("Enter a valid email").optional(),
+    cc: z.string().email("Enter a valid CC email").optional().or(z.literal("")),
+    bcc: z.string().email("Enter a valid BCC email").optional().or(z.literal("")),
+    subject: z.string().max(300).optional(),
+    message: z.string().max(5000).optional(),
+  }),
+});

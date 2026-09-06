@@ -90,8 +90,10 @@ async function getTransporter() {
  * @param {string} options.html     - HTML body
  * @param {string} [options.text]   - Plain text fallback
  * @param {string} [options.from]   - Override sender (default: SMTP email)
+ * @param {Array}  [options.attachments] - Nodemailer attachments, e.g.
+ *   [{ filename: "INV-2026-0001.pdf", content: Buffer, contentType: "application/pdf" }]
  */
-export async function sendMail({ to, subject, html, text, from, cc, bcc }) {
+export async function sendMail({ to, subject, html, text, from, cc, bcc, attachments }) {
   const { transporter, fromEmail } = await getTransporter();
 
   const site = await getCachedSite();
@@ -105,6 +107,7 @@ export async function sendMail({ to, subject, html, text, from, cc, bcc }) {
     subject,
     html,
     text: text || html.replace(/<[^>]*>/g, ""),
+    ...(attachments?.length ? { attachments } : {}),
   });
 
   return info;

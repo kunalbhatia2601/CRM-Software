@@ -1623,3 +1623,9 @@ export async function listAiModelsAPI(data, accessToken) {
     method: "POST", body: JSON.stringify(data || {}), token: accessToken,
   });
 }
+
+export async function sendInvoiceEmailAPI(id, data, accessToken) {
+  return request(`/api/invoices/${id}/send`, {
+    method: "POST", body: JSON.stringify(data || {}), token: accessToken,
+  });
+}

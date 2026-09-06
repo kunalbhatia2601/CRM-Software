@@ -2,6 +2,9 @@ import prisma from "../../utils/prisma.js";
 import { snapshotOf } from "../payment-account/payment-account.service.js";
 import { ApiError } from "../../utils/apiError.js";
 import notificationService from "../notification/notification.service.js";
+import emailTemplateService from "../email-template/email-template.service.js";
+import { sendMail } from "../../utils/mailer.js";
+import { renderInvoicePdf } from "./invoice.pdf.js";
 
 const INVOICE_INCLUDE = {
   items: { orderBy: { position: "asc" } },
@@ -100,6 +103,120 @@ function computeTotals(items, discountAmount = 0, taxPercent = 0) {
   return { lineItems, subtotal, discount, taxPct, taxAmount, total };
 }
 
+
+/** Escape user-entered text before it goes into an HTML email. */
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Money for the email body. Invoices store their own currency, so use it. */
+function money(amount, currency = "INR") {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(Number(amount) || 0);
+}
+
+const emailDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+/**
+ * The line items as an HTML table.
+ *
+ * The template renderer only substitutes {{variables}} — it cannot loop — so
+ * anything repeating has to arrive already rendered.
+ */
+function itemsTable(invoice) {
+  const cur = invoice.currency || "INR";
+
+  const rows = (invoice.items || [])
+    .map(
+      (it) => `
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;color:#334155;font-size:13px;">
+            <strong>${esc(it.name)}</strong>
+            ${it.description ? `<br><span style="color:#94a3b8;font-size:12px;">${esc(it.description)}</span>` : ""}
+          </td>
+          <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:13px;text-align:right;white-space:nowrap;">${Number(it.quantity)}</td>
+          <td style="padding:10px 0 10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:13px;text-align:right;white-space:nowrap;">${money(it.unitPrice, cur)}</td>
+          <td style="padding:10px 0 10px 12px;border-bottom:1px solid #f1f5f9;color:#0f172a;font-size:13px;text-align:right;white-space:nowrap;">${money(it.amount, cur)}</td>
+        </tr>`
+    )
+    .join("");
+
+  const totalRow = (label, value, bold = false) => `
+        <tr>
+          <td colspan="3" style="padding:6px 0;color:${bold ? "#0f172a" : "#64748b"};font-size:13px;text-align:right;font-weight:${bold ? 700 : 400};">${label}</td>
+          <td style="padding:6px 0 6px 12px;color:${bold ? "#0f172a" : "#334155"};font-size:13px;text-align:right;font-weight:${bold ? 700 : 400};white-space:nowrap;">${value}</td>
+        </tr>`;
+
+  const discount = Number(invoice.discountAmount) || 0;
+  const taxPct = Number(invoice.taxPercent) || 0;
+
+  return `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+        <thead>
+          <tr>
+            <th style="padding:0 0 8px;border-bottom:2px solid #e2e8f0;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:left;">Description</th>
+            <th style="padding:0 0 8px;border-bottom:2px solid #e2e8f0;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:right;">Qty</th>
+            <th style="padding:0 0 8px 12px;border-bottom:2px solid #e2e8f0;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:right;">Rate</th>
+            <th style="padding:0 0 8px 12px;border-bottom:2px solid #e2e8f0;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          ${totalRow("Subtotal", money(invoice.subtotal, cur))}
+          ${discount > 0 ? totalRow("Discount", `− ${money(discount, cur)}`) : ""}
+          ${taxPct > 0 ? totalRow(`Tax (${taxPct}%)`, money(invoice.taxAmount, cur)) : ""}
+          ${totalRow("Total", money(invoice.total, cur), true)}
+        </tbody>
+      </table>`;
+}
+
+/** Where to pay, from the snapshot frozen onto the invoice. */
+function paymentBlock(invoice) {
+  const pay = invoice.paymentDetails;
+  if (!pay) return "";
+
+  const lines =
+    pay.type === "BANK"
+      ? [
+          ["Bank", pay.bankName],
+          ["Account name", pay.accountHolderName],
+          ["Account number", pay.accountNumber],
+          ["IFSC", pay.ifscCode],
+          ["Branch", pay.branch],
+        ]
+      : [
+          ["UPI ID", pay.upiId],
+          ["Name", pay.upiName],
+        ];
+
+  const rows = lines
+    .filter(([, v]) => v)
+    .map(
+      ([k, v]) => `
+        <tr>
+          <td style="padding:4px 0;color:#94a3b8;font-size:12px;">${esc(k)}</td>
+          <td style="padding:4px 0;color:#334155;font-size:12px;text-align:right;">${esc(v)}</td>
+        </tr>`
+    )
+    .join("");
+
+  if (!rows) return "";
+
+  return `
+      <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
+        <p style="margin:0 0 8px;color:#0f172a;font-size:13px;font-weight:600;">Payment details</p>
+        <table style="width:100%;border-collapse:collapse;">${rows}</table>
+      </div>`;
+}
+
 class InvoiceService {
   /**
    * Generate the next invoice number in a series.
@@ -156,6 +273,105 @@ class InvoiceService {
         if (!isDuplicateNumber || attempt === MAX_ATTEMPTS - 1) throw error;
       }
     }
+  }
+
+
+  /**
+   * Email an invoice to the client.
+   *
+   * A DRAFT moves to SENT once the mail is away — an invoice the client has
+   * been asked to pay is no longer a draft. Anything already further along
+   * (PAID, OVERDUE) keeps its status, since re-sending a reminder must not
+   * walk it backwards.
+   */
+  async sendToClient(id, { to, cc, bcc, subject, message } = {}, sender) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        ...INVOICE_INCLUDE,
+        project: { select: { id: true, name: true } },
+        client: { select: { companyName: true, email: true } },
+      },
+    });
+    if (!invoice) throw ApiError.notFound("Invoice not found");
+    if (invoice.status === "CANCELLED") {
+      throw ApiError.badRequest("This invoice is cancelled and cannot be sent");
+    }
+
+    const recipient = to || invoice.billToEmail || invoice.client?.email;
+    if (!recipient) {
+      throw ApiError.badRequest(
+        "No client email to send to. Add one on the invoice's Bill To details."
+      );
+    }
+
+    const [site, settings] = await Promise.all([
+      prisma.site.findUnique({ where: { id: "default" } }),
+      prisma.settings.findUnique({
+        where: { id: "default" },
+        select: { smtpEmail: true, invoiceBgImage: true, invoiceBgOpacity: true },
+      }),
+    ]);
+    const siteName = site?.name || "TaskGo Agency";
+
+    // Blind-copy the sending mailbox by default, so every invoice that goes out
+    // leaves a copy in the agency's own inbox. An explicit "" turns it off.
+    const blindCopy = bcc === undefined ? settings?.smtpEmail || null : bcc || null;
+    const cur = invoice.currency || "INR";
+    const due = Number(invoice.total) - Number(invoice.amountPaid);
+
+    const template = await emailTemplateService.getTemplateBySlug("invoice-sent");
+    const rendered = emailTemplateService.renderTemplate(template, {
+      siteName,
+      senderName: sender ? `${sender.firstName} ${sender.lastName}` : siteName,
+      senderEmail: sender?.email || "",
+      clientName: invoice.billToName || invoice.client?.companyName || "there",
+      invoiceNumber: invoice.invoiceNumber,
+      issueDate: emailDate(invoice.issueDate),
+      dueDate: emailDate(invoice.dueDate),
+      total: money(invoice.total, cur),
+      amountDue: money(due, cur),
+      projectName: invoice.project?.name || "—",
+      message: esc(message || `Please find invoice ${invoice.invoiceNumber} below.`),
+      itemsHtml: itemsTable(invoice),
+      paymentDetailsHtml: paymentBlock(invoice),
+      notes: esc(invoice.notes || ""),
+      terms: esc(invoice.terms || ""),
+    });
+
+    // The invoice travels as a PDF attachment, so the email body is a summary
+    // and the client always has the document itself.
+    const pdf = await renderInvoicePdf(invoice, {
+      siteName,
+      siteAddress: site?.address || null,
+      siteEmail: site?.email || null,
+      sitePhone: site?.phone || null,
+      logo: site?.logo || null,
+      watermark: settings?.invoiceBgImage || null,
+      watermarkOpacity: settings?.invoiceBgOpacity ?? 0.05,
+    });
+
+    await sendMail({
+      to: recipient,
+      cc: cc || undefined,
+      bcc: blindCopy || undefined,
+      subject: subject || rendered.subject,
+      html: rendered.body,
+      attachments: [
+        {
+          filename: `${invoice.invoiceNumber}.pdf`,
+          content: pdf,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    // Only a draft advances; a sent/overdue invoice stays where it is.
+    if (invoice.status === "DRAFT") {
+      await prisma.invoice.update({ where: { id }, data: { status: "SENT" } });
+    }
+
+    return { sent: true, to: recipient, cc: cc || null, bcc: blindCopy };
   }
 
   async createInvoice(data, createdById) {

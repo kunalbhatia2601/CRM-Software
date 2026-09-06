@@ -47,6 +47,11 @@ const deletePayment = catchAsync(async (req, res) => {
   return ok(res, "Payment removed", invoice);
 });
 
+const sendInvoice = catchAsync(async (req, res) => {
+  const result = await invoiceService.sendToClient(req.params.id, req.body, req.user);
+  return ok(res, `Invoice emailed to ${result.to}`, result);
+});
+
 export default {
   createInvoice,
   listInvoices,
@@ -57,5 +62,6 @@ export default {
   deleteInvoice,
   addPayment,
   deletePayment,
+  sendInvoice,
 };
 
