@@ -731,6 +731,9 @@ model Settings {
   aiBaseUrl         String? @map("ai_base_url")                        // Custom provider endpoint
   aiTemperature     Float   @default(0.7) @map("ai_temperature")       // 0.0 - 2.0
   aiMaxTokens       Int     @default(4096) @map("ai_max_tokens")
+  // Live web search (OpenAI's hosted tool). Off by default: every search is
+  // billed per call on top of the model, so it stays an explicit opt-in.
+  aiWebSearchEnabled Boolean @default(false) @map("ai_web_search_enabled")
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

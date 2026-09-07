@@ -8,6 +8,7 @@ import {
   createConversationSchema,
   updateConversationSchema,
   idParamSchema,
+  executeActionSchema,
 } from "./copilot.validation.js";
 
 const router = Router();
@@ -17,6 +18,9 @@ router.use(authenticate, authorize("OWNER", "ADMIN"));
 
 // GET /api/copilot/suggestions - Get suggested prompts (no validation needed)
 router.get("/suggestions", copilotController.getSuggestions);
+
+// GET /api/copilot/capabilities - What the chat UI may offer
+router.get("/capabilities", copilotController.getCapabilities);
 
 // GET /api/copilot/conversations - List all conversations
 router.get("/conversations", copilotController.getConversations);
@@ -53,6 +57,14 @@ router.delete(
 router.get(
   "/messages/:conversationId",
   copilotController.getMessages
+);
+
+// POST /api/copilot/messages/:messageId/actions/:actionId - Confirm a proposed
+// write. Nothing the assistant suggests takes effect until this is called.
+router.post(
+  "/messages/:messageId/actions/:actionId",
+  validate(executeActionSchema),
+  copilotController.executeAction
 );
 
 // POST /api/copilot/message - Send message (main chat endpoint)

@@ -13,6 +13,20 @@ import dbQueryService from "./dbQuery.service.js";
  * Custom provider uses raw fetch (OpenAI-compatible format).
  */
 /** How much of a tool call is kept on the stored trace. */
+/**
+ * web_search calls one copilot message may make.
+ *
+ * Deliberately small. A reasoning model treats one hosted web_search as a
+ * research task and fans it out internally — a single call was measured issuing
+ * six searches, and every one of those is billed. So the real ceiling per
+ * message is this number times whatever the model decides to do, not this
+ * number.
+ */
+const WEB_SEARCH_BUDGET = 3;
+
+/** Sources kept per search — enough to cite, not enough to flood the trace. */
+const WEB_SEARCH_MAX_SOURCES = 8;
+
 const TRACE_LIMITS = { args: 2000, preview: 1200, error: 500, calls: 40 };
 
 class AiService {
@@ -292,7 +306,15 @@ class AiService {
    * Generate with tool calling support.
    * AI can call tools up to maxTurns times.
    */
-  async generateWithTools({ systemPromptSlug, userPrompt, maxTurns = 2, history = [], trace = null }) {
+  async generateWithTools({
+    systemPromptSlug,
+    userPrompt,
+    maxTurns = 2,
+    history = [],
+    trace = null,
+    extraTools = [],
+    webSearch = false,
+  }) {
     const config = await this.#getAiConfig();
 
     if (!config.aiProvider || config.aiProvider === "NONE") {
@@ -313,12 +335,19 @@ class AiService {
     // Route to the correct provider
     const provider = config.aiProvider.toUpperCase();
 
+    // Caller-supplied tools plus, when the owner has turned it on, live web
+    // search. Built per request: the search budget is a closure over this
+    // array, so two concurrent chats cannot spend each other's allowance.
+    const tools = [...extraTools];
+    const webSearchTool = this.#webSearchTool(config, provider, webSearch);
+    if (webSearchTool) tools.push(webSearchTool);
+
     if (provider === "GEMINI") {
-      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
+      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns, history, trace, tools);
     } else if (provider === "OPENAI") {
-      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
+      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns, history, trace, tools);
     } else if (provider === "CUSTOM") {
-      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
+      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns, history, trace, tools);
     } else {
       throw ApiError.badRequest(`Unknown AI provider: ${config.aiProvider}`);
     }
@@ -801,13 +830,13 @@ class AiService {
    * @param {object} args
    * @param {Array|null} trace collected per request; mutated in place
    */
-  async #executeTool(toolName, args = {}, trace = null) {
+  async #executeTool(toolName, args = {}, trace = null, extraTools = []) {
     const started = Date.now();
     const argsJson = JSON.stringify(args ?? {});
     console.log(`[Copilot Tool →] ${toolName}`, argsJson);
 
     try {
-      const result = await this.#runTool(toolName, args);
+      const result = await this.#runTool(toolName, args, extraTools);
       const ms = Date.now() - started;
 
       // What the result actually contained, in the caller's own words.
@@ -854,7 +883,12 @@ class AiService {
     }
   }
 
-  async #runTool(toolName, args = {}) {
+  async #runTool(toolName, args = {}, extraTools = []) {
+    // Caller-supplied tools win over the built-ins, so a copilot action or web
+    // search resolves without every provider path having to know about it.
+    const extra = extraTools.find((t) => t.name === toolName);
+    if (extra) return await extra.handler(args || {});
+
     switch (toolName) {
       case "global_search":
         return await searchService.globalSearch(args.query || "", args.limit || 10);
@@ -1102,14 +1136,14 @@ class AiService {
   /**
    * Gemini with tool calling (via function calling).
    */
-  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
+  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null, extraTools = []) {
     const model = config.aiModel || "gemini-2.0-flash";
 
     try {
       const ai = this.#getGeminiClient(config.aiApiKey);
 
       // Convert tools to Gemini function declarations
-      const tools = this.#tools.map(tool => ({
+      const tools = [...this.#tools, ...extraTools].map(tool => ({
         functionDeclarations: [{
           name: tool.name,
           description: tool.description,
@@ -1156,7 +1190,7 @@ class AiService {
           for (const call of functionCalls) {
             let result;
             try {
-              result = await this.#executeTool(call.name, call.args, trace);
+              result = await this.#executeTool(call.name, call.args, trace, extraTools);
             } catch (error) {
               result = { error: error.message };
             }
@@ -1221,9 +1255,129 @@ class AiService {
     return ApiError.badRequest("The AI request failed. Please try again.");
   }
 
+  /**
+   * Live web search, as an ordinary tool.
+   *
+   * OpenAI's hosted web_search runs inside a Responses API call, so it cannot
+   * simply be added to the chat-completions tool array the copilot uses. It is
+   * wrapped as a normal function tool instead and answered by a second, small
+   * request. Three things fall out of that, all of them wanted: the call passes
+   * through #executeTool so it lands in the trace like any other tool; the
+   * copilot keeps working when the provider is Gemini or a custom endpoint
+   * (the tool is simply absent); and the searching model is the one configured
+   * in Settings rather than a name hard-coded here.
+   *
+   * Two switches have to agree before the tool exists: the owner allows it at
+   * all in Settings, and the person asking turned it on for this message. The
+   * second is what stops every routine "how many clients" question paying for a
+   * web search it had no use for.
+   *
+   * Returns null when the tool should not be offered at all.
+   */
+  #webSearchTool(config, provider, requested) {
+    if (!config.aiWebSearchEnabled || !requested) return null;
+    // The hosted tool is OpenAI's. A custom base URL may be anything at all,
+    // so it is not assumed to implement the Responses API.
+    if (provider !== "OPENAI") return null;
+    const apiKey = this.#usableKey(config.aiApiKey);
+    if (!apiKey) return null;
+
+    // Each search is billed per call on top of the tokens it returns, and the
+    // hosted tool may run several lookups per call. A model left unbounded will
+    // search once per sub-question on top of that, so the budget is capped per
+    // request and refusals are explicit rather than silent.
+    let spent = 0;
+    const budget = WEB_SEARCH_BUDGET;
+
+    return {
+      name: "web_search",
+      description:
+        "Search the live web for information that is NOT in the CRM — a prospect's company, industry news, a competitor, a public price list, a person's background. Do NOT use it for anything about your own clients, projects, tasks, invoices or staff; that lives in the database, use query_database. Returns a written answer plus source URLs. Cite the sources you use as markdown links.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "What to search for, in plain language.",
+          },
+          domains: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Optional. Restrict results to these domains, e.g. ['linkedin.com', 'crunchbase.com'].",
+          },
+        },
+        required: ["query"],
+      },
+      handler: async (args) => {
+        const query = String(args?.query || "").trim();
+        if (!query) return { error: "web_search needs a query." };
+
+        if (spent >= budget) {
+          return {
+            error: `Web search budget for this message is used up (${budget} searches). Answer from what you already have, and say which part you could not verify.`,
+          };
+        }
+        spent++;
+
+        const domains = Array.isArray(args?.domains)
+          ? args.domains.map((d) => String(d)).filter(Boolean).slice(0, 100)
+          : [];
+
+        const client = this.#getOpenAIClient(apiKey, config.aiBaseUrl || undefined);
+        const res = await client.responses.create({
+          model: config.aiModel,
+          input: query,
+          tools: [
+            {
+              type: "web_search",
+              search_context_size: "medium",
+              ...(domains.length && { filters: { allowed_domains: domains } }),
+            },
+          ],
+          include: ["web_search_call.action.sources"],
+        });
+
+        return {
+          query,
+          answer: res.output_text || "",
+          sources: this.#webSearchSources(res),
+          searchesLeft: budget - spent,
+        };
+      },
+    };
+  }
+
+  /**
+   * Pull the consulted URLs out of a Responses result.
+   *
+   * They arrive in two places — the sources attached to each web_search_call,
+   * and url_citation annotations on the text — and neither is guaranteed to be
+   * populated, so both are read and the union de-duplicated by URL.
+   */
+  #webSearchSources(res) {
+    const seen = new Map();
+
+    const add = (url, title) => {
+      if (!url || seen.has(url)) return;
+      seen.set(url, { url, title: title || url });
+    };
+
+    for (const item of res?.output || []) {
+      for (const src of item?.action?.sources || []) add(src?.url, src?.title);
+      for (const part of item?.content || []) {
+        for (const ann of part?.annotations || []) {
+          if (ann?.type === "url_citation") add(ann.url, ann.title);
+        }
+      }
+    }
+
+    return [...seen.values()].slice(0, WEB_SEARCH_MAX_SOURCES);
+  }
+
   // Wrap the internal tool defs into OpenAI/Custom function-calling format.
-  #openAiTools() {
-    return this.#tools.map((t) => ({
+  #openAiTools(extraTools = []) {
+    return [...this.#tools, ...extraTools].map((t) => ({
       type: "function",
       function: { name: t.name, description: t.description, parameters: t.parameters },
     }));
@@ -1243,7 +1397,7 @@ class AiService {
   /**
    * OpenAI with tool calling (function calling).
    */
-  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
+  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null, extraTools = []) {
     const model = config.aiModel || "gpt-4o-mini";
     const baseURL = config.aiBaseUrl || undefined;
 
@@ -1251,7 +1405,7 @@ class AiService {
       const client = this.#getOpenAIClient(config.aiApiKey, baseURL);
 
       // OpenAI function-calling format: { type:"function", function:{...} }
-      const tools = this.#openAiTools();
+      const tools = this.#openAiTools(extraTools);
 
       let messages = [
         { role: "system", content: systemMessage },
@@ -1291,7 +1445,7 @@ class AiService {
           for (const toolCall of choice.message.tool_calls) {
             try {
               const args = JSON.parse(toolCall.function.arguments);
-              const result = await this.#executeTool(toolCall.function.name, args, trace);
+              const result = await this.#executeTool(toolCall.function.name, args, trace, extraTools);
               messages.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
@@ -1329,7 +1483,7 @@ class AiService {
    * Custom provider with tool calling.
    * Uses OpenAI-compatible function calling format.
    */
-  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
+  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null, extraTools = []) {
     if (!config.aiBaseUrl) {
       throw ApiError.badRequest("Custom AI provider requires a Base URL in Settings.");
     }
@@ -1337,7 +1491,7 @@ class AiService {
     const model = config.aiModel || "default";
 
     // Convert tools to OpenAI-compatible function-calling format
-    const tools = this.#openAiTools();
+    const tools = this.#openAiTools(extraTools);
 
     let messages = [
       { role: "system", content: systemMessage },
@@ -1382,7 +1536,7 @@ class AiService {
         for (const toolCall of choice.message.tool_calls) {
           try {
             const args = JSON.parse(toolCall.function.arguments);
-            const result = await this.#executeTool(toolCall.function.name, args, trace);
+            const result = await this.#executeTool(toolCall.function.name, args, trace, extraTools);
             messages.push({
               role: "tool",
               tool_call_id: toolCall.id,

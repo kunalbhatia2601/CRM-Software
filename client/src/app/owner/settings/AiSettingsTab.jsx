@@ -14,6 +14,7 @@ import {
   Zap,
   Cpu,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { updateSystemSettings, listAiModels } from "@/actions/settings.action";
 
@@ -112,6 +113,7 @@ export default function AiSettingsTab({ initialData }) {
     aiBaseUrl: initialData?.aiBaseUrl || "",
     aiTemperature: initialData?.aiTemperature ?? 0.7,
     aiMaxTokens: initialData?.aiMaxTokens ?? 4096,
+    aiWebSearchEnabled: initialData?.aiWebSearchEnabled ?? false,
   });
 
   const isConfigured = initialData?.isAiConfigured || false;
@@ -188,6 +190,7 @@ export default function AiSettingsTab({ initialData }) {
         aiBaseUrl: form.aiBaseUrl || null,
         aiTemperature: parseFloat(form.aiTemperature) || 0.7,
         aiMaxTokens: parseInt(form.aiMaxTokens) || 4096,
+        aiWebSearchEnabled: !!form.aiWebSearchEnabled,
       };
 
       const result = await updateSystemSettings(payload);
@@ -375,6 +378,44 @@ export default function AiSettingsTab({ initialData }) {
               max="128000"
             />
           </div>
+
+          {/* Live web search — OpenAI's hosted tool, so it is offered only there */}
+          {form.aiProvider === "OPENAI" && (
+            <div className="mt-5 flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                <Search className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="ai-web-search" className="block text-sm font-semibold text-slate-900 dark:text-white cursor-pointer">
+                  Allow live web search
+                </label>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Puts a globe button next to the chat box, so the copilot can be asked to look
+                  things up outside the CRM — a prospect&apos;s company, a competitor, industry
+                  news — using the model selected above. It stays off for each message until
+                  someone turns it on. Searches are billed per lookup on top of the usual
+                  tokens, and one question can trigger several, so they are capped at three per
+                  message. Switch this off and the button disappears for everyone.
+                </p>
+              </div>
+              <button
+                id="ai-web-search"
+                type="button"
+                role="switch"
+                aria-checked={!!form.aiWebSearchEnabled}
+                onClick={() => update("aiWebSearchEnabled", !form.aiWebSearchEnabled)}
+                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
+                  form.aiWebSearchEnabled ? "bg-[#5542F6]" : "bg-slate-300 dark:bg-slate-700"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    form.aiWebSearchEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {/* Info box */}
           <div className="mt-5 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">

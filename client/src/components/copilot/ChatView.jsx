@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useCopilot } from "@/context/CopilotContext";
 import { MessageBubble } from "./MessageBubble";
-import { Send, Sparkles, RotateCcw, AlertCircle } from "lucide-react";
+import { Send, Sparkles, RotateCcw, AlertCircle, Globe } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function ChatView() {
-  const { messages, isLoading, sendMessage, suggestions } = useCopilot();
+  const { messages, isLoading, sendMessage, suggestions, capabilities, webSearch, setWebSearch } =
+    useCopilot();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
   const taRef = useRef(null);
@@ -127,10 +128,35 @@ export function ChatView() {
             value={input}
             onChange={autoGrow}
             onKeyDown={onKeyDown}
-            placeholder="Ask anything… (Enter to send)"
+            placeholder={webSearch ? "Ask anything — the web is on…" : "Ask anything… (Enter to send)"}
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none resize-none max-h-[120px] py-1"
             disabled={isLoading}
           />
+
+          {/* Web search, per message. Only shown when the install allows it. */}
+          {capabilities?.webSearch && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={webSearch}
+              aria-label="Search the web for this message"
+              title={
+                webSearch
+                  ? "Web search on — this message may look things up online"
+                  : "Web search off — answers come from your CRM only"
+              }
+              onClick={() => setWebSearch(!webSearch)}
+              disabled={isLoading}
+              className={`p-2 rounded-xl shrink-0 transition-colors disabled:opacity-50 ${
+                webSearch
+                  ? "bg-[#5542F6]/10 text-[#5542F6] dark:bg-[#5542F6]/20 dark:text-indigo-300"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             onClick={() => submit()}
             disabled={!input.trim() || isLoading}
@@ -141,6 +167,12 @@ export function ChatView() {
             <Send className="w-4 h-4" />
           </button>
         </div>
+
+        {capabilities?.webSearch && webSearch && (
+          <p className="mt-1.5 px-1 text-[11px] text-slate-500 dark:text-slate-400">
+            Web search is on — this message can look things up online, which costs extra.
+          </p>
+        )}
       </div>
     </div>
   );

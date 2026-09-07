@@ -9,6 +9,8 @@ import {
   getCopilotMessagesAPI,
   sendCopilotMessageAPI,
   getCopilotSuggestionsAPI,
+  getCopilotCapabilitiesAPI,
+  executeCopilotActionAPI,
 } from "@/lib/api";
 import { getToken } from "@/lib/session";
 
@@ -95,7 +97,7 @@ export async function getCopilotMessages(conversationId) {
   }
 }
 
-export async function sendCopilotMessage(conversationId, content, context = {}) {
+export async function sendCopilotMessage(conversationId, content, context = {}, webSearch = false) {
   const token = await getToken();
   if (!token) return { success: false, data: null };
 
@@ -104,11 +106,28 @@ export async function sendCopilotMessage(conversationId, content, context = {}) 
       conversationId,
       content,
       context,
+      webSearch,
     }, token);
     // Server returns {success, message, data: {userMessage, assistantMessage, conversationId}}
     return { success: true, data: res };
   } catch (err) {
     return { success: false, data: null, error: err.message };
+  }
+}
+
+/* ───────── Capabilities ───────── */
+
+export async function getCopilotCapabilities() {
+  const token = await getToken();
+  if (!token) return { success: false, data: { webSearch: false } };
+
+  try {
+    const res = await getCopilotCapabilitiesAPI(token);
+    return { success: true, data: res.data || { webSearch: false } };
+  } catch (err) {
+    console.error("[copilot.action] getCapabilities error:", err.message);
+    // A failed probe hides the toggle rather than offering one that cannot work.
+    return { success: false, data: { webSearch: false } };
   }
 }
 
@@ -124,5 +143,27 @@ export async function getCopilotSuggestions() {
   } catch (err) {
     console.error("[copilot.action] getSuggestions error:", err.message);
     return { success: false, data: [] };
+  }
+}
+
+/* ───────── Actions ───────── */
+
+/**
+ * Confirm one action the assistant proposed.
+ *
+ * The error text is passed through rather than flattened to a generic failure:
+ * it is written for the person reading it ("That invoice has no client email"),
+ * and it is the only thing telling them what to fix.
+ */
+export async function executeCopilotAction(messageId, actionId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not signed in" };
+
+  try {
+    const res = await executeCopilotActionAPI(messageId, actionId, token);
+    return { success: true, data: res.data || res, message: res.message || "Done" };
+  } catch (err) {
+    console.error("[copilot.action] executeAction error:", err.message);
+    return { success: false, error: err.message || "Could not run that action" };
   }
 }

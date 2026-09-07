@@ -10,6 +10,8 @@ import {
   updateCopilotConversation,
   sendCopilotMessage,
   getCopilotSuggestions,
+  getCopilotCapabilities,
+  executeCopilotAction,
 } from "@/actions/copilot.action";
 
 const CopilotContext = createContext(null);
@@ -22,6 +24,12 @@ export function CopilotProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+
+  // Whether this install offers web search at all, and whether the next message
+  // should use it. Sticky rather than per-send: someone researching a prospect
+  // asks several questions in a row, and re-arming it each time is friction.
+  const [capabilities, setCapabilities] = useState({ webSearch: false });
+  const [webSearch, setWebSearch] = useState(false);
 
   // Always-fresh id of the current conversation (avoids stale closures in sendMessage).
   const activeIdRef = useRef(null);
@@ -47,13 +55,23 @@ export function CopilotProvider({ children }) {
     }
   }, []);
 
+  // Fetch capabilities
+  const fetchCapabilities = useCallback(async () => {
+    const res = await getCopilotCapabilities();
+    setCapabilities(res.data || { webSearch: false });
+    // An owner who switches web search off in Settings should not have a live
+    // toggle left behind in an open chat.
+    if (!res.data?.webSearch) setWebSearch(false);
+  }, []);
+
   // Fetch conversations on mount and when panel opens
   useEffect(() => {
     if (user && ["OWNER", "ADMIN"].includes(user.role)) {
       fetchConversations();
       fetchSuggestions();
+      fetchCapabilities();
     }
-  }, [user, isOpen, fetchConversations, fetchSuggestions]);
+  }, [user, isOpen, fetchConversations, fetchSuggestions, fetchCapabilities]);
 
   // Select a conversation
   const selectConversation = useCallback(async (conversationId) => {
@@ -69,6 +87,9 @@ export function CopilotProvider({ children }) {
         ...m,
         action: m.contextData?.action || null,
         entities: m.contextData?.entities || [],
+        // Proposed writes, with whatever became of them. A card that was
+        // already confirmed comes back done, not armed again.
+        actions: m.contextData?.actions || [],
         isError: !!m.contextData?.isError,
       })));
     }
@@ -126,7 +147,10 @@ export function CopilotProvider({ children }) {
     const res = await sendCopilotMessage(
       activeIdRef.current,
       content,
-      context
+      context,
+      // Only ever sent as true when the install allows it, so a stale client
+      // cannot ask for a search the owner has switched off.
+      capabilities.webSearch && webSearch
     );
     setIsLoading(false);
 
@@ -148,11 +172,14 @@ export function CopilotProvider({ children }) {
       setMessages((prev) => [
         ...prev,
         {
-          id: `a-${Date.now()}`,
+          // The real row id — running a proposed action addresses this message
+          // on the server, so a placeholder would break the button.
+          id: am.id || `a-${Date.now()}`,
           role: "assistant",
           content: assistantContent,
           action: am.action || null,
           entities: am.entities || [],
+          actions: am.actions || [],
           isError: !!am.isError,
           failedPrompt: am.isError ? content : undefined,
           createdAt: new Date(),
@@ -173,7 +200,30 @@ export function CopilotProvider({ children }) {
     }
 
     return res;
-  }, [activeConversation, fetchConversations]);
+  }, [activeConversation, fetchConversations, capabilities.webSearch, webSearch]);
+
+  /**
+   * Confirm one action the assistant proposed.
+   *
+   * The card's new state comes from the server's copy of the proposal, so what
+   * is on screen after the click is what was actually stored.
+   */
+  const runAction = useCallback(async (messageId, actionId) => {
+    const res = await executeCopilotAction(messageId, actionId);
+    if (!res.success) return res;
+
+    const updated = res.data?.action;
+    if (updated) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, actions: (m.actions || []).map((a) => (a.id === actionId ? updated : a)) }
+            : m
+        )
+      );
+    }
+    return res;
+  }, []);
 
   // UI actions
   const openCopilot = useCallback(() => setIsOpen(true), []);
@@ -194,7 +244,11 @@ export function CopilotProvider({ children }) {
     messages,
     isLoading,
     suggestions,
+    capabilities,
+    webSearch,
+    setWebSearch,
     // Actions
+    runAction,
     openCopilot,
     closeCopilot,
     toggleCopilot,

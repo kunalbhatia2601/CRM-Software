@@ -223,6 +223,31 @@ export const DEFAULT_TEMPLATES = [
 </body>
 </html>`,
   },
+  {
+    slug: "copilot-email",
+    name: "Copilot Email",
+    subject: "{{subject}}",
+    description: "Sent when someone confirms a Send email action drafted by the AI copilot.",
+    variables: JSON.stringify(["siteName", "subject", "senderName", "senderEmail", "bodyHtml"]),
+    body: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);padding:28px 32px;">
+      <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.4px;">{{siteName}}</h1>
+    </div>
+    <div style="padding:32px;">
+      {{bodyHtml}}
+    </div>
+    <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #f1f5f9;">
+      <p style="margin:0;color:#475569;font-size:13px;">{{senderName}}</p>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:12px;">{{senderEmail}} &middot; {{siteName}}</p>
+    </div>
+  </div>
+</body>
+</html>`,
+  },
 ];
 
 class EmailTemplateService {

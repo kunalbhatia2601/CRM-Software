@@ -1243,6 +1243,17 @@ export async function sendCopilotMessageAPI(data, accessToken) {
   });
 }
 
+export async function executeCopilotActionAPI(messageId, actionId, accessToken) {
+  return request(`/api/copilot/messages/${messageId}/actions/${actionId}`, {
+    method: "POST",
+    token: accessToken,
+  });
+}
+
+export async function getCopilotCapabilitiesAPI(accessToken) {
+  return request("/api/copilot/capabilities", { method: "GET", token: accessToken });
+}
+
 export async function getCopilotSuggestionsAPI(accessToken) {
   return request("/api/copilot/suggestions", { method: "GET", token: accessToken });
 }

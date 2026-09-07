@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Copy, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCopilot } from "@/context/CopilotContext";
 import Markdown from "./Markdown";
+import ActionCard from "./ActionCard";
 
 // Map entity type → route segment.
 const SEGMENTS = {
@@ -15,15 +17,19 @@ const SEGMENTS = {
 export function MessageBubble({ message }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { runAction } = useCopilot();
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
   // Base path from role — copilot is owner/admin only.
   const base = user?.role === "ADMIN" ? "/admin" : "/owner";
 
+  // Entities reach here in two shapes — {entityType, entityId} from a stored
+  // action, {type, id} from the model's own entity list — so both are read.
   const handleEntityClick = (entity) => {
-    const seg = SEGMENTS[entity.entityType];
-    if (seg) router.push(`${base}/${seg}/${entity.entityId}`);
+    const seg = SEGMENTS[entity.entityType || entity.type];
+    const id = entity.entityId || entity.id;
+    if (seg && id) router.push(`${base}/${seg}/${id}`);
   };
 
   const copy = async () => {
@@ -54,6 +60,17 @@ export function MessageBubble({ message }) {
         <div className="px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100">
           <Markdown text={message.content} onEntityClick={handleEntityClick} />
         </div>
+
+        {/* Proposed writes — nothing has happened until one of these is pressed */}
+        {Array.isArray(message.actions) &&
+          message.actions.map((a) => (
+            <ActionCard
+              key={a.id}
+              action={a}
+              onRun={(actionId) => runAction(message.id, actionId)}
+              onGoTo={handleEntityClick}
+            />
+          ))}
 
         {/* Entity chips (structured) */}
         {Array.isArray(message.entities) && message.entities.length > 0 && (

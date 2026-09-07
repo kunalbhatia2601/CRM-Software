@@ -5,6 +5,8 @@ export const sendMessageSchema = z.object({
     conversationId: z.string().nullable().optional(),
     content: z.string().min(1, "Message cannot be empty"),
     context: z.any().optional(),
+    // Per-message web search, from the toggle beside the chat box.
+    webSearch: z.boolean().optional(),
   }),
   query: z.object({}).optional(),
   params: z.object({}).optional(),
@@ -35,5 +37,14 @@ export const idParamSchema = z.object({
   query: z.object({}).optional(),
   params: z.object({
     id: z.string(),
+  }),
+});
+
+export const executeActionSchema = z.object({
+  body: z.object({}).optional(),
+  query: z.object({}).optional(),
+  params: z.object({
+    messageId: z.string().min(1),
+    actionId: z.string().min(1),
   }),
 });

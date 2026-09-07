@@ -1,8 +1,12 @@
 import prisma from "../../utils/prisma.js";
 import aiService from "../ai/ai.service.js";
 import { ApiError } from "../../utils/apiError.js";
+import { copilotTools, runAction } from "./copilot.actions.js";
 
 class CopilotService {
+  /** Action ids currently executing, so one button cannot fire twice. */
+  #running = new Set();
+
   /**
    * Get all conversations for a user
    */
@@ -177,7 +181,7 @@ class CopilotService {
   /**
    * Send a message and get AI response
    */
-  async sendMessage(userId, content, context = {}) {
+  async sendMessage(userId, content, context = {}, { webSearch = false } = {}) {
     // Get or create conversation
     let conversationId = context.conversationId;
     let conversation;
@@ -232,6 +236,10 @@ class CopilotService {
     const trace = [];
     const startedAt = Date.now();
 
+    // Write actions the model wants to take. Collected, never performed: they
+    // are stored on the message and become buttons the user has to press.
+    const proposals = [];
+
     try {
       // Call AI with tool calling — the model decides when to query the CRM.
       const aiResponse = await aiService.generateWithTools({
@@ -239,6 +247,11 @@ class CopilotService {
         userPrompt: content,
         history: recentHistory,
         trace,
+        extraTools: copilotTools((p) => proposals.push(p)),
+        // Per message, from the toggle next to the chat box. The setting in
+        // Settings still has to allow it; this only says whether this
+        // particular question wants to pay for a lookup.
+        webSearch,
         // Tool rounds before a final answer is forced. A real question often
         // costs several: describe_schema, find the project, then a query or two
         // per entity being compared. The last round runs without tools, so this
@@ -283,9 +296,13 @@ class CopilotService {
         responseText += "\n\n_This answer was cut off at the token limit. Ask for the next part, or raise Max Tokens in AI settings._";
       }
 
-      // Never store a blank reply.
+      // Never store a blank reply. A turn that produced a proposal is not a
+      // failure even when the model wrote nothing, so it gets its own line
+      // rather than "I couldn't find an answer".
       if (!responseText || !responseText.trim()) {
-        responseText = "I couldn't find an answer for that. Try rephrasing your question.";
+        responseText = proposals.length
+          ? `Ready for you to review below — nothing has been saved yet.`
+          : "I couldn't find an answer for that. Try rephrasing your question.";
       }
 
       // Store user message
@@ -304,7 +321,12 @@ class CopilotService {
           conversationId,
           role: "assistant",
           content: responseText,
-          contextData: { action, entities, ...this.#traceMeta(trace, startedAt) },
+          contextData: {
+            action,
+            entities,
+            ...(proposals.length ? { actions: proposals } : {}),
+            ...this.#traceMeta(trace, startedAt),
+          },
         },
       });
 
@@ -327,6 +349,7 @@ class CopilotService {
           content: responseText,
           action,
           entities,
+          actions: proposals,
         },
         conversationId,
       };
@@ -374,6 +397,75 @@ class CopilotService {
   }
 
   /**
+   * Run one proposed action, after the user pressed its button.
+   *
+   * This is the only path from the copilot to a write. It re-reads the proposal
+   * from the message row rather than trusting anything the client sent, so a
+   * crafted request cannot execute a payload the model never proposed, and it
+   * records the outcome back onto the message so the button does not come back
+   * armed after a refresh.
+   */
+  async executeAction(user, messageId, actionId) {
+    const message = await prisma.copilotMessage.findFirst({
+      // The join is the authorisation: a message only resolves inside a
+      // conversation this user owns.
+      where: { id: messageId, conversation: { userId: user.id } },
+      select: { id: true, contextData: true },
+    });
+    if (!message) throw ApiError.notFound("Message not found");
+
+    const ctx = message.contextData || {};
+    const actions = Array.isArray(ctx.actions) ? ctx.actions : [];
+    const index = actions.findIndex((a) => a?.id === actionId);
+    if (index === -1) throw ApiError.notFound("That suggestion is no longer on this message");
+
+    const proposal = actions[index];
+    if (proposal.status === "done") {
+      throw ApiError.badRequest("That action has already been run.");
+    }
+
+    // Guards a double-click and a double-submit within this process. The stored
+    // status covers the reload case. Neither covers two servers racing on the
+    // same action — worth revisiting if this ever runs behind more than one.
+    if (this.#running.has(actionId)) {
+      throw ApiError.badRequest("That action is already running.");
+    }
+    this.#running.add(actionId);
+
+    try {
+      const result = await runAction(proposal, user);
+
+      actions[index] = {
+        ...proposal,
+        status: "done",
+        executedAt: new Date().toISOString(),
+        result: { message: result.message, entity: result.entity || null },
+      };
+      await prisma.copilotMessage.update({
+        where: { id: message.id },
+        data: { contextData: { ...ctx, actions } },
+      });
+
+      return { action: actions[index], message: result.message, entity: result.entity || null };
+    } catch (err) {
+      // A failure is recorded too — it is the more useful half of the history,
+      // and it leaves the button live so the user can fix the cause and retry.
+      actions[index] = {
+        ...proposal,
+        status: "failed",
+        failedAt: new Date().toISOString(),
+        error: String(err?.message || "Action failed").slice(0, 500),
+      };
+      await prisma.copilotMessage
+        .update({ where: { id: message.id }, data: { contextData: { ...ctx, actions } } })
+        .catch(() => {});
+      throw err;
+    } finally {
+      this.#running.delete(actionId);
+    }
+  }
+
+  /**
    * Shape the collected tool calls for storage.
    *
    * Capped: a runaway conversation must not put an unbounded blob on every
@@ -389,6 +481,23 @@ class CopilotService {
       failedCalls: trace.filter((c) => !c.ok).length,
       trace: trace.slice(0, 40),
       traceTruncated: trace.length > 40,
+    };
+  }
+
+  /**
+   * What this install can currently do, for the chat UI to render against.
+   *
+   * Web search is OpenAI's hosted tool, so it needs the provider as well as the
+   * setting; the toggle should not appear at all when it could not work.
+   */
+  async getCapabilities() {
+    const settings = await prisma.settings.findUnique({
+      where: { id: "default" },
+      select: { aiProvider: true, aiWebSearchEnabled: true },
+    });
+
+    return {
+      webSearch: !!settings?.aiWebSearchEnabled && settings?.aiProvider === "OPENAI",
     };
   }
 

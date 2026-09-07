@@ -100,9 +100,22 @@ async function sendMessage(req, res, next) {
     const result = await copilotService.sendMessage(
       req.user.id,
       req.body.content,
-      context
+      context,
+      { webSearch: !!req.body.webSearch }
     );
     return ok(res, "Message sent successfully", result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * What the chat UI may offer — currently just whether web search is available.
+ */
+async function getCapabilities(req, res, next) {
+  try {
+    const capabilities = await copilotService.getCapabilities();
+    return ok(res, "Capabilities fetched successfully", capabilities);
   } catch (error) {
     next(error);
   }
@@ -122,6 +135,22 @@ async function getSuggestions(req, res, next) {
   }
 }
 
+/**
+ * Run one action the assistant proposed, after the user confirmed it.
+ */
+async function executeAction(req, res, next) {
+  try {
+    const result = await copilotService.executeAction(
+      req.user,
+      req.params.messageId,
+      req.params.actionId
+    );
+    return ok(res, result.message, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export default {
   getConversations,
   getConversation,
@@ -131,4 +160,6 @@ export default {
   getMessages,
   sendMessage,
   getSuggestions,
+  getCapabilities,
+  executeAction,
 };
