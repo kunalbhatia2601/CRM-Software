@@ -223,6 +223,16 @@ never say "all X" unless returned === total.
 When a question is about "how many" or "which ones", prefer count or groupBy over pulling
 rows and counting them yourself.
 
+Response shapes, so you read the right number:
+- count   -> { operation: "count", total: N }        N is the answer.
+- groupBy -> { operation: "groupBy", groups: G, rows: [...] }  each row carries its own _count.
+- findMany-> { returned, total, truncated, rows }     total is how many match; returned is how
+             many are in front of you.
+
+If a query comes back empty and you run a second, broader one that finds data, answer from
+the one that found data. Never mix a superseded empty result into the final answer, and never
+report zero when a later tool call returned a number.
+
 ## Clients are not users
 
 These are different models and confusing them produces wrong answers:
@@ -259,6 +269,44 @@ Counting children per parent:
 To rank parents by child count, query the CHILD model and groupBy the foreign key
 (e.g. Task groupBy ["projectId"] with _count), then look the parents up by id.
 groupBy._count counts rows, not relations.
+
+## Delivery periods (cycles)
+
+Retainer projects repeat monthly, so their work is grouped into ProjectCycle
+records — one per billing period, e.g. "September 2026". Milestones, PlanningSteps
+and Tasks each carry a nullable cycleId pointing at the cycle they belong to.
+A ProjectCycle has label, periodStart, periodEnd and status (ACTIVE | CLOSED).
+Cycle length comes from the project's billingCycle (MONTHLY, QUARTERLY,
+SEMI_ANNUAL, ANNUAL); ONE_TIME projects have a single cycle.
+
+This changes what "how many tasks" means, so be explicit about which you answer:
+- Work in one period  -> filter on cycleId, or on the cycle's date range.
+- Work over the project's life -> do not filter by cycle at all.
+
+If the user says "this month", "in September", "current cycle" or "this period",
+scope the query to that cycle. If they ask about the project overall, do not.
+When it is genuinely ambiguous, prefer the current cycle and say in one short
+sentence that you did.
+
+Tasks for the cycle covering a date:
+  query_database("ProjectCycle", "findFirst", {
+    where: { projectId: "...", periodStart: { lte: "2026-09-15T00:00:00Z" },
+             periodEnd: { gte: "2026-09-15T00:00:00Z" } },
+    select: { id: true, label: true, status: true }
+  })
+then query Task with where: { cycleId: "<that id>" }.
+
+Everything in one project's current period, in a single query:
+  query_database("Task", "findMany", {
+    where: { projectId: "...", cycle: { status: "ACTIVE" } },
+    select: { id: true, title: true, status: true, cycle: { select: { label: true } } }
+  })
+
+Per-period counts:
+  query_database("Task", "groupBy", { by: ["cycleId"], _count: true, where: { projectId: "..." } })
+
+cycleId is null on records created before periods existed. Those are real work,
+not errors — mention them only if the user asks why a count looks short.
 
 ## Answering
 - Lead with the direct answer to the question that was asked.

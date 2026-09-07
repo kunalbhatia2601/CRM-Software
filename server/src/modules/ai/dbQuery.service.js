@@ -30,7 +30,7 @@ const ALLOWED_MODELS = new Set([
   "Notification", "Invoice", "InvoiceItem", "InvoicePayment", "PaymentAccount",
   "Expense", "ExpenseCategory", "ExpenseEvent",
   "Campaign", "CampaignType", "CampaignDailyStat", "AdBudgetLedger", "AdBudgetEntry",
-  "ProjectReport",
+  "ProjectReport", "ProjectCycle",
   "Announcement", "Job", "JobApplication", "PayrollRecord", "Site",
 ]);
 
@@ -198,11 +198,22 @@ class DbQueryService {
     const result = await delegate[operation](safeArgs);
     const clean = this.#sanitizeResult(result);
 
-    if (!Array.isArray(clean)) return { model, operation, result: clean };
+    if (!Array.isArray(clean)) {
+      // `count` is answered by reading `total` everywhere else, so it reports
+      // one too. A bare `result` key made the caller fall back to zero.
+      if (operation === "count") return { model, operation, total: clean, result: clean };
+      return { model, operation, result: clean };
+    }
 
     // A row list is capped, so the caller must be told how many rows actually
     // match. Reporting only the returned length reads as a total and silently
     // turns "28 clients" into "25 clients".
+    // groupBy and aggregate return one row per group, not per record, so the
+    // row count is a number of groups and must not be called a total.
+    if (operation !== "findMany") {
+      return { model, operation, groups: clean.length, rows: clean };
+    }
+
     let total = clean.length;
     if (operation === "findMany") {
       try {
