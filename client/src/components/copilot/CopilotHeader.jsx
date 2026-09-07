@@ -1,10 +1,13 @@
 "use client";
 
-import { X, Plus, PanelLeft, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { X, Plus, PanelLeft, Sparkles, Info } from "lucide-react";
 import { useCopilot } from "@/context/CopilotContext";
+import CapabilitiesPanel from "./CapabilitiesPanel";
 
 export function CopilotHeader({ onToggleList, listOpen }) {
-  const { closeCopilot, createConversation, activeConversation } = useCopilot();
+  const { closeCopilot, createConversation, activeConversation, capabilities } = useCopilot();
+  const [showCapabilities, setShowCapabilities] = useState(false);
 
   const handleNew = async () => {
     await createConversation("New Conversation");
@@ -33,6 +36,13 @@ export function CopilotHeader({ onToggleList, listOpen }) {
 
       <div className="flex items-center gap-1 shrink-0">
         <button
+          onClick={() => setShowCapabilities(true)}
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-500 transition-colors"
+          title="What can this AI do?"
+        >
+          <Info className="w-4 h-4" />
+        </button>
+        <button
           onClick={handleNew}
           className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-500 transition-colors"
           title="New chat"
@@ -47,6 +57,10 @@ export function CopilotHeader({ onToggleList, listOpen }) {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {showCapabilities && (
+        <CapabilitiesPanel tools={capabilities.tools || []} onClose={() => setShowCapabilities(false)} />
+      )}
     </div>
   );
 }

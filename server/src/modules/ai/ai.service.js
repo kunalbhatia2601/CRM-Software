@@ -27,6 +27,10 @@ const WEB_SEARCH_BUDGET = 3;
 /** Sources kept per search — enough to cite, not enough to flood the trace. */
 const WEB_SEARCH_MAX_SOURCES = 8;
 
+/** Shared between the live web_search tool and its catalog listing. */
+const WEB_SEARCH_DESCRIPTION =
+  "Search the live web for information that is NOT in the CRM — a prospect's company, industry news, a competitor, a public price list, a person's background. Do NOT use it for anything about your own clients, projects, tasks, invoices or staff; that lives in the database, use query_database. Returns a written answer plus source URLs. Cite the sources you use as markdown links.";
+
 const TRACE_LIMITS = { args: 2000, preview: 1200, error: 500, calls: 40 };
 
 class AiService {
@@ -1291,8 +1295,7 @@ class AiService {
 
     return {
       name: "web_search",
-      description:
-        "Search the live web for information that is NOT in the CRM — a prospect's company, industry news, a competitor, a public price list, a person's background. Do NOT use it for anything about your own clients, projects, tasks, invoices or staff; that lives in the database, use query_database. Returns a written answer plus source URLs. Cite the sources you use as markdown links.",
+      description: WEB_SEARCH_DESCRIPTION,
       parameters: {
         type: "object",
         properties: {
@@ -1373,6 +1376,21 @@ class AiService {
     }
 
     return [...seen.values()].slice(0, WEB_SEARCH_MAX_SOURCES);
+  }
+
+  /**
+   * The core read tools, for display — not for calling. Kept separate from
+   * #tools itself so a catalog listing can never accidentally hand out a
+   * callable reference.
+   */
+  coreToolCatalog() {
+    const labels = { describe_schema: "Inspect database schema", query_database: "Query CRM data" };
+    return this.#tools.map((t) => ({ name: t.name, label: labels[t.name] || t.name, description: t.description }));
+  }
+
+  /** web_search's description, independent of whether it is currently enabled. */
+  webSearchCatalogEntry() {
+    return { name: "web_search", description: WEB_SEARCH_DESCRIPTION };
   }
 
   // Wrap the internal tool defs into OpenAI/Custom function-calling format.

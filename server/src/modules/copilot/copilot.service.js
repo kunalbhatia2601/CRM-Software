@@ -1,7 +1,7 @@
 import prisma from "../../utils/prisma.js";
 import aiService from "../ai/ai.service.js";
 import { ApiError } from "../../utils/apiError.js";
-import { copilotTools, runAction } from "./copilot.actions.js";
+import { copilotTools, runAction, actionToolCatalog } from "./copilot.actions.js";
 
 class CopilotService {
   /** Action ids currently executing, so one button cannot fire twice. */
@@ -315,6 +315,8 @@ class CopilotService {
         },
       });
 
+      const traceMeta = this.#traceMeta(trace, startedAt);
+
       // Store AI response
       const assistantMessage = await prisma.copilotMessage.create({
         data: {
@@ -325,7 +327,7 @@ class CopilotService {
             action,
             entities,
             ...(proposals.length ? { actions: proposals } : {}),
-            ...this.#traceMeta(trace, startedAt),
+            ...traceMeta,
           },
         },
       });
@@ -350,6 +352,7 @@ class CopilotService {
           action,
           entities,
           actions: proposals,
+          trace: traceMeta,
         },
         conversationId,
       };
@@ -366,13 +369,15 @@ class CopilotService {
       await prisma.copilotMessage.create({
         data: { conversationId, role: "user", content, contextData: context },
       });
+      const traceMeta = this.#traceMeta(trace, startedAt);
+
       const assistantMessage = await prisma.copilotMessage.create({
         data: {
           conversationId,
           role: "assistant",
           content: errorText,
           // A failed turn is exactly when the trace matters most.
-          contextData: { isError: true, ...this.#traceMeta(trace, startedAt) },
+          contextData: { isError: true, ...traceMeta },
         },
       });
       await prisma.copilotConversation.update({
@@ -390,6 +395,7 @@ class CopilotService {
           action: null,
           entities: [],
           isError: true,
+          trace: traceMeta,
         },
         conversationId,
       };
@@ -479,8 +485,20 @@ class CopilotService {
       toolMs: trace.reduce((sum, c) => sum + (c.ms || 0), 0),
       toolsUsed: [...new Set(trace.map((c) => c.tool))],
       failedCalls: trace.filter((c) => !c.ok).length,
-      trace: trace.slice(0, 40),
-      traceTruncated: trace.length > 40,
+      // Named distinctly from the object it lives on, so nothing here reads as
+      // "trace.trace". Kept lean for the chat UI: tool, timing, ok/fail and the
+      // one-line summary — not the raw args or result preview, which stay
+      // internal-only in the full stored trace.
+      calls: trace.slice(0, 40).map((c) => ({
+        tool: c.tool,
+        model: c.model,
+        operation: c.operation,
+        ok: c.ok,
+        ms: c.ms,
+        summary: c.summary || null,
+        error: c.error || null,
+      })),
+      callsTruncated: trace.length > 40,
     };
   }
 
@@ -496,9 +514,24 @@ class CopilotService {
       select: { aiProvider: true, aiWebSearchEnabled: true },
     });
 
-    return {
-      webSearch: !!settings?.aiWebSearchEnabled && settings?.aiProvider === "OPENAI",
-    };
+    const webSearch = !!settings?.aiWebSearchEnabled && settings?.aiProvider === "OPENAI";
+
+    // Every tool the model can be given, whether or not it is switched on right
+    // now — a disabled one is still worth showing, with a reason.
+    const tools = [
+      ...aiService.coreToolCatalog().map((t) => ({ ...t, kind: "read", enabled: true })),
+      ...actionToolCatalog().map((t) => ({ ...t, enabled: true })),
+      {
+        ...aiService.webSearchCatalogEntry(),
+        label: "Search the web",
+        kind: "search",
+        danger: false,
+        enabled: webSearch,
+        disabledReason: webSearch ? null : "Off — turn on \"Allow live web search\" in AI Settings.",
+      },
+    ];
+
+    return { webSearch, tools };
   }
 
   /**

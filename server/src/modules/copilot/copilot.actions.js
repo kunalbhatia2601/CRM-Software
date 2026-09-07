@@ -646,6 +646,31 @@ export const ACTIONS = {
   send_invoice,
 };
 
+/**
+ * The action tools and run_report, described for display rather than for
+ * calling — the "what can this AI do" panel and nothing else.
+ */
+export function actionToolCatalog() {
+  const proposals = Object.values(ACTIONS).map((def) => ({
+    name: def.tool.name,
+    label: def.label,
+    description: def.tool.description,
+    kind: "write",
+    danger: !!def.danger,
+  }));
+
+  return [
+    ...proposals,
+    {
+      name: runReportTool.name,
+      label: "Run project report",
+      description: runReportTool.description,
+      kind: "read",
+      danger: false,
+    },
+  ];
+}
+
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, "&amp;")

@@ -28,7 +28,7 @@ export function CopilotProvider({ children }) {
   // Whether this install offers web search at all, and whether the next message
   // should use it. Sticky rather than per-send: someone researching a prospect
   // asks several questions in a row, and re-arming it each time is friction.
-  const [capabilities, setCapabilities] = useState({ webSearch: false });
+  const [capabilities, setCapabilities] = useState({ webSearch: false, tools: [] });
   const [webSearch, setWebSearch] = useState(false);
 
   // Always-fresh id of the current conversation (avoids stale closures in sendMessage).
@@ -58,7 +58,7 @@ export function CopilotProvider({ children }) {
   // Fetch capabilities
   const fetchCapabilities = useCallback(async () => {
     const res = await getCopilotCapabilities();
-    setCapabilities(res.data || { webSearch: false });
+    setCapabilities({ webSearch: false, tools: [], ...res.data });
     // An owner who switches web search off in Settings should not have a live
     // toggle left behind in an open chat.
     if (!res.data?.webSearch) setWebSearch(false);
@@ -91,6 +91,18 @@ export function CopilotProvider({ children }) {
         // already confirmed comes back done, not armed again.
         actions: m.contextData?.actions || [],
         isError: !!m.contextData?.isError,
+        // What the assistant actually did to answer this, and how long it took.
+        trace: m.contextData?.toolCallCount
+          ? {
+              toolCallCount: m.contextData.toolCallCount,
+              totalMs: m.contextData.totalMs,
+              toolMs: m.contextData.toolMs,
+              toolsUsed: m.contextData.toolsUsed || [],
+              failedCalls: m.contextData.failedCalls || 0,
+              calls: m.contextData.calls || [],
+              callsTruncated: !!m.contextData.callsTruncated,
+            }
+          : null,
       })));
     }
   }, []);
@@ -180,6 +192,7 @@ export function CopilotProvider({ children }) {
           action: am.action || null,
           entities: am.entities || [],
           actions: am.actions || [],
+          trace: am.trace || null,
           isError: !!am.isError,
           failedPrompt: am.isError ? content : undefined,
           createdAt: new Date(),

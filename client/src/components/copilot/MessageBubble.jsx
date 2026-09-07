@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCopilot } from "@/context/CopilotContext";
 import Markdown from "./Markdown";
 import ActionCard from "./ActionCard";
+import TraceDetails from "./TraceDetails";
 
 // Map entity type → route segment.
 const SEGMENTS = {
@@ -85,6 +86,9 @@ export function MessageBubble({ message }) {
             ))}
           </div>
         )}
+
+        {/* What the assistant did to answer this, and how long it took */}
+        <TraceDetails trace={message.trace} />
 
         {/* Copy — appears on hover */}
         <button onClick={copy}

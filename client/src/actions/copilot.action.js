@@ -119,15 +119,15 @@ export async function sendCopilotMessage(conversationId, content, context = {}, 
 
 export async function getCopilotCapabilities() {
   const token = await getToken();
-  if (!token) return { success: false, data: { webSearch: false } };
+  if (!token) return { success: false, data: { webSearch: false, tools: [] } };
 
   try {
     const res = await getCopilotCapabilitiesAPI(token);
-    return { success: true, data: res.data || { webSearch: false } };
+    return { success: true, data: res.data || { webSearch: false, tools: [] } };
   } catch (err) {
     console.error("[copilot.action] getCapabilities error:", err.message);
     // A failed probe hides the toggle rather than offering one that cannot work.
-    return { success: false, data: { webSearch: false } };
+    return { success: false, data: { webSearch: false, tools: [] } };
   }
 }
 
