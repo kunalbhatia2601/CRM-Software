@@ -9,7 +9,7 @@ class MilestoneController {
   });
 
   getByProject = catchAsync(async (req, res) => {
-    const milestones = await milestoneService.getMilestonesByProject(req.params.projectId, req.user.id);
+    const milestones = await milestoneService.getMilestonesByProject(req.params.projectId, req.user.id, req.query);
     return ok(res, "Milestones retrieved", milestones);
   });
 

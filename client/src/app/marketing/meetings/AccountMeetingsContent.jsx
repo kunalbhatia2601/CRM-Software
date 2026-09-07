@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Calendar, Search, Video, Phone, MapPin, Clock, Loader2 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { getMeetings } from "@/actions/meetings.action";
+import { formatTime } from "@/lib/datetime";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -35,7 +36,7 @@ export default function AccountMeetingsContent({ initialData }) {
   useEffect(() => { const t = setTimeout(fetchMeetings, 300); return () => clearTimeout(t); }, [fetchMeetings]);
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
-  const formatTime = (d) => d ? new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
+  const formatTime = (d) => d ? formatTime(d) : "";
   const isUpcoming = (d) => new Date(d) > new Date();
 
   return (

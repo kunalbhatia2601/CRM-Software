@@ -1,5 +1,6 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
+import cycleService from "../project-cycle/project-cycle.service.js";
 import {
   requireProjectPermission,
   canReviewTasks,
@@ -276,8 +277,15 @@ class TaskService {
     });
     const position = (maxPos._max.position ?? -1) + 1;
 
+    // Every piece of work belongs to a delivery period. An explicit cycle wins;
+    // otherwise it lands in the one covering its due date, or today.
+    const cycleId =
+      data.cycleId ||
+      (await cycleService.ensureCycleFor(data.projectId, data.dueDate || new Date(), createdById)).id;
+
     return prisma.task.create({
       data: {
+        cycleId,
         title: data.title,
         description: data.description || null,
         objectives: data.objectives || null,
@@ -305,6 +313,9 @@ class TaskService {
     await requireProjectPermission(userId, projectId, "tasks", "view");
 
     const where = { projectId };
+    // Scope to one delivery period. "all" deliberately shows every cycle, which
+    // is how a lifetime view of the project is still reachable.
+    if (filters.cycleId && filters.cycleId !== "all") where.cycleId = filters.cycleId;
     if (filters.status) where.status = filters.status;
     if (filters.priority) where.priority = filters.priority;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;

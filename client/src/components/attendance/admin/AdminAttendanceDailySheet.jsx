@@ -5,6 +5,7 @@ import { Calendar, Search, Pencil, Loader2, Users, CheckCircle2, Clock, AlertCir
 import Badge from "@/components/ui/Badge";
 import Toast from "@/components/ui/Toast";
 import { getDailyAttendanceSheet, manualMarkAttendance } from "@/actions/attendance.action";
+import { formatTime } from "@/lib/datetime";
 
 const STATUS_OPTIONS = [
   { value: "PRESENT", label: "Present" },
@@ -18,10 +19,6 @@ const STATUS_OPTIONS = [
   { value: "WEEKEND", label: "Weekend" },
 ];
 
-function formatTime(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-}
 
 function formatDuration(m) {
   if (!m) return "—";

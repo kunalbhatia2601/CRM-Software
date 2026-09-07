@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Eye, X } fro
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import { formatTime, formatTimeOrAllDay } from "@/lib/datetime";
 
 const MOCK_DATE_FNS = false; // Use real date-fns, but if missing, fallback in thought
 
@@ -44,10 +45,7 @@ function dateKeyOf(d) {
 }
 
 /** Midnight events are system dates (a due date, a milestone), not appointments. */
-function eventTime(date) {
-  const t = new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-  return t === "12:00 am" || t === "12:00 AM" ? "All day" : t;
-}
+const eventTime = (date) => formatTimeOrAllDay(date);
 
 export default function CalendarContent({ initialEvents = [] }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -227,10 +225,7 @@ export default function CalendarContent({ initialEvents = [] }) {
                           <div>
                             <h4 className="text-base font-medium text-gray-900 dark:text-white mb-1">{event.title}</h4>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) !== '12:00 AM' 
-                                ? new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                : 'All Day System Event'
-                              }
+                              {formatTimeOrAllDay(event.date, "All Day System Event")}
                             </p>
                           </div>
                         </div>

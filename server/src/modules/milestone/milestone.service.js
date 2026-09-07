@@ -1,5 +1,6 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
+import cycleService from "../project-cycle/project-cycle.service.js";
 import { requireProjectPermission } from "../../utils/projectPermission.js";
 
 const MILESTONE_INCLUDE = {
@@ -35,8 +36,13 @@ class MilestoneService {
     });
     const position = (maxPos._max.position ?? -1) + 1;
 
+    const cycleId =
+      data.cycleId ||
+      (await cycleService.ensureCycleFor(data.projectId, data.dueDate || new Date(), createdById)).id;
+
     return prisma.milestone.create({
       data: {
+        cycleId,
         title: data.title,
         description: data.description || null,
         status: data.status || "PENDING",
@@ -49,11 +55,14 @@ class MilestoneService {
     });
   }
 
-  async getMilestonesByProject(projectId, userId) {
+  async getMilestonesByProject(projectId, userId, filters = {}) {
     await requireProjectPermission(userId, projectId, "milestones", "view");
 
+    const where = { projectId };
+    if (filters.cycleId && filters.cycleId !== "all") where.cycleId = filters.cycleId;
+
     return prisma.milestone.findMany({
-      where: { projectId },
+      where,
       include: MILESTONE_INCLUDE,
       orderBy: { position: "asc" },
     });

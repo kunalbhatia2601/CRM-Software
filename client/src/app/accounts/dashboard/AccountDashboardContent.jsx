@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import ExpenseTiles from "@/components/expenses/ExpenseTiles";
+import { formatTime } from "@/lib/datetime";
 
 export default function AccountDashboardContent({ stats }) {
   const { user } = useAuth();
@@ -38,7 +39,7 @@ export default function AccountDashboardContent({ stats }) {
   };
   const formatTime = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    return formatTime(date);
   };
 
   const statCards = [

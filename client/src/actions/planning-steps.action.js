@@ -11,12 +11,12 @@ import {
 import { getToken } from "@/lib/session";
 
 
-export async function getPlanningStepsByProject(projectId) {
+export async function getPlanningStepsByProject(projectId, filters = {}) {
   const token = await getToken();
   if (!token) return { success: false, data: [] };
 
   try {
-    const res = await getPlanningStepsByProjectAPI(projectId, token);
+    const res = await getPlanningStepsByProjectAPI(projectId, filters, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, data: [], error: res.message };
   } catch (err) {

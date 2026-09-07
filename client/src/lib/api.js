@@ -848,8 +848,11 @@ export async function detachSampleFromDealAPI(dealId, sampleId, accessToken) {
 
 /* ───────── Planning Steps ───────── */
 
-export async function getPlanningStepsByProjectAPI(projectId, accessToken) {
-  return request(`/api/planning-steps/project/${projectId}`, { method: "GET", token: accessToken });
+export async function getPlanningStepsByProjectAPI(projectId, params, accessToken) {
+  const query = params ? new URLSearchParams(params).toString() : "";
+  return request(`/api/planning-steps/project/${projectId}${query ? `?${query}` : ""}`, {
+    method: "GET", token: accessToken,
+  });
 }
 
 export async function getPlanningStepAPI(id, accessToken) {
@@ -946,8 +949,11 @@ export async function getChildTasksAPI(taskId, accessToken) {
 
 /* ───────── Milestones ───────── */
 
-export async function getMilestonesByProjectAPI(projectId, accessToken) {
-  return request(`/api/milestones/project/${projectId}`, { method: "GET", token: accessToken });
+export async function getMilestonesByProjectAPI(projectId, params, accessToken) {
+  const query = params ? new URLSearchParams(params).toString() : "";
+  return request(`/api/milestones/project/${projectId}${query ? `?${query}` : ""}`, {
+    method: "GET", token: accessToken,
+  });
 }
 
 export async function getMilestoneAPI(id, accessToken) {
@@ -1628,4 +1634,24 @@ export async function sendInvoiceEmailAPI(id, data, accessToken) {
   return request(`/api/invoices/${id}/send`, {
     method: "POST", body: JSON.stringify(data || {}), token: accessToken,
   });
+}
+
+/* ───────── Project Cycles ───────── */
+
+export async function getProjectCyclesAPI(projectId, accessToken) {
+  return request(`/api/project-cycles/project/${projectId}`, { method: "GET", token: accessToken });
+}
+
+export async function getCurrentCycleAPI(projectId, accessToken) {
+  return request(`/api/project-cycles/project/${projectId}/current`, { method: "GET", token: accessToken });
+}
+
+export async function startNextCycleAPI(projectId, data, accessToken) {
+  return request(`/api/project-cycles/project/${projectId}/next`, {
+    method: "POST", body: JSON.stringify(data || {}), token: accessToken,
+  });
+}
+
+export async function getCarryOverCandidatesAPI(cycleId, accessToken) {
+  return request(`/api/project-cycles/${cycleId}/carry-over`, { method: "GET", token: accessToken });
 }

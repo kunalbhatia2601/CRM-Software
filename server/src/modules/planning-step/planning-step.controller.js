@@ -9,7 +9,7 @@ class PlanningStepController {
   });
 
   getByProject = catchAsync(async (req, res) => {
-    const steps = await planningStepService.getStepsByProject(req.params.projectId, req.user.id);
+    const steps = await planningStepService.getStepsByProject(req.params.projectId, req.user.id, req.query);
     return ok(res, "Planning steps retrieved", steps);
   });
 

@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
+import { formatTime } from "@/lib/datetime";
 
 export default function ClientDashboardContent({ stats }) {
   if (!stats) {
@@ -63,10 +64,7 @@ export default function ClientDashboardContent({ stats }) {
 
   const formatTime = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatTime(date);
   };
 
   return (

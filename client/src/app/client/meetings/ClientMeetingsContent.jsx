@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Calendar, Search, Video, Phone, MapPin, Clock, Loader2 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { getMeetings } from "@/actions/meetings.action";
+import { formatTime } from "@/lib/datetime";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -48,7 +49,7 @@ export default function ClientMeetingsContent({ initialData }) {
 
   const formatTime = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    return formatTime(date);
   };
 
   const isUpcoming = (date) => new Date(date) > new Date();

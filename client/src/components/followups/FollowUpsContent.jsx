@@ -19,6 +19,7 @@ import Badge from "@/components/ui/Badge";
 import { getFollowUps, updateFollowUp } from "@/actions/followups.action";
 import Toast from "@/components/ui/Toast";
 import Pagination from "@/components/ui/Pagination";
+import { formatTime } from "@/lib/datetime";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -105,7 +106,7 @@ export default function FollowUpsContent({ initialData, basePath = "/sales" }) {
   };
   const formatTime = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    return formatTime(date);
   };
 
   const isOverdue = (dueAt, status) => {

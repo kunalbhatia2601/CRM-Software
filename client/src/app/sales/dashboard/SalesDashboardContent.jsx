@@ -14,6 +14,7 @@ import {
   PhoneForwarded,
 } from "lucide-react";
 import ExpenseTiles from "@/components/expenses/ExpenseTiles";
+import { formatTime } from "@/lib/datetime";
 
 const LEAD_STATUS_COLORS = {
   NEW: "#5542F6", CONTACTED: "#3B82F6", QUALIFIED: "#20C997",
@@ -78,7 +79,7 @@ export default function SalesDashboardContent({ stats }) {
   };
   const formatTime = (date) => {
     if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    return formatTime(date);
   };
 
   /* Lead pipeline bar data */

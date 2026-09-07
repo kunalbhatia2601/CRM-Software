@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Download } from "lucide-react";
 import { getUserAttendance } from "@/actions/attendance.action";
+import { formatTime } from "@/lib/datetime";
 
 const STATUS_META = {
   PRESENT: { label: "Present", color: "bg-emerald-500", text: "text-emerald-700", chip: "bg-emerald-100 text-emerald-700" },
@@ -61,8 +62,8 @@ export default function AttendanceReport({ userId, userName = "employee" }) {
       rows.push([
         date,
         r?.status || "",
-        r?.checkInAt ? new Date(r.checkInAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "",
-        r?.checkOutAt ? new Date(r.checkOutAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "",
+        r?.checkInAt ? formatTime(r.checkInAt) : "",
+        r?.checkOutAt ? formatTime(r.checkOutAt) : "",
         r?.workedMinutes ?? "",
         (r?.notes || "").replace(/,/g, ";"),
       ]);

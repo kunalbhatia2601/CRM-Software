@@ -24,6 +24,12 @@ import {
 } from "@/actions/milestones.action";
 import CommentThread from "@/components/project/CommentThread";
 import { useAuth } from "@/context/AuthContext";
+import CycleSelector from "./CycleSelector";
+import StartCycleModal from "./StartCycleModal";
+import { getProjectCycles, getCurrentCycle, startNextCycle } from "@/actions/projectCycles.action";
+import { getTasksByProject } from "@/actions/tasks.action";
+import { getMilestonesByProject } from "@/actions/milestones.action";
+import { getPlanningStepsByProject } from "@/actions/planning-steps.action";
 
 // What the assignee can do next, by current status. Mirrors the server's
 // ASSIGNEE_SELF_STATUSES — anything past IN_REVIEW is a reviewer's call.
@@ -85,6 +91,89 @@ export default function PlanningSection({
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false);
   const [showCompletedSteps, setShowCompletedSteps] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+
+  // Delivery periods. The board opens on the current one so a retainer project
+  // does not show months of finished work; older periods stay one click away.
+  const [cycles, setCycles] = useState([]);
+  const [cycleId, setCycleId] = useState(null);
+  const [loadingCycle, setLoadingCycle] = useState(false);
+  const [startModal, setStartModal] = useState(false);
+  const [startingCycle, setStartingCycle] = useState(false);
+  // False for one-time projects, which have a single period and no next one.
+  const [canStartNext, setCanStartNext] = useState(false);
+  const [startError, setStartError] = useState(null);
+
+  /** Reload the plan for one period. */
+  const loadCycle = async (nextCycleId) => {
+    setCycleId(nextCycleId);
+    setLoadingCycle(true);
+
+    const filters = nextCycleId === "all" ? {} : { cycleId: nextCycleId };
+    const [t, m, st] = await Promise.all([
+      getTasksByProject(projectId, filters),
+      getMilestonesByProject(projectId, filters),
+      getPlanningStepsByProject(projectId, filters),
+    ]);
+
+    if (t.success) setTasks(t.data);
+    if (m.success) setMilestones(m.data);
+    if (st.success) setSteps(st.data);
+    setLoadingCycle(false);
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      const [listRes, currentRes] = await Promise.all([
+        getProjectCycles(projectId),
+        getCurrentCycle(projectId),
+      ]);
+      if (!active) return;
+
+      const payload = listRes.success ? listRes.data : {};
+      setCycles(payload.cycles || []);
+      setCanStartNext(!!payload.canStartNext);
+
+      // Open on the period covering today when one exists. A project with no
+      // period for this month — dormant, or never split into months — shows
+      // everything instead of an empty board.
+      const current = currentRes.success ? currentRes.data : null;
+      if (current?.id) {
+        // The rows handed in by the server are unscoped, so the chosen period
+        // has to be fetched or the list would contradict the selector.
+        await loadCycle(current.id);
+      } else {
+        setCycleId("all");
+      }
+    })();
+
+    return () => { active = false; };
+  }, [projectId]);
+
+  /** Open the next period, then switch the board to it. */
+  const handleStartNext = async ({ clone, carryOverTaskIds }) => {
+    setStartingCycle(true);
+    const res = await startNextCycle(projectId, { clone, carryOverTaskIds });
+    setStartingCycle(false);
+
+    if (!res.success) {
+      setStartError(res.error);
+      showToast?.("error", res.error);
+      return;
+    }
+
+    setStartError(null);
+    setStartModal(false);
+    showToast?.("success", res.message || "Next period started");
+
+    const listRes = await getProjectCycles(projectId);
+    if (listRes.success) {
+      setCycles(listRes.data.cycles || []);
+      setCanStartNext(!!listRes.data.canStartNext);
+    }
+    await loadCycle(res.data.cycle.id);
+  };
 
   const [expandedSections, setExpandedSections] = useState({
     milestones: true,
@@ -843,8 +932,43 @@ export default function PlanningSection({
     </div>
   );
 
+  const activeCycle = cycles.find((c) => c.id === cycleId) || null;
+
   return (
     <div className="space-y-6">
+      {/* Which period this board is showing */}
+      {cycles.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CycleSelector
+            cycles={cycles}
+            value={cycleId}
+            onChange={loadCycle}
+            onStartNext={() => { setStartError(null); setStartModal(true); }}
+            canManage={can("tasks", "create") && canStartNext}
+            starting={startingCycle}
+          />
+          {loadingCycle && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading period…
+            </span>
+          )}
+          {cycleId === "all" && (
+            <span className="text-xs text-slate-400">
+              Showing every period. Pick one above to focus on a single month.
+            </span>
+          )}
+        </div>
+      )}
+
+      <StartCycleModal
+        isOpen={startModal}
+        currentCycle={activeCycle}
+        saving={startingCycle}
+        error={startError}
+        onClose={() => { setStartError(null); setStartModal(false); }}
+        onConfirm={handleStartNext}
+      />
+
       {/* MILESTONES */}
       {showMilestones && (
         <AccordionSection canCreate={can("milestones", "create")} title="Milestones" icon={Target} expanded={expandedSections.milestones}

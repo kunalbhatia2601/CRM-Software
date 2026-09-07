@@ -10,15 +10,12 @@ import LeaveBalanceCards from "@/components/attendance/LeaveBalanceCards";
 import { getMyAttendance } from "@/actions/attendance.action";
 import { getMyLeaveBalances } from "@/actions/leave.action";
 import { listHolidays } from "@/actions/holidays.action";
+import { formatTime } from "@/lib/datetime";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function formatTime(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-}
 
 function formatDuration(m) {
   if (m === null || m === undefined) return "—";

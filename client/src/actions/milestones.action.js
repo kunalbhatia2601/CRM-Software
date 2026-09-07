@@ -11,12 +11,12 @@ import {
 import { getToken } from "@/lib/session";
 
 
-export async function getMilestonesByProject(projectId) {
+export async function getMilestonesByProject(projectId, filters = {}) {
   const token = await getToken();
   if (!token) return { success: false, data: [] };
 
   try {
-    const res = await getMilestonesByProjectAPI(projectId, token);
+    const res = await getMilestonesByProjectAPI(projectId, filters, token);
     if (res.success) return { success: true, data: res.data };
     return { success: false, data: [], error: res.message };
   } catch (err) {

@@ -27,6 +27,7 @@ import SettingsInput from "@/components/settings/SettingsInput";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import PostProductionReviewModal from "@/components/meetings/PostProductionReviewModal";
+import { formatTime } from "@/lib/datetime";
 
 const PHASE_OPTIONS = [
   { value: "REGULAR", label: "Regular" },
@@ -601,7 +602,7 @@ function MeetingCard({ meeting, expanded, onToggle, onEdit, onDelete, onStatusUp
 
   const scheduledDate = new Date(meeting.scheduledAt);
   const dateStr = scheduledDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  const timeStr = scheduledDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = formatTime(scheduledDate);
   const isPast = scheduledDate < new Date() && meeting.status === "SCHEDULED";
 
   const requirements = Array.isArray(meeting.requirements) ? meeting.requirements : [];

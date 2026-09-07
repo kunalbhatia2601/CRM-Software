@@ -4,11 +4,8 @@ import { useState, useEffect } from "react";
 import { Clock, LogIn, LogOut, CheckCircle2, Loader2 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { checkIn, checkOut, getTodayAttendance } from "@/actions/attendance.action";
+import { formatTime } from "@/lib/datetime";
 
-function formatTime(dateStr) {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-}
 
 function formatDuration(minutes) {
   if (minutes === null || minutes === undefined) return "";

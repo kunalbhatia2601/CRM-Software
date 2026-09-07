@@ -24,6 +24,7 @@ import Badge from "@/components/ui/Badge";
 import SettingsInput from "@/components/settings/SettingsInput";
 import SettingsSelect from "@/components/settings/SettingsSelect";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { formatTime } from "@/lib/datetime";
 
 const TYPE_ICONS = {
   CALL: Phone,
@@ -355,7 +356,7 @@ function FollowUpCard({ followUp, expanded, onToggle, onEdit, onDelete, onStatus
 
   const dueDate = new Date(followUp.dueAt);
   const dateStr = dueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  const timeStr = dueDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const timeStr = formatTime(dueDate);
 
   return (
     <div className={`rounded-xl border transition-colors ${isOverdue ? "border-red-200 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/30" : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-slate-200"}`}>
