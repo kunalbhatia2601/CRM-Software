@@ -203,7 +203,13 @@ class CopilotService {
       });
     }
 
-    // Get conversation history (for context)
+    // Conversation history for the model.
+    //
+    // Only role and content are selected. contextData holds the tool trace —
+    // the queries that ran, their arguments and result previews — which is kept
+    // for internal review and must never be fed back to the model: it would
+    // burn tokens, and stale query output read as fact is how a wrong answer
+    // gets repeated on the next turn.
     const history = await prisma.copilotMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "asc" },
@@ -216,7 +222,15 @@ class CopilotService {
     // Recent turns are sent as their own messages, not glued onto the question.
     // Twelve is enough for follow-ups ("what about the rest?") without burying
     // the current question — or a correction — in a wall of older text.
-    const recentHistory = history.slice(-12);
+    // Rebuilt field by field, so widening the select above can never leak the
+    // trace into the prompt by accident.
+    const recentHistory = history.slice(-12).map((m) => ({ role: m.role, content: m.content }));
+
+    // Collected per request: which tools ran, with what, and what came back.
+    // Kept on the assistant message so a wrong answer can be explained later
+    // without having to reproduce it.
+    const trace = [];
+    const startedAt = Date.now();
 
     try {
       // Call AI with tool calling — the model decides when to query the CRM.
@@ -224,7 +238,12 @@ class CopilotService {
         systemPromptSlug: "crm-copilot-assistant",
         userPrompt: content,
         history: recentHistory,
-        maxTurns: 8, // tool rounds before a forced final text answer
+        trace,
+        // Tool rounds before a final answer is forced. A real question often
+        // costs several: describe_schema, find the project, then a query or two
+        // per entity being compared. The last round runs without tools, so this
+        // is one more than the number of queries the model actually gets.
+        maxTurns: 16,
       });
 
       // Parse AI response
@@ -234,6 +253,11 @@ class CopilotService {
 
       if (typeof aiResponse === "string") {
         responseText = aiResponse;
+      } else if (aiResponse?.error && !aiResponse.text && !aiResponse.answer && !aiResponse.raw) {
+        // The provider explained why it produced nothing — hitting the token
+        // limit, say. Saying "I couldn't find an answer" would hide a cause the
+        // user can actually act on.
+        responseText = aiResponse.error;
       } else if (aiResponse && (aiResponse.text || aiResponse.answer)) {
         // Structured JSON result
         responseText = aiResponse.text || aiResponse.answer;
@@ -251,6 +275,12 @@ class CopilotService {
         if (!responseText || !responseText.trim()) {
           responseText = String(aiResponse.raw).replace(/```(?:json)?[\s\S]*?```/g, "").trim();
         }
+      }
+
+      // A reply cut off mid-sentence is still worth keeping — with a note, so
+      // the user knows to ask for the rest rather than assuming that was all.
+      if (responseText?.trim() && aiResponse?.truncated) {
+        responseText += "\n\n_This answer was cut off at the token limit. Ask for the next part, or raise Max Tokens in AI settings._";
       }
 
       // Never store a blank reply.
@@ -274,7 +304,7 @@ class CopilotService {
           conversationId,
           role: "assistant",
           content: responseText,
-          contextData: { action, entities },
+          contextData: { action, entities, ...this.#traceMeta(trace, startedAt) },
         },
       });
 
@@ -318,7 +348,8 @@ class CopilotService {
           conversationId,
           role: "assistant",
           content: errorText,
-          contextData: { isError: true },
+          // A failed turn is exactly when the trace matters most.
+          contextData: { isError: true, ...this.#traceMeta(trace, startedAt) },
         },
       });
       await prisma.copilotConversation.update({
@@ -340,6 +371,25 @@ class CopilotService {
         conversationId,
       };
     }
+  }
+
+  /**
+   * Shape the collected tool calls for storage.
+   *
+   * Capped: a runaway conversation must not put an unbounded blob on every
+   * message row. The count is kept separately, so a trimmed trace still reports
+   * how many calls really happened.
+   */
+  #traceMeta(trace, startedAt) {
+    return {
+      toolCallCount: trace.length,
+      totalMs: Date.now() - startedAt,
+      toolMs: trace.reduce((sum, c) => sum + (c.ms || 0), 0),
+      toolsUsed: [...new Set(trace.map((c) => c.tool))],
+      failedCalls: trace.filter((c) => !c.ok).length,
+      trace: trace.slice(0, 40),
+      traceTruncated: trace.length > 40,
+    };
   }
 
   /**

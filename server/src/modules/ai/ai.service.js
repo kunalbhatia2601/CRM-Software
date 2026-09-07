@@ -12,6 +12,9 @@ import dbQueryService from "./dbQuery.service.js";
  * Uses official SDKs: @google/genai for Gemini, openai for OpenAI.
  * Custom provider uses raw fetch (OpenAI-compatible format).
  */
+/** How much of a tool call is kept on the stored trace. */
+const TRACE_LIMITS = { args: 2000, preview: 1200, error: 500, calls: 40 };
+
 class AiService {
   /** @type {GoogleGenAI|null} */ #geminiClient = null;
   /** @type {OpenAI|null} */      #openaiClient = null;
@@ -289,7 +292,7 @@ class AiService {
    * Generate with tool calling support.
    * AI can call tools up to maxTurns times.
    */
-  async generateWithTools({ systemPromptSlug, userPrompt, maxTurns = 2, history = [] }) {
+  async generateWithTools({ systemPromptSlug, userPrompt, maxTurns = 2, history = [], trace = null }) {
     const config = await this.#getAiConfig();
 
     if (!config.aiProvider || config.aiProvider === "NONE") {
@@ -311,11 +314,11 @@ class AiService {
     const provider = config.aiProvider.toUpperCase();
 
     if (provider === "GEMINI") {
-      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns, history);
+      return this.#callGeminiWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
     } else if (provider === "OPENAI") {
-      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns, history);
+      return this.#callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
     } else if (provider === "CUSTOM") {
-      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns, history);
+      return this.#callCustomWithTools(config, systemMessage, userPrompt, maxTurns, history, trace);
     } else {
       throw ApiError.badRequest(`Unknown AI provider: ${config.aiProvider}`);
     }
@@ -702,6 +705,33 @@ class AiService {
   }
 
   /**
+   * Turn a final OpenAI message into the shape the copilot expects.
+   *
+   * An empty body is not "no answer found". The reasoning models spend
+   * max_completion_tokens on their own reasoning, so a long request can burn
+   * the whole budget and return nothing at all — which needs saying, because
+   * the fix is to raise Max Tokens or ask for less.
+   */
+  #finishOpenAI(content, finishReason) {
+    const text = (content || "").trim();
+
+    if (!text) {
+      return {
+        error:
+          finishReason === "length"
+            ? "The reply ran out of tokens before any text was written. Raise Max Tokens in AI settings, or ask for a smaller part at a time."
+            : "The AI returned an empty reply. Try asking again, more specifically.",
+      };
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { raw: text, truncated: finishReason === "length" };
+    }
+  }
+
+  /**
    * Custom OpenAI-compatible provider via raw fetch.
    * Stays as fetch since custom endpoints may not be fully SDK-compatible.
    */
@@ -758,20 +788,68 @@ class AiService {
   /**
    * Execute a tool by name with given arguments (logs the call + result).
    */
-  async #executeTool(toolName, args = {}) {
+  /**
+   * Run one tool call, logging it and — when a trace array is supplied —
+   * recording what was asked and what came back.
+   *
+   * The trace is stored on the chat message so a bad answer can be explained
+   * afterwards: which queries ran, in what order, and what they returned. Args
+   * and results are capped, since a single query can carry a hundred rows and
+   * the trace lives in the database alongside every message.
+   *
+   * @param {string} toolName
+   * @param {object} args
+   * @param {Array|null} trace collected per request; mutated in place
+   */
+  async #executeTool(toolName, args = {}, trace = null) {
     const started = Date.now();
-    console.log(`[Copilot Tool →] ${toolName}`, JSON.stringify(args));
+    const argsJson = JSON.stringify(args ?? {});
+    console.log(`[Copilot Tool →] ${toolName}`, argsJson);
+
     try {
       const result = await this.#runTool(toolName, args);
       const ms = Date.now() - started;
-      let size = "";
-      if (Array.isArray(result?.rows)) size = ` rows=${result.rows.length}`;
-      else if (typeof result?.count === "number") size = ` count=${result.count}`;
-      else if (result?.result !== undefined) size = ` result=1`;
-      console.log(`[Copilot Tool ✓] ${toolName} (${ms}ms)${size}`);
+
+      // What the result actually contained, in the caller's own words.
+      const summary = {};
+      if (Array.isArray(result?.rows)) summary.rows = result.rows.length;
+      if (typeof result?.total === "number") summary.total = result.total;
+      if (typeof result?.groups === "number") summary.groups = result.groups;
+      if (result?.truncated) summary.truncated = true;
+      if (result?.result !== undefined && !Array.isArray(result.result)) {
+        summary.result = result.result;
+      }
+
+      const size = Object.entries(summary).map(([k, v]) => `${k}=${v}`).join(" ");
+      console.log(`[Copilot Tool ✓] ${toolName} (${ms}ms)${size ? " " + size : ""}`);
+
+      trace?.push({
+        tool: toolName,
+        model: args?.model || null,
+        operation: args?.operation || null,
+        args: argsJson.slice(0, TRACE_LIMITS.args),
+        ok: true,
+        ms,
+        summary,
+        // A short preview only — enough to see what shape came back.
+        preview: JSON.stringify(result ?? null).slice(0, TRACE_LIMITS.preview),
+      });
+
       return result;
     } catch (err) {
-      console.error(`[Copilot Tool ✗] ${toolName} (${Date.now() - started}ms): ${err.message}`);
+      const ms = Date.now() - started;
+      console.error(`[Copilot Tool ✗] ${toolName} (${ms}ms): ${err.message}`);
+
+      trace?.push({
+        tool: toolName,
+        model: args?.model || null,
+        operation: args?.operation || null,
+        args: argsJson.slice(0, TRACE_LIMITS.args),
+        ok: false,
+        ms,
+        error: String(err.message).slice(0, TRACE_LIMITS.error),
+      });
+
       throw err;
     }
   }
@@ -1024,7 +1102,7 @@ class AiService {
   /**
    * Gemini with tool calling (via function calling).
    */
-  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
+  async #callGeminiWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
     const model = config.aiModel || "gemini-2.0-flash";
 
     try {
@@ -1078,7 +1156,7 @@ class AiService {
           for (const call of functionCalls) {
             let result;
             try {
-              result = await this.#executeTool(call.name, call.args);
+              result = await this.#executeTool(call.name, call.args, trace);
             } catch (error) {
               result = { error: error.message };
             }
@@ -1165,7 +1243,7 @@ class AiService {
   /**
    * OpenAI with tool calling (function calling).
    */
-  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
+  async #callOpenAIWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
     const model = config.aiModel || "gpt-4o-mini";
     const baseURL = config.aiBaseUrl || undefined;
 
@@ -1187,11 +1265,14 @@ class AiService {
       let turns = 0;
 
       while (turns < maxTurns) {
+        // On the final round the tools are withheld, or the model can spend the
+        // last turn on another call and never produce an answer.
+        const lastTurn = turns === maxTurns - 1;
+
         const completion = await this.#openAiChat(client, {
           model,
           messages,
-          tools,
-          tool_choice: "auto",
+          ...(lastTurn ? {} : { tools, tool_choice: "auto" }),
           temperature: config.aiTemperature ?? 0.7,
           max_tokens: config.aiMaxTokens ?? 4096,
         });
@@ -1210,7 +1291,7 @@ class AiService {
           for (const toolCall of choice.message.tool_calls) {
             try {
               const args = JSON.parse(toolCall.function.arguments);
-              const result = await this.#executeTool(toolCall.function.name, args);
+              const result = await this.#executeTool(toolCall.function.name, args, trace);
               messages.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
@@ -1225,18 +1306,20 @@ class AiService {
             }
           }
         } else {
-          // No tool calls, return the response
-          const text = choice.message.content || "";
-          try {
-            return JSON.parse(text);
-          } catch {
-            return { raw: text };
-          }
+          return this.#finishOpenAI(choice.message.content, finishReason);
         }
       }
 
-      // Max turns reached
-      return { error: "Max tool call iterations reached" };
+      // Out of tool rounds. Ask once more with no tools attached so there is
+      // always a written answer, rather than an error the user cannot act on.
+      const final = await this.#openAiChat(client, {
+        model,
+        messages,
+        temperature: config.aiTemperature ?? 0.7,
+        max_tokens: config.aiMaxTokens ?? 4096,
+      });
+      const lastChoice = final.choices?.[0];
+      return this.#finishOpenAI(lastChoice?.message?.content, lastChoice?.finish_reason);
     } catch (error) {
       throw this.#aiError(error, "OpenAITools");
     }
@@ -1246,7 +1329,7 @@ class AiService {
    * Custom provider with tool calling.
    * Uses OpenAI-compatible function calling format.
    */
-  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = []) {
+  async #callCustomWithTools(config, systemMessage, userPrompt, maxTurns = 2, history = [], trace = null) {
     if (!config.aiBaseUrl) {
       throw ApiError.badRequest("Custom AI provider requires a Base URL in Settings.");
     }
@@ -1299,7 +1382,7 @@ class AiService {
         for (const toolCall of choice.message.tool_calls) {
           try {
             const args = JSON.parse(toolCall.function.arguments);
-            const result = await this.#executeTool(toolCall.function.name, args);
+            const result = await this.#executeTool(toolCall.function.name, args, trace);
             messages.push({
               role: "tool",
               tool_call_id: toolCall.id,
