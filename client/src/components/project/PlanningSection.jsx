@@ -84,6 +84,7 @@ export default function PlanningSection({
 
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false);
   const [showCompletedSteps, setShowCompletedSteps] = useState(false);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState({
     milestones: true,
@@ -135,10 +136,17 @@ export default function PlanningSection({
     ? steps
     : steps.filter((s) => s.status !== "COMPLETED");
   const myTasks = tasks.filter((t) => t.assigneeId === currentUser?.id);
-  const visibleTasks = showAllTasks ? tasks : myTasks;
+  const scopedTasks = showAllTasks ? tasks : myTasks;
+
+  // Finished tasks are noise on an active board, exactly as finished milestones
+  // and steps already were.
+  const visibleTasks = showCompletedTasks
+    ? scopedTasks
+    : scopedTasks.filter((t) => t.status !== "COMPLETED");
 
   const completedMilestoneCount = milestones.filter((m) => m.status === "COMPLETED").length;
   const completedStepCount = steps.filter((s) => s.status === "COMPLETED").length;
+  const completedTaskCount = scopedTasks.filter((t) => t.status === "COMPLETED").length;
 
   /**
    * Build create-modal data from an existing record.
@@ -924,8 +932,19 @@ export default function PlanningSection({
                 All tasks ({tasks.length})
               </button>
             </div>
+
+            <CompletedToggle
+              count={completedTaskCount}
+              show={showCompletedTasks}
+              onToggle={() => setShowCompletedTasks((v) => !v)}
+            />
+
             {visibleTasks.length === 0 && (
-              <p className="text-sm text-slate-400 italic">No tasks assigned to you on this project.</p>
+              <p className="text-sm text-slate-400 italic">
+                {completedTaskCount > 0
+                  ? "Everything here is done. Use the toggle above to see completed tasks."
+                  : "No tasks assigned to you on this project."}
+              </p>
             )}
             {visibleTasks.map((t) => <TaskRow key={t.id} task={t} />)}
           </div>

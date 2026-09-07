@@ -276,37 +276,6 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
         <ProjectExpenseTile projectId={project.id} />
       </div>
 
-      {/* Recurring Billing Info — only show for recurring projects */}
-      {isRecurring && (
-        <div className="bg-violet-50 rounded-[24px] p-6 border border-violet-100 dark:border-slate-800 shadow-sm dark:bg-slate-950 dark:shadow-none">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 border border-violet-200 dark:border-slate-800 flex items-center justify-center">
-              <CalendarClock className="w-5 h-5 text-violet-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Recurring Project</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">This project bills on a {getBillingLabel(project.billingCycle).toLowerCase()} cycle</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-slate-950 rounded-xl p-4 border border-violet-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Billing Cycle</p>
-              <p className="text-sm font-bold text-violet-700">{getBillingLabel(project.billingCycle)}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-950 rounded-xl p-4 border border-violet-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Next Billing Date</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-50">{formatDate(project.nextBillingDate)}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-950 rounded-xl p-4 border border-violet-100 dark:border-slate-800">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Budget per Cycle</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
-                {project.budget ? format(Number(project.budget), { decimals: 0 }) : "Not Set"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Manager Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <DetailCard
