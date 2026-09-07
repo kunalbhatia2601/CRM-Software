@@ -363,33 +363,66 @@ class CopilotService {
         stack: error?.stack,
       });
 
-      const errorText = error?.message || "The AI request failed. Please try again.";
+      // A raw driver error (a Prisma validation failure, say) can carry the
+      // entire attempted row in its message — hundreds of lines, and useless to
+      // a user. Truncated here so the chat shows a message, not a data dump;
+      // the full error is already in the server log above.
+      const rawErrorText = error?.message || "The AI request failed. Please try again.";
+      const errorText =
+        rawErrorText.length > 500
+          ? rawErrorText.slice(0, 500) + "… (see server logs for the full error)"
+          : rawErrorText;
 
-      // Persist the exchange so the error stays in the conversation history.
-      await prisma.copilotMessage.create({
-        data: { conversationId, role: "user", content, contextData: context },
-      });
       const traceMeta = this.#traceMeta(trace, startedAt);
 
-      const assistantMessage = await prisma.copilotMessage.create({
-        data: {
-          conversationId,
-          role: "assistant",
-          content: errorText,
-          // A failed turn is exactly when the trace matters most.
-          contextData: { isError: true, ...traceMeta },
-        },
-      });
-      await prisma.copilotConversation.update({
-        where: { id: conversationId },
-        data: { updatedAt: new Date() },
-      });
+      // Persisting the failure must not itself become a second failure. If a
+      // tool result carried something the trace couldn't shape safely, the
+      // very error that says so would otherwise throw again while being
+      // saved — which is how one ordinary error becomes an unreadable
+      // nested dump instead of a message the user can read. Falls back, in
+      // order, to a version without the trace, then to not persisting at all.
+      let assistantMessage;
+      try {
+        await prisma.copilotMessage.create({
+          data: { conversationId, role: "user", content, contextData: context },
+        });
+        assistantMessage = await prisma.copilotMessage.create({
+          data: {
+            conversationId,
+            role: "assistant",
+            content: errorText,
+            // A failed turn is exactly when the trace matters most.
+            contextData: { isError: true, ...traceMeta },
+          },
+        });
+        await prisma.copilotConversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+      } catch (persistError) {
+        console.error("[CopilotService] Failed to persist error turn, retrying without trace:", persistError.message);
+        try {
+          assistantMessage = await prisma.copilotMessage.create({
+            data: {
+              conversationId,
+              role: "assistant",
+              content: errorText,
+              contextData: { isError: true },
+            },
+          });
+        } catch (secondPersistError) {
+          console.error("[CopilotService] Could not persist error turn at all:", secondPersistError.message);
+        }
+      }
 
-      // Return (don't throw) so the client renders it as a normal error bubble.
+      // Return (don't throw) so the client renders it as a normal error bubble,
+      // whether or not any of the writes above actually landed.
       return {
         userMessage: { role: "user", content },
         assistantMessage: {
-          id: assistantMessage.id,
+          // Falls back to a client-side id when nothing could be persisted, so
+          // the reply still renders instead of throwing on a missing field.
+          id: assistantMessage?.id || `err-${Date.now()}`,
           role: "assistant",
           content: errorText,
           action: null,

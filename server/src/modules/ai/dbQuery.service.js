@@ -158,6 +158,15 @@ class DbQueryService {
   #sanitizeResult(data) {
     if (Array.isArray(data)) return data.map((d) => this.#sanitizeResult(d));
     if (data && typeof data === "object") {
+      // Only walk plain objects — a Prisma row or a nested select. Anything
+      // with its own prototype (Decimal, Date, Buffer) is left untouched:
+      // Object.entries on a Decimal picks up its internal sign/exponent/digit
+      // triad — and, in some builds, an own `constructor` property — rebuilding
+      // it as a plain object that has lost its toJSON() and cannot be written
+      // to a Json column at all. A Date suffers the quieter version of the same
+      // bug: it has no own enumerable properties, so it silently becomes `{}`.
+      // Passing them through leaves their own toJSON/toISOString to do the job.
+      if (Object.getPrototypeOf(data) !== Object.prototype) return data;
       const out = {};
       for (const [k, v] of Object.entries(data)) {
         if (DENY_FIELDS.has(k)) continue;
