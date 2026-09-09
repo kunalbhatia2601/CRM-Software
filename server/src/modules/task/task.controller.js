@@ -10,7 +10,7 @@ class TaskController {
   });
 
   getMyTasks = catchAsync(async (req, res) => {
-    const tasks = await taskService.getMyTasks(req.user.id, req.query);
+    const tasks = await taskService.getMyTasks(req.user.id, req.query, req.user.role);
     return ok(res, "My tasks retrieved", tasks);
   });
 

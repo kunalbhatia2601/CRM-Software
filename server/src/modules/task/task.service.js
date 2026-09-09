@@ -729,11 +729,26 @@ class TaskService {
    * with their team. Self-assigned tasks are excluded there; they already show
    * under the default scope and would otherwise appear twice.
    */
-  async getMyTasks(userId, filters = {}) {
+  /**
+   * "My Tasks" for the requester — and, for OWNER/ADMIN only, someone else's
+   * tasks or every task in the CRM, via filters.assigneeId. An ordinary
+   * employee's own id always wins regardless of what filters.assigneeId says,
+   * so the query param is not a way to read a colleague's task list without
+   * the role for it.
+   */
+  async getMyTasks(userId, filters = {}, requesterRole = null) {
+    const canBrowseOthers = ["OWNER", "ADMIN"].includes(requesterRole);
+    const viewAll = canBrowseOthers && filters.assigneeId === "all";
+    const viewAssigneeId = canBrowseOthers && filters.assigneeId && filters.assigneeId !== "all"
+      ? filters.assigneeId
+      : userId;
+
     const where =
       filters.scope === "delegated"
         ? { assignedById: userId, NOT: { assigneeId: userId } }
-        : { assigneeId: userId };
+        : viewAll
+          ? {}
+          : { assigneeId: viewAssigneeId };
     if (filters.status) where.status = filters.status;
     if (filters.priority) where.priority = filters.priority;
     if (filters.projectId) where.projectId = filters.projectId;
