@@ -3,14 +3,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  PackageCheck, CheckCircle2, Plus, Pencil, Trash2, Loader2, X, Check,
+  PackageCheck, Boxes, CheckCircle2, Plus, Pencil, Trash2, Loader2, X, Check,
 } from "lucide-react";
 import Toast from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useSite } from "@/context/SiteContext";
 import { getServicesDropdown } from "@/actions/services.action";
+import { getPackagesDropdown } from "@/actions/packages.action";
 import {
   addProjectServices, updateProjectService, removeProjectService,
+  addPackageToProject, removePackageFromProject,
 } from "@/actions/projects.action";
 
 /**
@@ -33,10 +35,17 @@ export default function ProjectServicesSection({
 
   // Add form
   const [adding, setAdding] = useState(false);
+  const [addMode, setAddMode] = useState("service"); // "service" | "package"
   const [catalog, setCatalog] = useState([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [newItem, setNewItem] = useState({ serviceId: "", quantity: 1, price: "" });
   const [saving, setSaving] = useState(false);
+
+  // Packages — a bundle of services added in one action, tagged so the
+  // display below can group its rows back into a single card.
+  const [packageCatalog, setPackageCatalog] = useState([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState("");
 
   // Inline edit
   const [editingId, setEditingId] = useState(null);
@@ -55,6 +64,47 @@ export default function ProjectServicesSection({
       setCatalog(Array.isArray(list) ? list : list?.data || []);
       setLoadingCatalog(false);
     }
+  };
+
+  const openPackageTab = async () => {
+    setAddMode("package");
+    if (packageCatalog.length === 0) {
+      setLoadingPackages(true);
+      const list = await getPackagesDropdown();
+      setPackageCatalog(Array.isArray(list) ? list : list?.data || []);
+      setLoadingPackages(false);
+    }
+  };
+
+  const handleAddPackage = async () => {
+    if (!selectedPackageId) { showToast("error", "Pick a package"); return; }
+    setSaving(true);
+    const res = await addPackageToProject(projectId, selectedPackageId);
+    setSaving(false);
+    if (res.success) {
+      const rows = res.data?.projectServices || [];
+      setServices((prev) => {
+        let next = [...prev];
+        for (const row of rows) {
+          const idx = next.findIndex((p) => p.service?.id === row.service?.id);
+          if (idx >= 0) next[idx] = row;
+          else next.push(row);
+        }
+        return next;
+      });
+      setAdding(false);
+      setAddMode("service");
+      setSelectedPackageId("");
+      showToast("success", "Package added");
+    } else showToast("error", res.error || "Failed to add package");
+  };
+
+  const handleRemovePackage = async (packageId) => {
+    const res = await removePackageFromProject(projectId, packageId);
+    if (res.success) {
+      setServices((prev) => prev.filter((p) => p.packageId !== packageId));
+      showToast("success", "Package removed");
+    } else showToast("error", res.error || "Failed to remove package");
   };
 
   const handleAdd = async () => {
@@ -117,6 +167,108 @@ export default function ProjectServicesSection({
   // Nothing to show and no rights to add → hide the whole card.
   if (services.length === 0 && !canManage) return null;
 
+  // Group rows by the package they came from, so a plan reads as one block.
+  // A row's price/quantity stays independently editable either way.
+  const serviceGroups = (() => {
+    const groups = [];
+    const seenPackages = new Set();
+    for (const ps of services) {
+      if (ps.packageId) {
+        if (seenPackages.has(ps.packageId)) continue;
+        seenPackages.add(ps.packageId);
+        groups.push({
+          type: "package",
+          packageId: ps.packageId,
+          packageName: ps.package?.name || "Package",
+          items: services.filter((x) => x.packageId === ps.packageId),
+        });
+      } else {
+        groups.push({ type: "single", item: ps });
+      }
+    }
+    return groups;
+  })();
+
+  /** One service row — used both loose and inside a package group. */
+  const renderServiceRow = (ps) => {
+    const priceChanged = ps.originalPrice && Number(ps.price) !== Number(ps.originalPrice);
+    const isEditing = editingId === ps.id;
+    return (
+      <div key={ps.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            {ps.service?.name?.[0]?.toUpperCase() || "S"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <Link href={`${basePath}/services/${ps.service?.id}`} className="text-sm font-semibold text-slate-900 dark:text-slate-50 hover:text-indigo-600 transition-colors">
+              {ps.service?.name}
+            </Link>
+            {ps.service?.points?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {ps.service.points.slice(0, 4).map((point, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 rounded text-xs font-medium border border-emerald-100 dark:border-emerald-900/30">
+                    <CheckCircle2 className="w-3 h-3" />
+                    {point}
+                  </span>
+                ))}
+                {ps.service.points.length > 4 && (
+                  <span className="text-xs text-slate-400 px-2 py-0.5">+{ps.service.points.length - 4} more</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <input
+              type="number" min="1"
+              className={`${inputClass} w-16 text-right`}
+              value={editValues.quantity}
+              onChange={(e) => setEditValues({ ...editValues, quantity: e.target.value })}
+            />
+            <input
+              type="number" min="0" step="0.01"
+              className={`${inputClass} w-28 text-right`}
+              value={editValues.price}
+              onChange={(e) => setEditValues({ ...editValues, price: e.target.value })}
+            />
+            <button onClick={() => saveEdit(ps)} disabled={saving} className="p-2 bg-emerald-500 text-white rounded-lg disabled:opacity-60">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setEditingId(null)} className="p-2 bg-slate-200 dark:bg-slate-700 rounded-lg">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            <div className="text-right">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
+                {format(Number(ps.price), { decimals: 0 })}
+              </span>
+              {priceChanged && (
+                <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
+                  was {format(Number(ps.originalPrice), { decimals: 0 })}
+                </p>
+              )}
+              {ps.quantity > 1 && <p className="text-xs text-slate-400">x{ps.quantity}</p>}
+            </div>
+            {canManage && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => startEdit(ps)} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800" title="Edit">
+                  <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+                <button onClick={() => setRemovingId(ps.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remove">
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white dark:bg-slate-950 rounded-[24px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none shadow-slate-200/50">
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
@@ -136,7 +288,7 @@ export default function ProjectServicesSection({
             onClick={openAdd}
             className="inline-flex items-center gap-2 px-3 py-2 bg-[#5542F6] text-white text-xs font-semibold rounded-xl hover:bg-[#4636d4] transition-colors"
           >
-            <Plus className="w-3.5 h-3.5" /> Add Service
+            <Plus className="w-3.5 h-3.5" /> Add
           </button>
         )}
       </div>
@@ -145,49 +297,116 @@ export default function ProjectServicesSection({
       {adding && (
         <div className="mb-4 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">Add a service</span>
-            <button onClick={() => setAdding(false)}><X className="w-4 h-4 text-slate-400" /></button>
+            <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-lg p-1">
+              {[
+                { id: "service", label: "Service" },
+                { id: "package", label: "Package" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => (tab.id === "package" ? openPackageTab() : setAddMode("service"))}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                    addMode === tab.id
+                      ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setAdding(false); setAddMode("service"); setSelectedPackageId(""); }}>
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
           </div>
-          {loadingCatalog ? (
+
+          {addMode === "service" ? (
+            loadingCatalog ? (
+              <div className="flex items-center justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+            ) : (
+              <div className="grid sm:grid-cols-12 gap-2 items-center">
+                <select
+                  className={`${inputClass} sm:col-span-6`}
+                  value={newItem.serviceId}
+                  onChange={(e) => {
+                    const svc = catalog.find((c) => c.id === e.target.value);
+                    setNewItem({
+                      ...newItem,
+                      serviceId: e.target.value,
+                      price: svc ? String(svc.salePrice ?? svc.price ?? "") : "",
+                    });
+                  }}
+                >
+                  <option value="">Select a service…</option>
+                  {available.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="number" min="1" placeholder="Qty"
+                  className={`${inputClass} sm:col-span-2 text-right`}
+                  value={newItem.quantity}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                />
+                <input
+                  type="number" min="0" step="0.01" placeholder="Price"
+                  className={`${inputClass} sm:col-span-3 text-right`}
+                  value={newItem.price}
+                  onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                />
+                <button
+                  onClick={handleAdd}
+                  disabled={saving}
+                  className="sm:col-span-1 inline-flex items-center justify-center p-2 bg-[#5542F6] text-white rounded-lg hover:bg-[#4636d4] disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                </button>
+              </div>
+            )
+          ) : loadingPackages ? (
             <div className="flex items-center justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
           ) : (
-            <div className="grid sm:grid-cols-12 gap-2 items-center">
-              <select
-                className={`${inputClass} sm:col-span-6`}
-                value={newItem.serviceId}
-                onChange={(e) => {
-                  const svc = catalog.find((c) => c.id === e.target.value);
-                  setNewItem({
-                    ...newItem,
-                    serviceId: e.target.value,
-                    price: svc ? String(svc.salePrice ?? svc.price ?? "") : "",
-                  });
-                }}
-              >
-                <option value="">Select a service…</option>
-                {available.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <input
-                type="number" min="1" placeholder="Qty"
-                className={`${inputClass} sm:col-span-2 text-right`}
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-              />
-              <input
-                type="number" min="0" step="0.01" placeholder="Price"
-                className={`${inputClass} sm:col-span-3 text-right`}
-                value={newItem.price}
-                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-              />
-              <button
-                onClick={handleAdd}
-                disabled={saving}
-                className="sm:col-span-1 inline-flex items-center justify-center p-2 bg-[#5542F6] text-white rounded-lg hover:bg-[#4636d4] disabled:opacity-60"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              </button>
+            <div className="space-y-3">
+              <div className="grid sm:grid-cols-12 gap-2 items-center">
+                <select
+                  className={`${inputClass} sm:col-span-9`}
+                  value={selectedPackageId}
+                  onChange={(e) => setSelectedPackageId(e.target.value)}
+                >
+                  <option value="">Select a package…</option>
+                  {packageCatalog.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} — {p.items.length} service{p.items.length !== 1 ? "s" : ""}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddPackage}
+                  disabled={saving || !selectedPackageId}
+                  className="sm:col-span-3 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#5542F6] text-white text-xs font-semibold rounded-lg hover:bg-[#4636d4] disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Boxes className="w-3.5 h-3.5" />}
+                  Add Package
+                </button>
+              </div>
+              {selectedPackageId && (() => {
+                const pkg = packageCatalog.find((p) => p.id === selectedPackageId);
+                if (!pkg) return null;
+                const pkgTotal = pkg.items.reduce((sum, i) => sum + Number(i.effectivePrice) * (i.quantity || 1), 0);
+                return (
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/30 space-y-1.5">
+                    {pkg.items.map((i) => (
+                      <div key={i.id} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600 dark:text-slate-400">{i.service?.name}{i.quantity > 1 ? ` ×${i.quantity}` : ""}</span>
+                        <span className="text-slate-500 dark:text-slate-400" suppressHydrationWarning>{format(Number(i.effectivePrice), { decimals: 0 })}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-xs font-semibold pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-700 dark:text-slate-300">Total</span>
+                      <span className="text-slate-900 dark:text-slate-50" suppressHydrationWarning>{format(pkgTotal, { decimals: 0 })}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -197,84 +416,28 @@ export default function ProjectServicesSection({
         <p className="text-sm text-slate-400 italic">No services attached to this project yet.</p>
       ) : (
         <div className="space-y-3">
-          {services.map((ps) => {
-            const priceChanged = ps.originalPrice && Number(ps.price) !== Number(ps.originalPrice);
-            const isEditing = editingId === ps.id;
-            return (
-              <div key={ps.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {ps.service?.name?.[0]?.toUpperCase() || "S"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Link href={`${basePath}/services/${ps.service?.id}`} className="text-sm font-semibold text-slate-900 dark:text-slate-50 hover:text-indigo-600 transition-colors">
-                      {ps.service?.name}
-                    </Link>
-                    {ps.service?.points?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {ps.service.points.slice(0, 4).map((point, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 rounded text-xs font-medium border border-emerald-100 dark:border-emerald-900/30">
-                            <CheckCircle2 className="w-3 h-3" />
-                            {point}
-                          </span>
-                        ))}
-                        {ps.service.points.length > 4 && (
-                          <span className="text-xs text-slate-400 px-2 py-0.5">+{ps.service.points.length - 4} more</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+          {serviceGroups.map((group) =>
+            group.type === "single" ? (
+              renderServiceRow(group.item)
+            ) : (
+              <div key={`pkg-${group.packageId}`} className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    <Boxes className="w-3.5 h-3.5" /> {group.packageName}
+                  </span>
+                  {canManage && (
+                    <button
+                      onClick={() => handleRemovePackage(group.packageId)}
+                      className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      Remove plan
+                    </button>
+                  )}
                 </div>
-
-                {isEditing ? (
-                  <div className="flex items-center gap-2 shrink-0 ml-4">
-                    <input
-                      type="number" min="1"
-                      className={`${inputClass} w-16 text-right`}
-                      value={editValues.quantity}
-                      onChange={(e) => setEditValues({ ...editValues, quantity: e.target.value })}
-                    />
-                    <input
-                      type="number" min="0" step="0.01"
-                      className={`${inputClass} w-28 text-right`}
-                      value={editValues.price}
-                      onChange={(e) => setEditValues({ ...editValues, price: e.target.value })}
-                    />
-                    <button onClick={() => saveEdit(ps)} disabled={saving} className="p-2 bg-emerald-500 text-white rounded-lg disabled:opacity-60">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="p-2 bg-slate-200 dark:bg-slate-700 rounded-lg">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
-                        {format(Number(ps.price), { decimals: 0 })}
-                      </span>
-                      {priceChanged && (
-                        <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
-                          was {format(Number(ps.originalPrice), { decimals: 0 })}
-                        </p>
-                      )}
-                      {ps.quantity > 1 && <p className="text-xs text-slate-400">x{ps.quantity}</p>}
-                    </div>
-                    {canManage && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => startEdit(ps)} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800" title="Edit">
-                          <Pencil className="w-3.5 h-3.5 text-slate-400" />
-                        </button>
-                        <button onClick={() => setRemovingId(ps.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Remove">
-                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="space-y-3">{group.items.map((ps) => renderServiceRow(ps))}</div>
               </div>
-            );
-          })}
+            )
+          )}
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700 mt-3">
             <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Services Value</span>

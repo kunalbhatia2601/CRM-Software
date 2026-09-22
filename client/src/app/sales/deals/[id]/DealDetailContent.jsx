@@ -25,13 +25,15 @@ import {
   Search,
   Rocket,
   PackageCheck,
+  Boxes,
   Plus,
   X,
   ListChecks,
 } from "lucide-react";
 
-import { updateDealStage, getAccountManagers, addServicesToDeal, removeServiceFromDeal, getDeal } from "@/actions/deals.action";
+import { updateDealStage, getAccountManagers, addServicesToDeal, removeServiceFromDeal, getDeal, addPackageToDeal, removePackageFromDeal } from "@/actions/deals.action";
 import { getServicesDropdown } from "@/actions/services.action";
+import { getPackagesDropdown } from "@/actions/packages.action";
 import { useSite } from "@/context/SiteContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
@@ -90,6 +92,11 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
   const [availableServices, setAvailableServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  // Packages — a second tab in the same modal. Picking one expands to every
+  // service inside it, tagged so the display below can group them back up.
+  const [addMode, setAddMode] = useState("service"); // "service" | "package"
+  const [availablePackages, setAvailablePackages] = useState([]);
+  const [selectedPackageId, setSelectedPackageId] = useState("");
 
   // Documents — loaded from deal include + can be refreshed separately
   const [documents, setDocuments] = useState(initialDeal.documents || []);
@@ -98,6 +105,12 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
   useEffect(() => {
     if (showAddServiceModal && availableServices.length === 0) {
       getServicesDropdown().then(setAvailableServices);
+    }
+  }, [showAddServiceModal]);
+
+  useEffect(() => {
+    if (showAddServiceModal && availablePackages.length === 0) {
+      getPackagesDropdown().then(setAvailablePackages);
     }
   }, [showAddServiceModal]);
 
@@ -181,6 +194,35 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
     });
   };
 
+  const handleAddPackage = () => {
+    if (!selectedPackageId) return;
+    startTransition(async () => {
+      const result = await addPackageToDeal(deal.id, selectedPackageId);
+      if (result.success) {
+        const refreshed = await getDeal(deal.id);
+        if (refreshed.success) setDeal(refreshed.data);
+        setSelectedPackageId("");
+        setShowAddServiceModal(false);
+        showToast("success", "Package added to deal");
+      } else {
+        showToast("error", result.error || "Failed to add package");
+      }
+    });
+  };
+
+  const handleRemovePackage = (packageId) => {
+    startTransition(async () => {
+      const result = await removePackageFromDeal(deal.id, packageId);
+      if (result.success) {
+        const refreshed = await getDeal(deal.id);
+        if (refreshed.success) setDeal(refreshed.data);
+        showToast("success", "Package removed");
+      } else {
+        showToast("error", result.error || "Failed to remove package");
+      }
+    });
+  };
+
   const allowedTransitions = STAGE_TRANSITIONS[deal.stage] || [];
   const StageIcon = STAGE_ICONS[deal.stage] || Handshake;
   const currentStepIdx = getStepIndex(deal.stage);
@@ -196,6 +238,74 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
   const wonDate = deal.wonAt
     ? new Date(deal.wonAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
     : null;
+
+  // Group services by the package they came from, so a plan reads as one
+  // block instead of scattering its rows through the flat list. A row's
+  // price/quantity stays independently editable either way.
+  const dealServiceGroups = (() => {
+    const groups = [];
+    const seenPackages = new Set();
+    for (const ds of deal.dealServices || []) {
+      if (ds.packageId) {
+        if (seenPackages.has(ds.packageId)) continue;
+        seenPackages.add(ds.packageId);
+        groups.push({
+          type: "package",
+          packageId: ds.packageId,
+          packageName: ds.package?.name || "Package",
+          items: (deal.dealServices || []).filter((x) => x.packageId === ds.packageId),
+        });
+      } else {
+        groups.push({ type: "single", item: ds });
+      }
+    }
+    return groups;
+  })();
+
+  /** One service row — used both loose and inside a package group. */
+  const renderServiceRow = (ds) => {
+    const priceChanged = ds.originalPrice && Number(ds.price) !== Number(ds.originalPrice);
+    return (
+      <div key={ds.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-colors">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            {ds.service?.name?.[0]?.toUpperCase() || "S"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <Link href={`/sales/services/${ds.service?.id}`} className="text-sm font-semibold text-slate-900 dark:text-slate-50 hover:text-indigo-600 transition-colors">
+              {ds.service?.name}
+            </Link>
+            {ds.service?.points && ds.service.points.length > 0 && (
+              <p className="text-xs text-slate-400 mt-0.5 truncate">
+                {ds.service.points.slice(0, 3).join(" · ")}{ds.service.points.length > 3 ? ` +${ds.service.points.length - 3} more` : ""}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>{format(Number(ds.price))}</span>
+            {priceChanged && (
+              <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
+                was {format(Number(ds.originalPrice))}
+              </p>
+            )}
+            {ds.quantity > 1 && <p className="text-xs text-slate-400">x{ds.quantity}</p>}
+          </div>
+          {deal.stage !== "WON" && (
+            <button
+              onClick={() => handleRemoveService(ds.service?.id)}
+              disabled={isPending}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+              title="Remove service"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -438,49 +548,29 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
 
         {deal.dealServices && deal.dealServices.length > 0 ? (
           <div className="space-y-3">
-            {deal.dealServices.map((ds) => {
-              const priceChanged = ds.originalPrice && Number(ds.price) !== Number(ds.originalPrice);
-              return (
-                <div key={ds.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                      {ds.service?.name?.[0]?.toUpperCase() || "S"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/sales/services/${ds.service?.id}`} className="text-sm font-semibold text-slate-900 dark:text-slate-50 hover:text-indigo-600 transition-colors">
-                        {ds.service?.name}
-                      </Link>
-                      {ds.service?.points && ds.service.points.length > 0 && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">
-                          {ds.service.points.slice(0, 3).join(" · ")}{ds.service.points.length > 3 ? ` +${ds.service.points.length - 3} more` : ""}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-50" suppressHydrationWarning>{format(Number(ds.price))}</span>
-                      {priceChanged && (
-                        <p className="text-xs text-amber-600 mt-0.5" suppressHydrationWarning>
-                          was {format(Number(ds.originalPrice))}
-                        </p>
-                      )}
-                      {ds.quantity > 1 && <p className="text-xs text-slate-400">x{ds.quantity}</p>}
-                    </div>
+            {dealServiceGroups.map((group) =>
+              group.type === "single" ? (
+                renderServiceRow(group.item)
+              ) : (
+                <div key={`pkg-${group.packageId}`} className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      <Boxes className="w-3.5 h-3.5" /> {group.packageName}
+                    </span>
                     {deal.stage !== "WON" && (
                       <button
-                        onClick={() => handleRemoveService(ds.service?.id)}
+                        onClick={() => handleRemovePackage(group.packageId)}
                         disabled={isPending}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
-                        title="Remove service"
+                        className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
                       >
-                        <X className="w-4 h-4" />
+                        Remove plan
                       </button>
                     )}
                   </div>
+                  <div className="space-y-3">{group.items.map((ds) => renderServiceRow(ds))}</div>
                 </div>
-              );
-            })}
+              )
+            )}
             <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700 mt-3">
               <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Services Value</span>
               <span className="text-lg font-bold text-slate-900 dark:text-slate-50" suppressHydrationWarning>
@@ -504,7 +594,7 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
         )}
       </div>
 
-      {/* ═══ Add Service Modal ═══ */}
+      {/* ═══ Add Service / Package Modal ═══ */}
       {showAddServiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddServiceModal(false)} />
@@ -514,42 +604,110 @@ export default function DealDetailContent({ initialDeal, initialMeetings = [], i
                 <PackageCheck className="w-6 h-6 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Add Service</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Select a service to add to this deal.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Add to Deal</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Add one service, or a whole package at once.</p>
               </div>
             </div>
 
-            <SettingsSelect
-              label="Service"
-              icon={PackageCheck}
-              value={selectedServiceId}
-              onChange={(e) => setSelectedServiceId(e.target.value)}
-              options={[
-                { value: "", label: "— Select Service —" },
-                ...availableServices
-                  .filter((s) => !deal.dealServices?.some((ds) => ds.service?.id === s.id))
-                  .map((s) => ({
-                    value: s.id,
-                    label: `${s.name} — ${format(Number(s.salePrice || s.price))}`,
-                  })),
-              ]}
-            />
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl p-1 mb-5">
+              {[
+                { id: "service", label: "Service" },
+                { id: "package", label: "Package" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setAddMode(tab.id)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    addMode === tab.id
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50 shadow-sm"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {addMode === "service" ? (
+              <SettingsSelect
+                label="Service"
+                icon={PackageCheck}
+                value={selectedServiceId}
+                onChange={(e) => setSelectedServiceId(e.target.value)}
+                options={[
+                  { value: "", label: "— Select Service —" },
+                  ...availableServices
+                    .filter((s) => !deal.dealServices?.some((ds) => ds.service?.id === s.id))
+                    .map((s) => ({
+                      value: s.id,
+                      label: `${s.name} — ${format(Number(s.salePrice || s.price))}`,
+                    })),
+                ]}
+              />
+            ) : (
+              <>
+                <SettingsSelect
+                  label="Package"
+                  icon={Boxes}
+                  value={selectedPackageId}
+                  onChange={(e) => setSelectedPackageId(e.target.value)}
+                  options={[
+                    { value: "", label: "— Select Package —" },
+                    ...availablePackages.map((p) => ({
+                      value: p.id,
+                      label: `${p.name} — ${p.items.length} service${p.items.length !== 1 ? "s" : ""}`,
+                    })),
+                  ]}
+                />
+                {selectedPackageId && (() => {
+                  const pkg = availablePackages.find((p) => p.id === selectedPackageId);
+                  if (!pkg) return null;
+                  const total = pkg.items.reduce((sum, i) => sum + Number(i.effectivePrice) * (i.quantity || 1), 0);
+                  return (
+                    <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 space-y-1.5">
+                      {pkg.items.map((i) => (
+                        <div key={i.id} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-600 dark:text-slate-400">{i.service?.name}{i.quantity > 1 ? ` ×${i.quantity}` : ""}</span>
+                          <span className="text-slate-500 dark:text-slate-400" suppressHydrationWarning>{format(Number(i.effectivePrice))}</span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-xs font-semibold pt-1.5 border-t border-amber-200 dark:border-amber-900/40">
+                        <span className="text-slate-700 dark:text-slate-300">Total</span>
+                        <span className="text-slate-900 dark:text-slate-50" suppressHydrationWarning>{format(total)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => { setShowAddServiceModal(false); setSelectedServiceId(""); }}
+                onClick={() => { setShowAddServiceModal(false); setSelectedServiceId(""); setSelectedPackageId(""); setAddMode("service"); }}
                 className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleAddService}
-                disabled={isPending || !selectedServiceId}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#5542F6] rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-4 h-4" />
-                {isPending ? "Adding..." : "Add Service"}
-              </button>
+              {addMode === "service" ? (
+                <button
+                  onClick={handleAddService}
+                  disabled={isPending || !selectedServiceId}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#5542F6] rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-4 h-4" />
+                  {isPending ? "Adding..." : "Add Service"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleAddPackage}
+                  disabled={isPending || !selectedPackageId}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#5542F6] rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-[#4636d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Boxes className="w-4 h-4" />
+                  {isPending ? "Adding..." : "Add Package"}
+                </button>
+              )}
             </div>
           </div>
         </div>

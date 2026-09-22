@@ -73,6 +73,23 @@ class DealController {
   });
 
   /**
+   * POST /api/deals/:id/packages
+   * Body: { packageId }
+   */
+  addPackageToDeal = catchAsync(async (req, res) => {
+    const result = await dealService.addPackageToDeal(req.params.id, req.body.packageId);
+    return ok(res, "Package added to deal", result);
+  });
+
+  /**
+   * DELETE /api/deals/:id/packages/:packageId
+   */
+  removePackageFromDeal = catchAsync(async (req, res) => {
+    await dealService.removePackageFromDeal(req.params.id, req.params.packageId);
+    return ok(res, "Package removed from deal");
+  });
+
+  /**
    * DELETE /api/deals/:id
    */
   deleteDeal = catchAsync(async (req, res) => {

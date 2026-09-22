@@ -9,6 +9,8 @@ import {
   deleteDealAPI,
   addDealServicesAPI,
   removeDealServiceAPI,
+  addDealPackageAPI,
+  removeDealPackageAPI,
   getUsersAPI,
   getLeadsAPI,
 } from "@/lib/api";
@@ -141,6 +143,32 @@ export async function removeServiceFromDeal(dealId, serviceId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to remove service" };
+  }
+}
+
+export async function addPackageToDeal(dealId, packageId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+
+  try {
+    const res = await addDealPackageAPI(dealId, packageId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to add package" };
+  }
+}
+
+export async function removePackageFromDeal(dealId, packageId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+
+  try {
+    const res = await removeDealPackageAPI(dealId, packageId, token);
+    if (res.success) return { success: true };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to remove package" };
   }
 }
 

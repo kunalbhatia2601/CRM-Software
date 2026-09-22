@@ -11,6 +11,8 @@ import {
   addProjectServicesSchema,
   updateProjectServiceSchema,
   projectServiceParamSchema,
+  addProjectPackageSchema,
+  removeProjectPackageSchema,
 } from "./project.validation.js";
 
 const router = Router();
@@ -49,5 +51,9 @@ const manageServices = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MAN
 router.post("/:id/services", manageServices, validate(addProjectServicesSchema), projectController.addServices);
 router.patch("/:id/services/:serviceId", manageServices, validate(updateProjectServiceSchema), projectController.updateService);
 router.delete("/:id/services/:serviceId", manageServices, validate(projectServiceParamSchema), projectController.removeService);
+
+// Project packages — expand a named bundle into project services in one call
+router.post("/:id/packages", manageServices, validate(addProjectPackageSchema), projectController.addPackage);
+router.delete("/:id/packages/:packageId", manageServices, validate(removeProjectPackageSchema), projectController.removePackage);
 
 export default router;

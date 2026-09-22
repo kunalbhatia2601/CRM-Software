@@ -10,6 +10,8 @@ import {
   addProjectServicesAPI,
   updateProjectServiceAPI,
   removeProjectServiceAPI,
+  addProjectPackageAPI,
+  removeProjectPackageAPI,
   getProjectPermissionsAPI,
   getProjectOptionsAPI,
   getProjectLedgerAPI,
@@ -158,6 +160,30 @@ export async function removeProjectService(projectId, serviceId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to remove service" };
+  }
+}
+
+export async function addPackageToProject(projectId, packageId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await addProjectPackageAPI(projectId, packageId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to add package" };
+  }
+}
+
+export async function removePackageFromProject(projectId, packageId) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await removeProjectPackageAPI(projectId, packageId, token);
+    if (res.success) return { success: true };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to remove package" };
   }
 }
 

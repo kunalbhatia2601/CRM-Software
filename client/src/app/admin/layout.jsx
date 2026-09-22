@@ -81,6 +81,15 @@ const navItems = [
     ],
   },
   {
+    name: "Packages",
+    href: "/admin/packages",
+    icon: "Boxes",
+    children: [
+      { name: "All Packages", href: "/admin/packages" },
+      { name: "Add Package", href: "/admin/packages/create" },
+    ],
+  },
+  {
     name: "Samples",
     href: "/admin/samples",
     icon: "Layers",

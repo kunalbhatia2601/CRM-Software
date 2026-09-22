@@ -104,3 +104,15 @@ export const removeDealServiceSchema = z.object({
     serviceId: z.string().min(1),
   }),
 });
+
+export const addDealPackageSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({ packageId: z.string().min(1, "Package ID is required") }),
+});
+
+export const removeDealPackageSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+    packageId: z.string().min(1),
+  }),
+});

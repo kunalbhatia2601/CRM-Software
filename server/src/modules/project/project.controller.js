@@ -140,6 +140,16 @@ class ProjectController {
     await projectService.removeServiceFromProject(req.params.id, req.params.serviceId);
     return ok(res, "Service removed from project");
   });
+
+  addPackage = catchAsync(async (req, res) => {
+    const result = await projectService.addPackageToProject(req.params.id, req.body.packageId);
+    return ok(res, "Package added to project", result);
+  });
+
+  removePackage = catchAsync(async (req, res) => {
+    await projectService.removePackageFromProject(req.params.id, req.params.packageId);
+    return ok(res, "Package removed from project");
+  });
 }
 
 export default new ProjectController();

@@ -1,6 +1,7 @@
 import prisma from "../../utils/prisma.js";
 import { ApiError } from "../../utils/apiError.js";
 import { costOfTask } from "../expense/expense.service.js";
+import packageService from "../package/package.service.js";
 
 /**
  * Compute the next billing date from a reference date + billing cycle.
@@ -46,6 +47,7 @@ const PROJECT_INCLUDE = {
       service: {
         select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
       },
+      package: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -592,6 +594,52 @@ class ProjectService {
     await prisma.projectService.delete({
       where: { projectId_serviceId: { projectId, serviceId } },
     });
+  }
+
+  /**
+   * Add every service in a package to a project in one action — see
+   * DealService.addPackageToDeal for the reasoning; this mirrors it.
+   */
+  async addPackageToProject(projectId, packageId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    const { package: pkg, services } = await packageService.expandPackage(packageId);
+
+    const results = await prisma.$transaction(
+      services.map((item) =>
+        prisma.projectService.upsert({
+          where: { projectId_serviceId: { projectId, serviceId: item.serviceId } },
+          create: {
+            projectId,
+            serviceId: item.serviceId,
+            quantity: item.quantity,
+            price: item.price,
+            originalPrice: item.price,
+            packageId,
+          },
+          update: {
+            quantity: item.quantity,
+            price: item.price,
+            packageId,
+          },
+          include: {
+            service: { select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true } },
+            package: { select: { id: true, name: true } },
+          },
+        })
+      )
+    );
+
+    return { package: pkg, projectServices: results };
+  }
+
+  /** Remove every service that came from one package, as a group. */
+  async removePackageFromProject(projectId, packageId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound("Project not found");
+
+    await prisma.projectService.deleteMany({ where: { projectId, packageId } });
   }
 }
 

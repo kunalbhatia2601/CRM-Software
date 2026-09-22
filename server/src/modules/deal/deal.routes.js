@@ -11,6 +11,8 @@ import {
   getDealSchema,
   addDealServicesSchema,
   removeDealServiceSchema,
+  addDealPackageSchema,
+  removeDealPackageSchema,
 } from "./deal.validation.js";
 
 const router = Router();
@@ -29,5 +31,9 @@ router.delete("/:id", authorize("OWNER"), validate(getDealSchema), dealControlle
 // Deal services
 router.post("/:id/services", dealAccess, validate(addDealServicesSchema), dealController.addServicesToDeal);
 router.delete("/:id/services/:serviceId", dealAccess, validate(removeDealServiceSchema), dealController.removeServiceFromDeal);
+
+// Deal packages — expand a named bundle into deal services in one call
+router.post("/:id/packages", dealAccess, validate(addDealPackageSchema), dealController.addPackageToDeal);
+router.delete("/:id/packages/:packageId", dealAccess, validate(removeDealPackageSchema), dealController.removePackageFromDeal);
 
 export default router;

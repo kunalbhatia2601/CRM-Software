@@ -293,6 +293,21 @@ export async function removeProjectServiceAPI(projectId, serviceId, accessToken)
   });
 }
 
+export async function addProjectPackageAPI(projectId, packageId, accessToken) {
+  return request(`/api/projects/${projectId}/packages`, {
+    method: "POST",
+    body: JSON.stringify({ packageId }),
+    token: accessToken,
+  });
+}
+
+export async function removeProjectPackageAPI(projectId, packageId, accessToken) {
+  return request(`/api/projects/${projectId}/packages/${packageId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
 /* ───────── User Endpoints ───────── */
 
 export async function getUsersAPI(params, accessToken) {
@@ -429,6 +444,21 @@ export async function removeDealServiceAPI(dealId, serviceId, accessToken) {
   });
 }
 
+export async function addDealPackageAPI(dealId, packageId, accessToken) {
+  return request(`/api/deals/${dealId}/packages`, {
+    method: "POST",
+    body: JSON.stringify({ packageId }),
+    token: accessToken,
+  });
+}
+
+export async function removeDealPackageAPI(dealId, packageId, accessToken) {
+  return request(`/api/deals/${dealId}/packages/${packageId}`, {
+    method: "DELETE",
+    token: accessToken,
+  });
+}
+
 /* ───────── Email Template Endpoints ───────── */
 
 export async function getEmailTemplatesAPI(accessToken) {
@@ -480,6 +510,41 @@ export async function deleteServiceAPI(id, accessToken) {
 
 export async function getServicesDropdownAPI(accessToken) {
   return request("/api/services/dropdown", { method: "GET", token: accessToken });
+}
+
+/* ───────── Service Packages ───────── */
+
+export async function getPackagesAPI(params, accessToken) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/packages?${query}`, { method: "GET", token: accessToken });
+}
+
+export async function getPackageAPI(id, accessToken) {
+  return request(`/api/packages/${id}`, { method: "GET", token: accessToken });
+}
+
+export async function createPackageAPI(data, accessToken) {
+  return request("/api/packages", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function updatePackageAPI(id, data, accessToken) {
+  return request(`/api/packages/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token: accessToken,
+  });
+}
+
+export async function deletePackageAPI(id, accessToken) {
+  return request(`/api/packages/${id}`, { method: "DELETE", token: accessToken });
+}
+
+export async function getPackagesDropdownAPI(accessToken) {
+  return request("/api/packages/dropdown", { method: "GET", token: accessToken });
 }
 
 /* ───────── Storage ───────── */

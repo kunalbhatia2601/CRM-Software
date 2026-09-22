@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/apiError.js";
 import config from "../../config/index.js";
 import sampleService from "../sample/sample.service.js";
 import notificationService from "../notification/notification.service.js";
+import packageService from "../package/package.service.js";
 
 // Default password given to a client's portal login when it is auto-created
 // during deal → project conversion. The client should change it after first login.
@@ -38,6 +39,7 @@ const DEAL_INCLUDE = {
       service: {
         select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true },
       },
+      package: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -474,6 +476,61 @@ class DealService {
     await prisma.dealService.delete({
       where: { dealId_serviceId: { dealId, serviceId } },
     });
+  }
+
+  /**
+   * Add every service in a package to a deal in one action. Reuses
+   * addServicesToDeal's own upsert loop, so each resulting DealService row is
+   * exactly as editable afterward as one added by hand — the package is only
+   * how it got there, tracked via packageId for the grouped view.
+   */
+  async addPackageToDeal(dealId, packageId) {
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) throw ApiError.notFound("Deal not found");
+    if (deal.stage === "WON") {
+      throw ApiError.badRequest("Cannot modify services on a won deal");
+    }
+
+    const { package: pkg, services } = await packageService.expandPackage(packageId);
+
+    const results = await prisma.$transaction(
+      services.map((item) =>
+        prisma.dealService.upsert({
+          where: { dealId_serviceId: { dealId, serviceId: item.serviceId } },
+          create: {
+            dealId,
+            serviceId: item.serviceId,
+            quantity: item.quantity,
+            price: item.price,
+            originalPrice: item.price,
+            packageId,
+          },
+          update: {
+            quantity: item.quantity,
+            price: item.price,
+            originalPrice: item.price,
+            packageId,
+          },
+          include: {
+            service: { select: { id: true, name: true, price: true, salePrice: true, points: true, isActive: true } },
+            package: { select: { id: true, name: true } },
+          },
+        })
+      )
+    );
+
+    return { package: pkg, dealServices: results };
+  }
+
+  /** Remove every service that came from one package, as a group. */
+  async removePackageFromDeal(dealId, packageId) {
+    const deal = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!deal) throw ApiError.notFound("Deal not found");
+    if (deal.stage === "WON") {
+      throw ApiError.badRequest("Cannot modify services on a won deal");
+    }
+
+    await prisma.dealService.deleteMany({ where: { dealId, packageId } });
   }
 
   /**
