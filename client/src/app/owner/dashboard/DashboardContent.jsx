@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import ExpenseTiles from "@/components/expenses/ExpenseTiles";
+import FinancePnlSection from "@/components/dashboard/FinancePnlSection";
 
 /* ─── Period Options ─── */
 const PERIODS = [
@@ -694,6 +695,8 @@ export default function DashboardContent({ stats: initialStats }) {
           )}
         </div>
       </div>
+      <FinancePnlSection />
+
       <ExpenseTiles basePath="/owner" />
 
     </div>
