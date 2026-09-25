@@ -11,6 +11,7 @@ import {
   addProjectServicesSchema,
   updateProjectServiceSchema,
   projectServiceParamSchema,
+  reorderProjectServicesSchema,
   addProjectPackageSchema,
   removeProjectPackageSchema,
 } from "./project.validation.js";
@@ -49,6 +50,8 @@ router.delete("/:id", authorize("OWNER"), validate(getProjectSchema), projectCon
 const manageServices = authorize("OWNER", "ADMIN", "ACCOUNT_MANAGER", "SALES_MANAGER");
 
 router.post("/:id/services", manageServices, validate(addProjectServicesSchema), projectController.addServices);
+// Declared before the :serviceId routes below so "reorder" is never swallowed as an id.
+router.patch("/:id/services/reorder", manageServices, validate(reorderProjectServicesSchema), projectController.reorderServices);
 router.patch("/:id/services/:serviceId", manageServices, validate(updateProjectServiceSchema), projectController.updateService);
 router.delete("/:id/services/:serviceId", manageServices, validate(projectServiceParamSchema), projectController.removeService);
 

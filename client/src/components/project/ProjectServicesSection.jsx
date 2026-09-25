@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  PackageCheck, Boxes, CheckCircle2, Plus, Pencil, Trash2, Loader2, X, Check,
+  PackageCheck, Boxes, CheckCircle2, Plus, Pencil, Trash2, Loader2, X, Check, GripVertical,
 } from "lucide-react";
 import Toast from "@/components/ui/Toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -11,9 +11,18 @@ import { useSite } from "@/context/SiteContext";
 import { getServicesDropdown } from "@/actions/services.action";
 import { getPackagesDropdown } from "@/actions/packages.action";
 import {
-  addProjectServices, updateProjectService, removeProjectService,
+  addProjectServices, updateProjectService, removeProjectService, reorderProjectServices,
   addPackageToProject, removePackageFromProject,
 } from "@/actions/projects.action";
+
+/** Move one entry of an array to a new index. */
+function reorder(list, from, to) {
+  if (from === to) return list;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
 
 /**
  * Services attached to a project, with full CRUD for managers.
@@ -51,6 +60,10 @@ export default function ProjectServicesSection({
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({ quantity: 1, price: "" });
   const [removingId, setRemovingId] = useState(null);
+
+  // Drag-reorder
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
 
@@ -149,6 +162,39 @@ export default function ProjectServicesSection({
     } else showToast("error", res.error || "Failed to update");
   };
 
+  /**
+   * Reorders optimistically, then persists — the position is the whole point
+   * of a drag, so a failed save is rolled back rather than left to drift from
+   * what the server actually stored.
+   */
+  const moveTo = async (from, to) => {
+    if (from === null || from === to) return;
+    const previous = services;
+    const next = reorder(services, from, to);
+    setServices(next);
+
+    const res = await reorderProjectServices(projectId, next.map((ps) => ps.id));
+    if (!res.success) {
+      setServices(previous);
+      showToast("error", res.error || "Failed to save the new order");
+    }
+  };
+
+  const handleDrop = (targetIdx) => {
+    const from = dragIndex;
+    setDragIndex(null);
+    setOverIndex(null);
+    moveTo(from, targetIdx);
+  };
+
+  /** Keyboard equivalent of a drag, so the grip is not mouse-only. */
+  const handleGripKey = (e, idx) => {
+    const to = e.key === "ArrowUp" ? idx - 1 : e.key === "ArrowDown" ? idx + 1 : null;
+    if (to === null || to < 0 || to >= services.length) return;
+    e.preventDefault();
+    moveTo(idx, to);
+  };
+
   const handleRemove = async () => {
     const ps = services.find((p) => p.id === removingId);
     if (!ps) return;
@@ -193,9 +239,40 @@ export default function ProjectServicesSection({
   const renderServiceRow = (ps) => {
     const priceChanged = ps.originalPrice && Number(ps.price) !== Number(ps.originalPrice);
     const isEditing = editingId === ps.id;
+    // Global index in the flat `services` array — drag order is stored as one
+    // sequence across the whole card, groups are only a display grouping.
+    const idx = services.findIndex((s) => s.id === ps.id);
     return (
-      <div key={ps.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+      <div
+        key={ps.id}
+        onDragOver={canManage ? (e) => { e.preventDefault(); setOverIndex(idx); } : undefined}
+        onDrop={canManage ? () => handleDrop(idx) : undefined}
+        className={`flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border transition-colors ${
+          dragIndex === idx ? "opacity-40" : "border-slate-100 dark:border-slate-800"
+        } ${
+          overIndex === idx && dragIndex !== null && dragIndex !== idx
+            ? "ring-2 ring-[#5542F6]/40 ring-offset-2 ring-offset-white dark:ring-offset-slate-950"
+            : ""
+        }`}
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {canManage && (
+            <button
+              draggable
+              onDragStart={(e) => {
+                setDragIndex(idx);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(idx));
+              }}
+              onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+              onKeyDown={(e) => handleGripKey(e, idx)}
+              title="Drag to reorder, or use the arrow keys"
+              aria-label={`Reorder ${ps.service?.name || "service"}`}
+              className="p-1 rounded text-slate-300 hover:text-slate-500 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0 focus:outline-none focus:ring-2 focus:ring-[#5542F6]/40"
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+          )}
           <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
             {ps.service?.name?.[0]?.toUpperCase() || "S"}
           </div>
@@ -416,6 +493,9 @@ export default function ProjectServicesSection({
         <p className="text-sm text-slate-400 italic">No services attached to this project yet.</p>
       ) : (
         <div className="space-y-3">
+          {canManage && services.length > 1 && (
+            <p className="text-xs text-slate-400 -mt-1 mb-1">Drag the grip to reorder — this is the order invoices prefill in.</p>
+          )}
           {serviceGroups.map((group) =>
             group.type === "single" ? (
               renderServiceRow(group.item)

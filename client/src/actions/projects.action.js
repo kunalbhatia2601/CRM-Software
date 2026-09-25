@@ -10,6 +10,7 @@ import {
   addProjectServicesAPI,
   updateProjectServiceAPI,
   removeProjectServiceAPI,
+  reorderProjectServicesAPI,
   addProjectPackageAPI,
   removeProjectPackageAPI,
   getProjectPermissionsAPI,
@@ -160,6 +161,18 @@ export async function removeProjectService(projectId, serviceId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to remove service" };
+  }
+}
+
+export async function reorderProjectServices(projectId, orderedIds) {
+  const token = await getToken();
+  if (!token) return { success: false, error: "Not authenticated" };
+  try {
+    const res = await reorderProjectServicesAPI(projectId, orderedIds, token);
+    if (res.success) return { success: true };
+    return { success: false, error: res.message };
+  } catch (err) {
+    return { success: false, error: err.message || "Failed to reorder services" };
   }
 }
 

@@ -49,7 +49,7 @@ const PROJECT_INCLUDE = {
       },
       package: { select: { id: true, name: true } },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   },
   projectTeams: {
     include: {
@@ -523,6 +523,10 @@ class ProjectService {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw ApiError.notFound("Project not found");
 
+    // New rows land at the end of the manual order; an upsert that only
+    // updates an existing row must never touch its position.
+    let nextPosition = await this.#nextProjectServicePosition(projectId);
+
     const results = [];
     for (const item of services) {
       const service = await prisma.service.findUnique({ where: { id: item.serviceId } });
@@ -541,6 +545,7 @@ class ProjectService {
           quantity: item.quantity || 1,
           price,
           originalPrice,
+          position: nextPosition++,
         },
         update: {
           quantity: item.quantity || 1,
@@ -556,6 +561,36 @@ class ProjectService {
     }
 
     return results;
+  }
+
+  /** One past the highest position currently in use, for appending new rows. */
+  async #nextProjectServicePosition(projectId) {
+    const agg = await prisma.projectService.aggregate({
+      where: { projectId },
+      _max: { position: true },
+    });
+    return (agg._max.position ?? -1) + 1;
+  }
+
+  /**
+   * Persist the drag-reordered service list. Takes the full ordered set of
+   * ProjectService ids — position becomes the row's index in that array.
+   */
+  async reorderProjectServices(projectId, orderedIds) {
+    const existing = await prisma.projectService.findMany({
+      where: { projectId },
+      select: { id: true },
+    });
+    const validIds = new Set(existing.map((r) => r.id));
+    if (orderedIds.length !== existing.length || orderedIds.some((id) => !validIds.has(id))) {
+      throw ApiError.badRequest("The service order does not match this project's current services");
+    }
+
+    await prisma.$transaction(
+      orderedIds.map((id, position) =>
+        prisma.projectService.update({ where: { id }, data: { position } })
+      )
+    );
   }
 
   /**
@@ -605,6 +640,7 @@ class ProjectService {
     if (!project) throw ApiError.notFound("Project not found");
 
     const { package: pkg, services } = await packageService.expandPackage(packageId);
+    let nextPosition = await this.#nextProjectServicePosition(projectId);
 
     const results = await prisma.$transaction(
       services.map((item) =>
@@ -617,6 +653,7 @@ class ProjectService {
             price: item.price,
             originalPrice: item.price,
             packageId,
+            position: nextPosition++,
           },
           update: {
             quantity: item.quantity,

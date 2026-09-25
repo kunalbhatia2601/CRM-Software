@@ -99,6 +99,13 @@ export const projectServiceParamSchema = z.object({
   }),
 });
 
+export const reorderProjectServicesSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    orderedIds: z.array(z.string().min(1)).min(1, "orderedIds is required"),
+  }),
+});
+
 export const addProjectPackageSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({ packageId: z.string().min(1, "Package ID is required") }),

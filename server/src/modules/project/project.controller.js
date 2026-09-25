@@ -141,6 +141,11 @@ class ProjectController {
     return ok(res, "Service removed from project");
   });
 
+  reorderServices = catchAsync(async (req, res) => {
+    await projectService.reorderProjectServices(req.params.id, req.body.orderedIds);
+    return ok(res, "Service order updated");
+  });
+
   addPackage = catchAsync(async (req, res) => {
     const result = await projectService.addPackageToProject(req.params.id, req.body.packageId);
     return ok(res, "Package added to project", result);

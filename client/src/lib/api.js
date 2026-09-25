@@ -293,6 +293,14 @@ export async function removeProjectServiceAPI(projectId, serviceId, accessToken)
   });
 }
 
+export async function reorderProjectServicesAPI(projectId, orderedIds, accessToken) {
+  return request(`/api/projects/${projectId}/services/reorder`, {
+    method: "PATCH",
+    body: JSON.stringify({ orderedIds }),
+    token: accessToken,
+  });
+}
+
 export async function addProjectPackageAPI(projectId, packageId, accessToken) {
   return request(`/api/projects/${projectId}/packages`, {
     method: "POST",
