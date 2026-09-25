@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Pencil, Calendar, DollarSign, Building2, UserCheck, Handshake, FolderKanban, User, Clock, CheckCircle2, AlertCircle, PauseCircle, XCircle, PlayCircle, ExternalLink, ListChecks, RefreshCw, CalendarClock, FileSignature, ShieldCheck, Sparkles, Download, LayoutList, Kanban,
 } from "lucide-react";
@@ -130,9 +131,20 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
   const [project, setProject] = useState(initialProject);
   const { format } = useSite();
   const [toast, setToast] = useState(null);
+  const searchParams = useSearchParams();
+  // Deep-linked from a task list elsewhere — forces the view to wherever the
+  // task actually lives, so the scroll-to in PlanningSection has something to find.
+  const highlightTaskId = searchParams.get("task");
+
   const [planningView, setPlanningView] = useState("list"); // "list" | "kanban"
   // Delivery on one side, the money on the other.
-  const [mainTab, setMainTab] = useState("overview"); // "overview" | "ledger"
+  const [mainTab, setMainTab] = useState("overview") // "overview" | "ledger"
+
+  useEffect(() => {
+    if (!highlightTaskId) return;
+    setMainTab("overview");
+    setPlanningView("list");
+  }, [highlightTaskId]);
   const [tasks, setTasks] = useState(initialTasks);
   const [steps, setSteps] = useState(initialSteps);
   const [milestones, setMilestones] = useState(initialMilestones);
@@ -559,6 +571,7 @@ export default function ProjectDetailContent({ initialProject, initialMeetings =
             initialTasks={tasks}
             assignableUsers={assignableUsers}
             showToast={showToast}
+            highlightTaskId={highlightTaskId}
           />
         ) : (
           <KanbanBoard

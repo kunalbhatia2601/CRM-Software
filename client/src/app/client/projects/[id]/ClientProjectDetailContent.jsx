@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   FolderKanban,
@@ -39,6 +40,14 @@ export default function ClientProjectDetailContent({
   const [project] = useState(initialProject);
   const [tasks, setTasks] = useState(initialTasks);
   const [planningView, setPlanningView] = useState("list");
+  const searchParams = useSearchParams();
+  // Deep-linked from a task list elsewhere — forces list view so the
+  // scroll-to in PlanningSection has something to find.
+  const highlightTaskId = searchParams.get("task");
+
+  useEffect(() => {
+    if (highlightTaskId) setPlanningView("list");
+  }, [highlightTaskId]);
   const [toast, setToast] = useState(null);
 
   const showToast = (type, message) => setToast({ type, message });
@@ -182,6 +191,7 @@ export default function ClientProjectDetailContent({
             initialTasks={tasks}
             assignableUsers={assignableUsers}
             showToast={showToast}
+            highlightTaskId={highlightTaskId}
           />
         ) : (
           <KanbanBoard

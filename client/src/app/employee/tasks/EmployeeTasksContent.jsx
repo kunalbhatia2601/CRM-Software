@@ -288,7 +288,7 @@ export default function EmployeeTasksContent({ initialTasks = [] }) {
                       {task.project && (
                         <Link
                           onClick={(e) => e.stopPropagation()}
-                          href={`/employee/projects/${task.project.id}`}
+                          href={`/employee/projects/${task.project.id}?task=${task.id}`}
                           className="inline-flex items-center gap-1 text-xs text-[#5542F6] hover:underline"
                         >
                           <FolderKanban className="w-3 h-3" /> {task.project.name}

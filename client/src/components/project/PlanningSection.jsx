@@ -58,6 +58,11 @@ export default function PlanningSection({
   // Employees work off their task list — the plan behind it stays internal.
   showMilestones = true,
   showSteps = true,
+  // Deep-linked from a task list elsewhere (?task=<id>) — scrolled to and
+  // outlined once it's on screen. Everything that could otherwise hide it
+  // (a different cycle, "my tasks only", completed filtered out, the
+  // accordion collapsed) is forced open for this one load.
+  highlightTaskId = null,
 }) {
   const { user: currentUser } = useAuth();
 
@@ -91,6 +96,16 @@ export default function PlanningSection({
   const [showCompletedMilestones, setShowCompletedMilestones] = useState(false);
   const [showCompletedSteps, setShowCompletedSteps] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+
+  // A deep-linked task must not be hidden by "my tasks only" or "completed
+  // hidden" — whoever it's assigned to and whatever its status, this view
+  // exists to show that one task.
+  useEffect(() => {
+    if (!highlightTaskId) return;
+    setShowAllTasks(true);
+    setShowCompletedTasks(true);
+    setExpandedSections((prev) => ({ ...prev, tasks: true }));
+  }, [highlightTaskId]);
 
   // Delivery periods. The board opens on the current one so a retainer project
   // does not show months of finished work; older periods stay one click away.
@@ -134,6 +149,13 @@ export default function PlanningSection({
       const payload = listRes.success ? listRes.data : {};
       setCycles(payload.cycles || []);
       setCanStartNext(!!payload.canStartNext);
+
+      // A deep-linked task could belong to any period — load everything
+      // rather than guessing which cycle it's in.
+      if (highlightTaskId) {
+        await loadCycle("all");
+        return;
+      }
 
       // Open on the period covering today when one exists. A project with no
       // period for this month — dormant, or never split into months — shows
@@ -236,6 +258,20 @@ export default function PlanningSection({
   const completedMilestoneCount = milestones.filter((m) => m.status === "COMPLETED").length;
   const completedStepCount = steps.filter((s) => s.status === "COMPLETED").length;
   const completedTaskCount = scopedTasks.filter((t) => t.status === "COMPLETED").length;
+
+  // Scroll to the deep-linked task once it's actually in the list — after the
+  // cycle/filter overrides above have run and the row exists in the DOM. Retried
+  // with a short timeout because the accordion's expand and this scroll can
+  // land in the same render pass, before layout has settled.
+  useEffect(() => {
+    if (!highlightTaskId) return;
+    if (!visibleTasks.some((t) => t.id === highlightTaskId)) return;
+
+    const timer = setTimeout(() => {
+      document.getElementById(`task-${highlightTaskId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [highlightTaskId, visibleTasks]);
 
   /**
    * Build create-modal data from an existing record.
@@ -633,8 +669,17 @@ export default function PlanningSection({
     const references = Array.isArray(task.references) ? task.references : [];
     const linkedMeetings = (task.meetingTasks || []).map((mt) => mt.meeting).filter(Boolean);
 
+    const isHighlighted = highlightTaskId === task.id;
+
     return (
-      <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 mb-3">
+      <div
+        id={`task-${task.id}`}
+        className={`rounded-xl bg-slate-50 dark:bg-slate-900 border p-4 mb-3 transition-colors ${
+          isHighlighted
+            ? "border-[#5542F6] ring-2 ring-[#5542F6]/40"
+            : "border-slate-100 dark:border-slate-800"
+        }`}
+      >
         {/* Parent task breadcrumb */}
         {task.parentTask && (
           <div className="flex items-center gap-1.5 mb-2 text-[11px] text-slate-400">
