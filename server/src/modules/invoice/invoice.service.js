@@ -76,9 +76,15 @@ function round2(n) {
 }
 
 /**
- * Compute money totals from raw line items + discount + tax.
+ * Compute money totals from raw line items + discount + GST split + any
+ * balance carried forward from a previous invoice.
+ *
+ * GST is three independent rates (CGST/SGST/IGST), each applied to the same
+ * taxable base — never compounded on each other. previousDueAmount is added
+ * on top of the taxed amount untaxed, matching how a carried-forward balance
+ * is not itself subject to tax again.
  */
-function computeTotals(items, discountAmount = 0, taxPercent = 0) {
+function computeTotals(items, discountAmount = 0, gst = {}, previousDueAmount = 0) {
   const lineItems = items.map((it, idx) => {
     const quantity = round2(it.quantity ?? 1);
     const unitPrice = round2(it.unitPrice ?? 0);
@@ -96,11 +102,26 @@ function computeTotals(items, discountAmount = 0, taxPercent = 0) {
   const subtotal = round2(lineItems.reduce((sum, it) => sum + it.amount, 0));
   const discount = round2(discountAmount);
   const taxableBase = Math.max(0, subtotal - discount);
-  const taxPct = round2(taxPercent);
-  const taxAmount = round2((taxableBase * taxPct) / 100);
-  const total = round2(taxableBase + taxAmount);
 
-  return { lineItems, subtotal, discount, taxPct, taxAmount, total };
+  const cgstPct = round2(gst.cgstPercent || 0);
+  const sgstPct = round2(gst.sgstPercent || 0);
+  const igstPct = round2(gst.igstPercent || 0);
+  const cgstAmount = round2((taxableBase * cgstPct) / 100);
+  const sgstAmount = round2((taxableBase * sgstPct) / 100);
+  const igstAmount = round2((taxableBase * igstPct) / 100);
+  const taxPct = round2(cgstPct + sgstPct + igstPct);
+  const taxAmount = round2(cgstAmount + sgstAmount + igstAmount);
+
+  // The taxed invoice amount, before any carried-forward balance is added.
+  const invoiceAmount = round2(taxableBase + taxAmount);
+  const prevDue = round2(previousDueAmount || 0);
+  const total = round2(invoiceAmount + prevDue);
+
+  return {
+    lineItems, subtotal, discount,
+    cgstPct, sgstPct, igstPct, cgstAmount, sgstAmount, igstAmount,
+    taxPct, taxAmount, invoiceAmount, prevDue, total,
+  };
 }
 
 
@@ -156,7 +177,11 @@ function itemsTable(invoice) {
         </tr>`;
 
   const discount = Number(invoice.discountAmount) || 0;
-  const taxPct = Number(invoice.taxPercent) || 0;
+  const cgstPct = Number(invoice.cgstPercent) || 0;
+  const sgstPct = Number(invoice.sgstPercent) || 0;
+  const igstPct = Number(invoice.igstPercent) || 0;
+  const prevDue = Number(invoice.previousDueAmount) || 0;
+  const invoiceAmount = Number(invoice.subtotal) - discount + Number(invoice.taxAmount);
 
   return `
       <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
@@ -172,8 +197,12 @@ function itemsTable(invoice) {
           ${rows}
           ${totalRow("Subtotal", money(invoice.subtotal, cur))}
           ${discount > 0 ? totalRow("Discount", `− ${money(discount, cur)}`) : ""}
-          ${taxPct > 0 ? totalRow(`Tax (${taxPct}%)`, money(invoice.taxAmount, cur)) : ""}
-          ${totalRow("Total", money(invoice.total, cur), true)}
+          ${cgstPct > 0 ? totalRow(`CGST (${cgstPct}%)`, money(invoice.cgstAmount, cur)) : ""}
+          ${sgstPct > 0 ? totalRow(`SGST (${sgstPct}%)`, money(invoice.sgstAmount, cur)) : ""}
+          ${igstPct > 0 ? totalRow(`IGST (${igstPct}%)`, money(invoice.igstAmount, cur)) : ""}
+          ${prevDue > 0 ? totalRow("Invoice Amount", money(invoiceAmount, cur), true) : ""}
+          ${prevDue > 0 ? totalRow("Previous Due", money(prevDue, cur)) : ""}
+          ${totalRow(prevDue > 0 ? "Grand Total" : "Total", money(invoice.total, cur), true)}
         </tbody>
       </table>`;
 }
@@ -374,6 +403,34 @@ class InvoiceService {
     return { sent: true, to: recipient, cc: cc || null, bcc: blindCopy };
   }
 
+  /**
+   * The balance to carry forward onto a new invoice for this project — the
+   * outstanding amount (total - amountPaid) on the single most recent
+   * non-cancelled invoice. Only the latest one: each invoice's total already
+   * embeds whatever it itself carried forward, so summing every past invoice
+   * would double-count debt that has already been rolled forward once.
+   */
+  async #suggestPreviousDue(projectId, excludeInvoiceId = null) {
+    const latest = await prisma.invoice.findFirst({
+      where: {
+        projectId,
+        status: { not: "CANCELLED" },
+        ...(excludeInvoiceId ? { id: { not: excludeInvoiceId } } : {}),
+      },
+      orderBy: { issueDate: "desc" },
+      select: { total: true, amountPaid: true },
+    });
+    if (!latest) return 0;
+    return round2(Math.max(0, Number(latest.total) - Number(latest.amountPaid)));
+  }
+
+  /** Read-only: what a new invoice on this project would suggest as previous due. */
+  async getPreviousDueSuggestion(projectId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+    if (!project) throw ApiError.notFound("Project not found");
+    return { previousDueAmount: await this.#suggestPreviousDue(projectId) };
+  }
+
   async createInvoice(data, createdById) {
     const project = await prisma.project.findUnique({
       where: { id: data.projectId },
@@ -381,10 +438,22 @@ class InvoiceService {
     });
     if (!project) throw ApiError.notFound("Project not found");
 
-    const { lineItems, subtotal, discount, taxPct, taxAmount, total } = computeTotals(
+    // Explicit 0 means "no carried balance, on purpose" — only a fully
+    // omitted field falls back to the auto-suggestion.
+    const previousDueAmount =
+      data.previousDueAmount !== undefined
+        ? data.previousDueAmount
+        : await this.#suggestPreviousDue(data.projectId);
+
+    const {
+      lineItems, subtotal, discount,
+      cgstPct, sgstPct, igstPct, cgstAmount, sgstAmount, igstAmount,
+      taxPct, taxAmount, prevDue, total,
+    } = computeTotals(
       data.items,
       data.discountAmount,
-      data.taxPercent
+      { cgstPercent: data.cgstPercent, sgstPercent: data.sgstPercent, igstPercent: data.igstPercent },
+      previousDueAmount
     );
 
     // The account has to be resolved first — it decides which number series
@@ -404,8 +473,13 @@ class InvoiceService {
         billToAddress: data.billToAddress ?? project.client?.address ?? null,
         subtotal,
         discountAmount: discount,
+        cgstPercent: cgstPct,
+        sgstPercent: sgstPct,
+        igstPercent: igstPct,
+        cgstAmount, sgstAmount, igstAmount,
         taxPercent: taxPct,
         taxAmount,
+        previousDueAmount: prevDue,
         total,
         amountPaid: 0,
         issueDate: data.issueDate ? new Date(data.issueDate) : new Date(),
@@ -550,7 +624,9 @@ class InvoiceService {
     // A paid or cancelled invoice is locked — block content edits.
     // (A pure amountPaid update, e.g. reconciliation, is still allowed.)
     const isContentEdit =
-      data.items !== undefined || data.discountAmount !== undefined || data.taxPercent !== undefined ||
+      data.items !== undefined || data.discountAmount !== undefined ||
+      data.cgstPercent !== undefined || data.sgstPercent !== undefined || data.igstPercent !== undefined ||
+      data.previousDueAmount !== undefined ||
       data.billToName !== undefined || data.billToEmail !== undefined || data.billToAddress !== undefined ||
       data.notes !== undefined || data.terms !== undefined || data.issueDate !== undefined ||
       data.dueDate !== undefined || data.currency !== undefined;
@@ -577,35 +653,66 @@ class InvoiceService {
     }
     if (data.terms !== undefined) updateData.terms = data.terms;
 
-    // If line items / discount / tax change → recompute totals + replace items
+    // If line items / discount / tax / carried-due change → recompute totals.
+    // previousDueAmount is never re-suggested on an edit — only createInvoice
+    // auto-computes it; here it just carries forward whatever was there.
     const discountAmount = data.discountAmount !== undefined ? data.discountAmount : Number(existing.discountAmount);
-    const taxPercent = data.taxPercent !== undefined ? data.taxPercent : Number(existing.taxPercent);
+    const gst = {
+      cgstPercent: data.cgstPercent !== undefined ? data.cgstPercent : Number(existing.cgstPercent),
+      sgstPercent: data.sgstPercent !== undefined ? data.sgstPercent : Number(existing.sgstPercent),
+      igstPercent: data.igstPercent !== undefined ? data.igstPercent : Number(existing.igstPercent),
+    };
+    const previousDueAmount =
+      data.previousDueAmount !== undefined ? data.previousDueAmount : Number(existing.previousDueAmount);
+
+    const recomputeTriggers =
+      data.discountAmount !== undefined || data.cgstPercent !== undefined ||
+      data.sgstPercent !== undefined || data.igstPercent !== undefined || data.previousDueAmount !== undefined;
 
     if (data.items !== undefined) {
-      const { lineItems, subtotal, discount, taxPct, taxAmount, total } = computeTotals(
-        data.items,
-        discountAmount,
-        taxPercent
-      );
+      const {
+        lineItems, subtotal, discount,
+        cgstPct, sgstPct, igstPct, cgstAmount, sgstAmount, igstAmount,
+        taxPct, taxAmount, prevDue, total,
+      } = computeTotals(data.items, discountAmount, gst, previousDueAmount);
       updateData.subtotal = subtotal;
       updateData.discountAmount = discount;
+      updateData.cgstPercent = cgstPct;
+      updateData.sgstPercent = sgstPct;
+      updateData.igstPercent = igstPct;
+      updateData.cgstAmount = cgstAmount;
+      updateData.sgstAmount = sgstAmount;
+      updateData.igstAmount = igstAmount;
       updateData.taxPercent = taxPct;
       updateData.taxAmount = taxAmount;
+      updateData.previousDueAmount = prevDue;
       updateData.total = total;
       // Replace items atomically
       updateData.items = { deleteMany: {}, create: lineItems };
-    } else if (data.discountAmount !== undefined || data.taxPercent !== undefined) {
+    } else if (recomputeTriggers) {
       // Recompute money from existing items
       const items = await prisma.invoiceItem.findMany({ where: { invoiceId: id }, orderBy: { position: "asc" } });
-      const { subtotal, discount, taxPct, taxAmount, total } = computeTotals(
+      const {
+        subtotal, discount,
+        cgstPct, sgstPct, igstPct, cgstAmount, sgstAmount, igstAmount,
+        taxPct, taxAmount, prevDue, total,
+      } = computeTotals(
         items.map((i) => ({ name: i.name, description: i.description, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) })),
         discountAmount,
-        taxPercent
+        gst,
+        previousDueAmount
       );
       updateData.subtotal = subtotal;
       updateData.discountAmount = discount;
+      updateData.cgstPercent = cgstPct;
+      updateData.sgstPercent = sgstPct;
+      updateData.igstPercent = igstPct;
+      updateData.cgstAmount = cgstAmount;
+      updateData.sgstAmount = sgstAmount;
+      updateData.igstAmount = igstAmount;
       updateData.taxPercent = taxPct;
       updateData.taxAmount = taxAmount;
+      updateData.previousDueAmount = prevDue;
       updateData.total = total;
     }
 

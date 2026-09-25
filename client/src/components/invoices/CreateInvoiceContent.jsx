@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Toast from "@/components/ui/Toast";
 import { useSite } from "@/context/SiteContext";
 import { getProject } from "@/actions/projects.action";
-import { createInvoice, getInvoiceConfig } from "@/actions/invoices.action";
+import { createInvoice, getInvoiceConfig, getPreviousDueSuggestion } from "@/actions/invoices.action";
 import { getPaymentAccounts } from "@/actions/paymentAccounts.action";
 import InvoiceLineItems, { blankItem } from "./InvoiceLineItems";
 import InvoiceTotals from "./InvoiceTotals";
@@ -29,7 +29,11 @@ export default function CreateInvoiceContent({ basePath }) {
 
   const [items, setItems] = useState([]);
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [taxPercent, setTaxPercent] = useState(0);
+  const [cgstPercent, setCgstPercent] = useState(0);
+  const [sgstPercent, setSgstPercent] = useState(0);
+  const [igstPercent, setIgstPercent] = useState(0);
+  // Suggested from the project's last invoice once it loads; always editable.
+  const [previousDueAmount, setPreviousDueAmount] = useState(0);
   const [billTo, setBillTo] = useState({ name: "", email: "", address: "" });
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState("");
@@ -57,7 +61,12 @@ export default function CreateInvoiceContent({ basePath }) {
       return;
     }
     (async () => {
-      const [res, cfg] = await Promise.all([getProject(projectId), getInvoiceConfig()]);
+      const [res, cfg, dueRes] = await Promise.all([
+        getProject(projectId),
+        getInvoiceConfig(),
+        getPreviousDueSuggestion(projectId),
+      ]);
+      if (dueRes.success) setPreviousDueAmount(dueRes.data.previousDueAmount || 0);
       if (res.success) {
         const p = res.data;
         setProject(p);
@@ -79,7 +88,9 @@ export default function CreateInvoiceContent({ basePath }) {
       }
       // Prefill invoice defaults from settings
       if (cfg.success && cfg.data) {
-        if (cfg.data.invoiceDefaultTaxPercent) setTaxPercent(cfg.data.invoiceDefaultTaxPercent);
+        if (cfg.data.invoiceDefaultCgstPercent) setCgstPercent(cfg.data.invoiceDefaultCgstPercent);
+        if (cfg.data.invoiceDefaultSgstPercent) setSgstPercent(cfg.data.invoiceDefaultSgstPercent);
+        if (cfg.data.invoiceDefaultIgstPercent) setIgstPercent(cfg.data.invoiceDefaultIgstPercent);
         if (cfg.data.invoiceDefaultDiscount) setDiscountAmount(cfg.data.invoiceDefaultDiscount);
         if (cfg.data.invoiceDefaultNotes) setNotes(cfg.data.invoiceDefaultNotes);
         if (cfg.data.invoiceDefaultTerms) setTerms(cfg.data.invoiceDefaultTerms);
@@ -93,10 +104,15 @@ export default function CreateInvoiceContent({ basePath }) {
     const subtotal = round2(items.reduce((s, it) => s + round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
     const disc = round2(discountAmount);
     const taxable = Math.max(0, subtotal - disc);
-    const taxAmt = round2((taxable * round2(taxPercent)) / 100);
-    const total = round2(taxable + taxAmt);
-    return { subtotal, disc, taxable, taxAmt, total };
-  }, [items, discountAmount, taxPercent]);
+    const cgstAmt = round2((taxable * round2(cgstPercent)) / 100);
+    const sgstAmt = round2((taxable * round2(sgstPercent)) / 100);
+    const igstAmt = round2((taxable * round2(igstPercent)) / 100);
+    const taxAmt = round2(cgstAmt + sgstAmt + igstAmt);
+    const invoiceAmount = round2(taxable + taxAmt);
+    const prevDue = round2(previousDueAmount);
+    const total = round2(invoiceAmount + prevDue);
+    return { subtotal, disc, taxable, cgstAmt, sgstAmt, igstAmt, taxAmt, invoiceAmount, prevDue, total };
+  }, [items, discountAmount, cgstPercent, sgstPercent, igstPercent, previousDueAmount]);
 
   const handleSave = (status) => {
     if (!projectId) {
@@ -122,7 +138,10 @@ export default function CreateInvoiceContent({ basePath }) {
           unitPrice: Number(it.unitPrice) || 0,
         })),
         discountAmount: Number(discountAmount) || 0,
-        taxPercent: Number(taxPercent) || 0,
+        cgstPercent: Number(cgstPercent) || 0,
+        sgstPercent: Number(sgstPercent) || 0,
+        igstPercent: Number(igstPercent) || 0,
+        previousDueAmount: Number(previousDueAmount) || 0,
         issueDate,
         dueDate: dueDate || null,
         notes: notes || null,
@@ -253,8 +272,14 @@ export default function CreateInvoiceContent({ basePath }) {
               totals={totals}
               discountAmount={discountAmount}
               onDiscountChange={setDiscountAmount}
-              taxPercent={taxPercent}
-              onTaxChange={setTaxPercent}
+              gst={{ cgstPercent, sgstPercent, igstPercent }}
+              onGstChange={(field, value) => {
+                if (field === "cgstPercent") setCgstPercent(value);
+                else if (field === "sgstPercent") setSgstPercent(value);
+                else setIgstPercent(value);
+              }}
+              previousDueAmount={previousDueAmount}
+              onPreviousDueChange={setPreviousDueAmount}
               format={format}
               symbol={symbol}
               inputClass={inputClass}

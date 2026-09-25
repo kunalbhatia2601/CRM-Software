@@ -386,11 +386,26 @@ export default function InvoiceViewContent({ basePath, invoice: initial, readOnl
               {Number(invoice.discountAmount) > 0 && (
                 <div className="flex justify-between text-slate-600"><span>Discount</span><span>− {format(invoice.discountAmount)}</span></div>
               )}
-              {Number(invoice.taxPercent) > 0 && (
-                <div className="flex justify-between text-slate-600"><span>Tax ({Number(invoice.taxPercent)}%)</span><span>{format(invoice.taxAmount)}</span></div>
+              {Number(invoice.cgstPercent) > 0 && (
+                <div className="flex justify-between text-slate-600"><span>CGST ({Number(invoice.cgstPercent)}%)</span><span>{format(invoice.cgstAmount)}</span></div>
+              )}
+              {Number(invoice.sgstPercent) > 0 && (
+                <div className="flex justify-between text-slate-600"><span>SGST ({Number(invoice.sgstPercent)}%)</span><span>{format(invoice.sgstAmount)}</span></div>
+              )}
+              {Number(invoice.igstPercent) > 0 && (
+                <div className="flex justify-between text-slate-600"><span>IGST ({Number(invoice.igstPercent)}%)</span><span>{format(invoice.igstAmount)}</span></div>
+              )}
+              {Number(invoice.previousDueAmount) > 0 && (
+                <>
+                  <div className="flex justify-between font-semibold text-slate-700 border-t border-slate-100 pt-2">
+                    <span>Invoice Amount</span>
+                    <span>{format(Number(invoice.subtotal) - Number(invoice.discountAmount) + Number(invoice.taxAmount))}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600"><span>Previous Due</span><span>{format(invoice.previousDueAmount)}</span></div>
+                </>
               )}
               <div className="flex justify-between border-t-2 border-slate-200 pt-2 font-bold text-slate-900 text-base">
-                <span>Total</span><span>{format(invoice.total)}</span>
+                <span>{Number(invoice.previousDueAmount) > 0 ? "Grand Total" : "Total"}</span><span>{format(invoice.total)}</span>
               </div>
               {Number(invoice.amountPaid) > 0 && (
                 <>

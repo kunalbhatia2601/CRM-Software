@@ -35,7 +35,10 @@ export default function EditInvoiceContent({ basePath, invoice }) {
     }))
   );
   const [discountAmount, setDiscountAmount] = useState(Number(invoice.discountAmount) || 0);
-  const [taxPercent, setTaxPercent] = useState(Number(invoice.taxPercent) || 0);
+  const [cgstPercent, setCgstPercent] = useState(Number(invoice.cgstPercent) || 0);
+  const [sgstPercent, setSgstPercent] = useState(Number(invoice.sgstPercent) || 0);
+  const [igstPercent, setIgstPercent] = useState(Number(invoice.igstPercent) || 0);
+  const [previousDueAmount, setPreviousDueAmount] = useState(Number(invoice.previousDueAmount) || 0);
   const [billTo, setBillTo] = useState({
     name: invoice.billToName || "",
     email: invoice.billToEmail || "",
@@ -91,9 +94,14 @@ export default function EditInvoiceContent({ basePath, invoice }) {
     const subtotal = round2(items.reduce((s, it) => s + round2((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)), 0));
     const disc = round2(discountAmount);
     const taxable = Math.max(0, subtotal - disc);
-    const taxAmt = round2((taxable * round2(taxPercent)) / 100);
-    return { subtotal, disc, taxable, taxAmt, total: round2(taxable + taxAmt) };
-  }, [items, discountAmount, taxPercent]);
+    const cgstAmt = round2((taxable * round2(cgstPercent)) / 100);
+    const sgstAmt = round2((taxable * round2(sgstPercent)) / 100);
+    const igstAmt = round2((taxable * round2(igstPercent)) / 100);
+    const taxAmt = round2(cgstAmt + sgstAmt + igstAmt);
+    const invoiceAmount = round2(taxable + taxAmt);
+    const prevDue = round2(previousDueAmount);
+    return { subtotal, disc, taxable, cgstAmt, sgstAmt, igstAmt, taxAmt, invoiceAmount, prevDue, total: round2(invoiceAmount + prevDue) };
+  }, [items, discountAmount, cgstPercent, sgstPercent, igstPercent, previousDueAmount]);
 
   const handleSave = () => {
     const validItems = items.filter((it) => it.name?.trim());
@@ -114,7 +122,10 @@ export default function EditInvoiceContent({ basePath, invoice }) {
           unitPrice: Number(it.unitPrice) || 0,
         })),
         discountAmount: Number(discountAmount) || 0,
-        taxPercent: Number(taxPercent) || 0,
+        cgstPercent: Number(cgstPercent) || 0,
+        sgstPercent: Number(sgstPercent) || 0,
+        igstPercent: Number(igstPercent) || 0,
+        previousDueAmount: Number(previousDueAmount) || 0,
         issueDate,
         dueDate: dueDate || null,
         notes: notes || null,
@@ -247,8 +258,14 @@ export default function EditInvoiceContent({ basePath, invoice }) {
               totals={totals}
               discountAmount={discountAmount}
               onDiscountChange={setDiscountAmount}
-              taxPercent={taxPercent}
-              onTaxChange={setTaxPercent}
+              gst={{ cgstPercent, sgstPercent, igstPercent }}
+              onGstChange={(field, value) => {
+                if (field === "cgstPercent") setCgstPercent(value);
+                else if (field === "sgstPercent") setSgstPercent(value);
+                else setIgstPercent(value);
+              }}
+              previousDueAmount={previousDueAmount}
+              onPreviousDueChange={setPreviousDueAmount}
               format={format}
               symbol={symbol}
               inputClass={inputClass}

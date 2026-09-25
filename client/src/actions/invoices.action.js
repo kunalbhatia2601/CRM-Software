@@ -4,6 +4,7 @@ import {
   getInvoicesAPI,
   getInvoiceAPI,
   getInvoicesByProjectAPI,
+  getPreviousDueSuggestionAPI,
   getMyInvoicesAPI,
   createInvoiceAPI,
   updateInvoiceAPI,
@@ -49,6 +50,18 @@ export async function getInvoicesByProject(projectId) {
     return { success: false, error: res.message };
   } catch (err) {
     return { success: false, error: err.message || "Failed to fetch project invoices" };
+  }
+}
+
+export async function getPreviousDueSuggestion(projectId) {
+  const token = await getToken();
+  if (!token) return { success: false, data: { previousDueAmount: 0 } };
+  try {
+    const res = await getPreviousDueSuggestionAPI(projectId, token);
+    if (res.success) return { success: true, data: res.data };
+    return { success: false, data: { previousDueAmount: 0 } };
+  } catch {
+    return { success: false, data: { previousDueAmount: 0 } };
   }
 }
 

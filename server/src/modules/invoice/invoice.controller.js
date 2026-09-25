@@ -27,6 +27,11 @@ const getInvoicesByProject = catchAsync(async (req, res) => {
   return ok(res, "Project invoices retrieved", invoices);
 });
 
+const getPreviousDueSuggestion = catchAsync(async (req, res) => {
+  const result = await invoiceService.getPreviousDueSuggestion(req.params.projectId);
+  return ok(res, "Previous due suggestion retrieved", result);
+});
+
 const updateInvoice = catchAsync(async (req, res) => {
   const invoice = await invoiceService.updateInvoice(req.params.id, req.body);
   return ok(res, "Invoice updated successfully", invoice);
@@ -58,6 +63,7 @@ export default {
   getInvoice,
   listMyInvoices,
   getInvoicesByProject,
+  getPreviousDueSuggestion,
   updateInvoice,
   deleteInvoice,
   addPayment,

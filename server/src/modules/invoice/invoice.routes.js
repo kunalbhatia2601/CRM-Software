@@ -27,6 +27,7 @@ router.get("/", canManage, validate(listInvoicesSchema), controller.listInvoices
 // Client portal — invoices for the logged-in client's own company
 router.get("/my", authorize("CLIENT"), controller.listMyInvoices);
 router.get("/project/:projectId", canRead, controller.getInvoicesByProject);
+router.get("/project/:projectId/previous-due", canManage, controller.getPreviousDueSuggestion);
 router.get("/:id", canRead, validate(getInvoiceSchema), controller.getInvoice);
 router.patch("/:id", canManage, validate(updateInvoiceSchema), controller.updateInvoice);
 router.delete("/:id", canManage, validate(getInvoiceSchema), controller.deleteInvoice);

@@ -16,7 +16,9 @@ export default function InvoicesSettingsTab({ initialData }) {
   const [form, setForm] = useState({
     invoiceBgImage: initialData?.invoiceBgImage || "",
     invoiceBgOpacity: initialData?.invoiceBgOpacity ?? 0.05,
-    invoiceDefaultTaxPercent: initialData?.invoiceDefaultTaxPercent ?? 0,
+    invoiceDefaultCgstPercent: initialData?.invoiceDefaultCgstPercent ?? 0,
+    invoiceDefaultSgstPercent: initialData?.invoiceDefaultSgstPercent ?? 0,
+    invoiceDefaultIgstPercent: initialData?.invoiceDefaultIgstPercent ?? 0,
     invoiceDefaultDiscount: initialData?.invoiceDefaultDiscount ?? 0,
     invoiceDefaultNotes: initialData?.invoiceDefaultNotes || "",
     invoiceDefaultTerms: initialData?.invoiceDefaultTerms || "",
@@ -29,7 +31,9 @@ export default function InvoicesSettingsTab({ initialData }) {
       const payload = {
         invoiceBgImage: form.invoiceBgImage || null,
         invoiceBgOpacity: Number(form.invoiceBgOpacity),
-        invoiceDefaultTaxPercent: Number(form.invoiceDefaultTaxPercent) || 0,
+        invoiceDefaultCgstPercent: Number(form.invoiceDefaultCgstPercent) || 0,
+        invoiceDefaultSgstPercent: Number(form.invoiceDefaultSgstPercent) || 0,
+        invoiceDefaultIgstPercent: Number(form.invoiceDefaultIgstPercent) || 0,
         invoiceDefaultDiscount: Number(form.invoiceDefaultDiscount) || 0,
         invoiceDefaultNotes: form.invoiceDefaultNotes || null,
         invoiceDefaultTerms: form.invoiceDefaultTerms || null,
@@ -130,11 +134,19 @@ export default function InvoicesSettingsTab({ initialData }) {
       </SettingsCard>
 
       {/* Defaults */}
-      <SettingsCard title="Invoice Defaults" description="Pre-filled when creating a new invoice. Can be overridden per invoice.">
+      <SettingsCard title="Invoice Defaults" description="Pre-filled when creating a new invoice. Every rate here can be overridden per invoice.">
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Default Tax %</label>
-            <input type="number" min="0" max="100" step="0.01" className={`${inputClass} mt-1`} value={form.invoiceDefaultTaxPercent} onChange={(e) => update("invoiceDefaultTaxPercent", e.target.value)} />
+            <label className="text-xs font-medium text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Default CGST %</label>
+            <input type="number" min="0" max="100" step="0.01" className={`${inputClass} mt-1`} value={form.invoiceDefaultCgstPercent} onChange={(e) => update("invoiceDefaultCgstPercent", e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Default SGST %</label>
+            <input type="number" min="0" max="100" step="0.01" className={`${inputClass} mt-1`} value={form.invoiceDefaultSgstPercent} onChange={(e) => update("invoiceDefaultSgstPercent", e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Default IGST %</label>
+            <input type="number" min="0" max="100" step="0.01" className={`${inputClass} mt-1`} value={form.invoiceDefaultIgstPercent} onChange={(e) => update("invoiceDefaultIgstPercent", e.target.value)} />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500 flex items-center gap-1"><Receipt className="w-3 h-3" /> Default Discount (amount)</label>

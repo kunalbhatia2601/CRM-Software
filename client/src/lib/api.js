@@ -1342,6 +1342,10 @@ export async function getInvoicesByProjectAPI(projectId, accessToken) {
   return request(`/api/invoices/project/${projectId}`, { method: "GET", token: accessToken });
 }
 
+export async function getPreviousDueSuggestionAPI(projectId, accessToken) {
+  return request(`/api/invoices/project/${projectId}/previous-due`, { method: "GET", token: accessToken });
+}
+
 export async function createInvoiceAPI(data, accessToken) {
   return request("/api/invoices", {
     method: "POST",

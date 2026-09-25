@@ -272,7 +272,10 @@ export async function renderInvoicePdf(invoice, opts = {}) {
   }
 
   // ── Totals ───────────────────────────────────────────────
-  const totalsNeeded = 120;
+  // Room for up to: subtotal, discount, after-discount, 3 GST lines, invoice
+  // amount, previous due, total, paid, balance — more rows than the old flat
+  // single-tax layout ever needed.
+  const totalsNeeded = 220;
   if (y + totalsNeeded > bottomLimit) {
     doc.addPage();
     y = PAGE.margin;
@@ -290,17 +293,35 @@ export async function renderInvoicePdf(invoice, opts = {}) {
   totalRow("Subtotal", money(invoice.subtotal, cur));
 
   const discount = Number(invoice.discountAmount) || 0;
+  const afterDiscount = Number(invoice.subtotal) - discount;
   if (discount > 0) {
     totalRow("Discount", `- ${money(discount, cur)}`);
-    totalRow("After discount", money(Number(invoice.subtotal) - discount, cur));
+    totalRow("After discount", money(afterDiscount, cur));
   }
 
-  const taxPct = Number(invoice.taxPercent) || 0;
-  if (taxPct > 0) totalRow(`Tax (${taxPct}%)`, money(invoice.taxAmount, cur));
+  const cgstPct = Number(invoice.cgstPercent) || 0;
+  const sgstPct = Number(invoice.sgstPercent) || 0;
+  const igstPct = Number(invoice.igstPercent) || 0;
+  if (cgstPct > 0) totalRow(`CGST (${cgstPct}%)`, money(invoice.cgstAmount, cur));
+  if (sgstPct > 0) totalRow(`SGST (${sgstPct}%)`, money(invoice.sgstAmount, cur));
+  if (igstPct > 0) totalRow(`IGST (${igstPct}%)`, money(invoice.igstAmount, cur));
+
+  const prevDue = Number(invoice.previousDueAmount) || 0;
+  const invoiceAmount = afterDiscount + Number(invoice.taxAmount);
+
+  // Previous due is only its own line when there is one — otherwise the
+  // "invoice amount" and "grand total" are the same number and showing both
+  // would just be noise.
+  if (prevDue > 0) {
+    doc.moveTo(col.rate - 60, y).lineTo(right, y).lineWidth(1).strokeColor(INK.line).stroke();
+    y += 8;
+    totalRow("Invoice Amount", money(invoiceAmount, cur), true);
+    totalRow("Previous Due", money(prevDue, cur));
+  }
 
   doc.moveTo(col.rate - 60, y).lineTo(right, y).lineWidth(1).strokeColor(INK.line).stroke();
   y += 8;
-  totalRow("Total", money(invoice.total, cur), true);
+  totalRow(prevDue > 0 ? "Grand Total" : "Total", money(invoice.total, cur), true);
 
   const paid = Number(invoice.amountPaid) || 0;
   if (paid > 0) {

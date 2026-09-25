@@ -648,8 +648,26 @@ model Invoice {
   // Money — all snapshot amounts in `currency`
   subtotal      Decimal       @default(0) @db.Decimal(12, 2)
   discountAmount Decimal      @default(0) @map("discount_amount") @db.Decimal(12, 2)
+
+  // GST split. Each rate is independently overrideable per invoice, defaulting
+  // from Settings. taxPercent/taxAmount stay as the combined total of the
+  // three, so anything reading only those two fields (PDF total maths, the
+  // email summary) keeps working unchanged.
+  cgstPercent   Decimal       @default(0) @map("cgst_percent") @db.Decimal(5, 2)
+  sgstPercent   Decimal       @default(0) @map("sgst_percent") @db.Decimal(5, 2)
+  igstPercent   Decimal       @default(0) @map("igst_percent") @db.Decimal(5, 2)
+  cgstAmount    Decimal       @default(0) @map("cgst_amount") @db.Decimal(12, 2)
+  sgstAmount    Decimal       @default(0) @map("sgst_amount") @db.Decimal(12, 2)
+  igstAmount    Decimal       @default(0) @map("igst_amount") @db.Decimal(12, 2)
   taxPercent    Decimal       @default(0) @map("tax_percent") @db.Decimal(5, 2)
   taxAmount     Decimal       @default(0) @map("tax_amount") @db.Decimal(12, 2)
+
+  /// Outstanding balance carried forward from the project's previous invoice
+  /// (its total minus what it had received, at the time THIS invoice was
+  /// created). Not taxed — added straight onto the grand total. Suggested
+  /// automatically when the invoice is created, but always overrideable.
+  previousDueAmount Decimal   @default(0) @map("previous_due_amount") @db.Decimal(12, 2)
+
   total         Decimal       @default(0) @db.Decimal(12, 2)
   amountPaid    Decimal       @default(0) @map("amount_paid") @db.Decimal(12, 2)
 
@@ -771,6 +789,9 @@ model Settings {
   invoiceBgImage          String?  @map("invoice_bg_image")                          // background/watermark URL
   invoiceBgOpacity        Float    @default(0.05) @map("invoice_bg_opacity")         // 0.0 - 1.0
   invoiceDefaultTaxPercent Decimal @default(0) @map("invoice_default_tax_percent") @db.Decimal(5, 2)
+  invoiceDefaultCgstPercent Decimal @default(0) @map("invoice_default_cgst_percent") @db.Decimal(5, 2)
+  invoiceDefaultSgstPercent Decimal @default(0) @map("invoice_default_sgst_percent") @db.Decimal(5, 2)
+  invoiceDefaultIgstPercent Decimal @default(0) @map("invoice_default_igst_percent") @db.Decimal(5, 2)
   invoiceDefaultDiscount  Decimal  @default(0) @map("invoice_default_discount") @db.Decimal(12, 2)
   invoiceDefaultNotes     String?  @map("invoice_default_notes") @db.Text
   invoiceDefaultTerms     String?  @map("invoice_default_terms") @db.Text

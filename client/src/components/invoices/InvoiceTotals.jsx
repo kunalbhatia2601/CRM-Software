@@ -6,23 +6,38 @@ function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+const GST_ROWS = [
+  { key: "cgstPercent", label: "CGST %" },
+  { key: "sgstPercent", label: "SGST %" },
+  { key: "igstPercent", label: "IGST %" },
+];
+
 /**
- * The invoice money summary, and the only place discount and tax are entered.
+ * The invoice money summary — discount, GST split, and the previous-due
+ * carry-forward are all entered here.
+ *
+ * Layout matches how the number is actually built: Subtotal → Discount →
+ * CGST/SGST/IGST (each independently overrideable) → Invoice Amount (the
+ * taxed amount) → Previous Due (untaxed, carried from the project's last
+ * invoice, always editable) → Grand Total.
  *
  * Discount can be typed either way round — an absolute amount or a percentage
- * of the subtotal — and each restates the other live. Only the amount is stored
- * (the schema has no discount percent, unlike tax), so the percentage shown is
+ * of the subtotal — and each restates the other live. Only the amount is
+ * stored (the schema has no discount percent), so the shown percentage is
  * always read back off the amount against the current subtotal.
  *
- * @param {{subtotal:number,disc:number,taxable:number,taxAmt:number,total:number}} totals
+ * @param {{subtotal:number,disc:number,taxable:number,cgstAmt:number,sgstAmt:number,igstAmt:number,taxAmt:number,invoiceAmount:number,prevDue:number,total:number}} totals
  * @param {number|string} discountAmount
  * @param {(v: string|number) => void} onDiscountChange
- * @param {number|string} taxPercent
- * @param {(v: string|number) => void} onTaxChange
+ * @param {{cgstPercent:number|string, sgstPercent:number|string, igstPercent:number|string}} gst
+ * @param {(field: string, v: string|number) => void} onGstChange
+ * @param {number|string} previousDueAmount
+ * @param {(v: string|number) => void} onPreviousDueChange
  * @param {(n: number) => string} format currency formatter
  */
 export default function InvoiceTotals({
-  totals, discountAmount, onDiscountChange, taxPercent, onTaxChange, format, symbol, inputClass,
+  totals, discountAmount, onDiscountChange, gst, onGstChange,
+  previousDueAmount, onPreviousDueChange, format, symbol, inputClass,
 }) {
   // Held separately while typing so "10." or an empty box does not get rounded
   // out from under the caret. Null means "show the value derived from the amount".
@@ -36,6 +51,9 @@ export default function InvoiceTotals({
     const pct = Math.min(100, Math.max(0, Number(raw) || 0));
     onDiscountChange(round2((totals.subtotal * pct) / 100));
   }
+
+  const gstAmounts = { cgstPercent: totals.cgstAmt, sgstPercent: totals.sgstAmt, igstPercent: totals.igstAmt };
+  const hasPrevDue = Number(previousDueAmount) > 0 || totals.prevDue > 0;
 
   return (
     <div className="space-y-2 text-sm">
@@ -81,24 +99,48 @@ export default function InvoiceTotals({
         </>
       )}
 
-      <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-        <span>Tax %</span>
-        <div className="w-28">
+      {/* GST split — each rate applies to the same taxable base, never compounded */}
+      {GST_ROWS.map((row) => (
+        <div key={row.key} className="flex justify-between items-center text-slate-600 dark:text-slate-300">
+          <span>{row.label}</span>
+          <div className="flex items-center gap-2">
+            {Number(gst[row.key]) > 0 && (
+              <span className="text-xs text-slate-400">{format(gstAmounts[row.key])}</span>
+            )}
+            <div className="w-24">
+              <input
+                type="number" min="0" max="100" step="0.01"
+                className={`${inputClass} text-right py-1`}
+                value={gst[row.key]}
+                onChange={(e) => onGstChange(row.key, e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex justify-between font-semibold text-slate-800 dark:text-slate-200 border-t border-slate-100 dark:border-slate-800 pt-2">
+        <span>Invoice Amount</span><span>{format(totals.invoiceAmount)}</span>
+      </div>
+
+      <div className="flex justify-between items-center gap-2 text-slate-600 dark:text-slate-300">
+        <span className="shrink-0">Previous Due</span>
+        <div className="relative w-28">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{symbol}</span>
           <input
-            type="number" min="0" max="100" step="0.01"
-            className={`${inputClass} text-right py-1`}
-            value={taxPercent}
-            onChange={(e) => onTaxChange(e.target.value)}
+            type="number" min="0" step="0.01"
+            className={`${inputClass} text-right pl-5 py-1`}
+            value={previousDueAmount}
+            onChange={(e) => onPreviousDueChange(e.target.value)}
           />
         </div>
       </div>
-
-      <div className="flex justify-between text-slate-500 text-xs">
-        <span>Tax amount</span><span>{format(totals.taxAmt)}</span>
-      </div>
+      {hasPrevDue && (
+        <p className="text-xs text-slate-400">Balance carried from the project's last invoice. Not taxed — edit or clear if it does not apply.</p>
+      )}
 
       <div className="border-t border-slate-200 dark:border-slate-800 pt-2 mt-2 flex justify-between font-bold text-slate-900 dark:text-slate-50">
-        <span>Total</span><span>{format(totals.total)}</span>
+        <span>Grand Total</span><span>{format(totals.total)}</span>
       </div>
     </div>
   );
