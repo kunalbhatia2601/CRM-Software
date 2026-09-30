@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Plus, ChevronDown, ChevronRight, Target, ListChecks, Layers, Pencil, Trash2, Calendar, User, Clock, X, Loader2, MessageSquare, MessageCircle, ArrowRight, GitBranch, CornerDownRight, Lightbulb, Package, Link as LinkIcon, Video, ExternalLink, Copy, Eye, EyeOff, UserCheck,
 } from "lucide-react";
@@ -263,10 +263,17 @@ export default function PlanningSection({
   // cycle/filter overrides above have run and the row exists in the DOM. Retried
   // with a short timeout because the accordion's expand and this scroll can
   // land in the same render pass, before layout has settled.
+  //
+  // Fires once per page load, not once per render: `visibleTasks` is a new
+  // array every time a task is edited (status change, etc.), so without this
+  // guard the effect re-ran on every edit and yanked the page back to the
+  // originally deep-linked task each time.
+  const scrolledToTaskRef = useRef(false);
   useEffect(() => {
-    if (!highlightTaskId) return;
+    if (!highlightTaskId || scrolledToTaskRef.current) return;
     if (!visibleTasks.some((t) => t.id === highlightTaskId)) return;
 
+    scrolledToTaskRef.current = true;
     const timer = setTimeout(() => {
       document.getElementById(`task-${highlightTaskId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
